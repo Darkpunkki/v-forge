@@ -93,13 +93,27 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/fixtures/node-project/` (fixture project for integration testing)
 
 ## WP-0004 — Gates pipeline (core safety checks)
-- **Status:** Queued
-- **VF Tasks:** VF-080, VF-081, VF-082, VF-083, VF-084, VF-085
+- **Status:** Done
+- **Started:** 2026-01-04 (local)
+- **Completed:** 2026-01-04 (local)
+- **Branch:** master
+- **VF Tasks:** VF-080, VF-081, VF-082, VF-083, VF-084, VF-085 (all complete ✓)
 - **Goal:** Enforce safety/feasibility policies before diffs/commands touch disk.
-- **Dependencies:** WP-0002 + WP-0003 recommended (gates protect those flows)
+- **Dependencies:** WP-0002 ✓ + WP-0003 ✓ (gates protect those flows)
 - **Plan Doc:** docs/ai/planning/WP-0004_VF-080-085_gates_pipeline.md
-- **Verify:**
-  - Unit tests for allowlist/forbidden patterns + blocked diff cases
+- **Verified:**
+  - `pytest tests/test_gates.py -v` - 36 tests passed
+  - `pytest -v` - All 127 tests passed
+  - Gate pipeline orchestrates multiple gates with aggregation and short-circuit
+  - PolicyGate blocks forbidden patterns (rm -rf /, curl | sh, eval, etc.) and path traversal
+  - RiskGate enforces command families and network access rules (ALLOW/DENY/ASK)
+  - FeasibilityGate enforces scope budgets, warns at 80%, blocks when exceeded
+  - DiffAndCommandGate validates diffs for secrets, file count, line count
+  - GateAdapter formats blocker/warning messages and generates clarification questions
+- **Files touched:**
+  - `apps/api/vibeforge_api/core/gates.py` (new - all gate implementations)
+  - `apps/api/tests/test_gates.py` (new - 36 comprehensive tests)
+  - `docs/ai/planning/WP-0004_VF-080-085_gates_pipeline.md` (plan document)
 
 ## WP-0005 — Configuration loader
 - **Status:** Queued

@@ -218,23 +218,41 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 08 Gates & Policies
 
-- [ ] **VF-080 — Implement Gate interface + GatePipeline composition**
+- [x] **VF-080 — Implement Gate interface + GatePipeline composition**
   - Create a consistent gate interface and a pipeline that can evaluate context and yield ok/warn/block results.
+  - **Files:** `apps/api/vibeforge_api/core/gates.py` (Gate, GateContext, GatePipeline)
+  - **Tests:** `apps/api/tests/test_gates.py` (6 pipeline tests)
+  - **Verify:** `pytest tests/test_gates.py::test_gate_pipeline -v`
 
-- [ ] **VF-081 — Implement FeasibilityGate (scope budgets, screens/entities/diff size)**
+- [x] **VF-081 — Implement FeasibilityGate (scope budgets, screens/entities/diff size)**
   - Enforce BuildSpec scope budgets and stop unrealistic plans early (before code generation).
+  - **Files:** `apps/api/vibeforge_api/core/gates.py` (FeasibilityGate)
+  - **Tests:** `apps/api/tests/test_gates.py::TestFeasibilityGate` (5 tests)
+  - **Verify:** `pytest tests/test_gates.py::TestFeasibilityGate -v`
 
-- [ ] **VF-082 — Implement RiskGate (command families, network rule enforcement)**
+- [x] **VF-082 — Implement RiskGate (command families, network rule enforcement)**
   - Ensure requested commands fit allowlisted families and that network access rules are respected.
+  - **Files:** `apps/api/vibeforge_api/core/gates.py` (RiskGate)
+  - **Tests:** `apps/api/tests/test_gates.py::TestRiskGate` (6 tests)
+  - **Verify:** `pytest tests/test_gates.py::TestRiskGate -v`
 
-- [ ] **VF-083 — Implement PolicyGate (forbidden regex patterns, path constraints)**
+- [x] **VF-083 — Implement PolicyGate (forbidden regex patterns, path constraints)**
   - Block unsafe content patterns and prevent file operations outside the workspace.
+  - **Files:** `apps/api/vibeforge_api/core/gates.py` (PolicyGate)
+  - **Tests:** `apps/api/tests/test_gates.py::TestPolicyGate` (6 tests)
+  - **Verify:** `pytest tests/test_gates.py::TestPolicyGate -v`
 
-- [ ] **VF-084 — Implement DiffAndCommandGate (max files/lines, forbidden content in diff)**
+- [x] **VF-084 — Implement DiffAndCommandGate (max files/lines, forbidden content in diff)**
   - Validate AgentResult diffs and commands before apply/run; enforce per-task constraints.
+  - **Files:** `apps/api/vibeforge_api/core/gates.py` (DiffAndCommandGate)
+  - **Tests:** `apps/api/tests/test_gates.py::TestDiffAndCommandGate` (6 tests)
+  - **Verify:** `pytest tests/test_gates.py::TestDiffAndCommandGate -v`
 
-- [ ] **VF-085 — Gate-to-UI adapter (warnings/blockers + multiple-choice questions)**
+- [x] **VF-085 — Gate-to-UI adapter (warnings/blockers + multiple-choice questions)**
   - Translate gate output into UI-friendly messages and multiple-choice clarification questions where needed.
+  - **Files:** `apps/api/vibeforge_api/core/gates.py` (GateAdapter)
+  - **Tests:** `apps/api/tests/test_gates.py::TestGateAdapter` (5 tests)
+  - **Verify:** `pytest tests/test_gates.py::TestGateAdapter -v`
 
 
 ### 09 TaskGraph + TaskMaster + Distributor
