@@ -153,6 +153,19 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/test_e2e_demo.py` (new E2E tests)
   - `apps/api/tests/test_sessions.py` (updated expectations)
 
+## WP-0007 — UI Shell (MVP)
+- **Status:** Queued
+- **VF Tasks:** VF-010, VF-011, VF-012, VF-013, VF-014, VF-015, VF-016
+- **Goal:** Enable users to interact with VibeForge through a web UI with structured inputs only (no free text), providing screens for questionnaire, plan review, progress tracking, clarifications, and final summary.
+- **Dependencies:** WP-0001 ✓ (Local UI API must exist for UI to communicate with backend)
+- **Plan Doc:** docs/ai/planning/WP-0007_VF-010-016_ui_shell_mvp.md
+- **Verify:**
+  - UI dev server starts successfully
+  - All 6 screens render correctly (questionnaire, plan review, progress, clarification, summary)
+  - UI client successfully communicates with Local UI API endpoints
+  - No free-text inputs present (only structured controls: radio, select, buttons)
+  - End-to-end flow: start session → answer questions → approve plan → view progress → see summary
+
 ---
 
 ## Notes / Decisions Log

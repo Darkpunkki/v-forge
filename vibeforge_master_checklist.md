@@ -1,6 +1,84 @@
 # VibeForge Master Checklist
 
+
+
+
+## MVP Workflow Vocabulary (Vision Context)
+
+This section is **not** a task list. It is shared vocabulary describing the intended **VibeForge MVP workflow** so agents can generate plans/tasks with the right mental model.
+
+### High-level promise
+VibeForge turns **structured-only user choices** into a **runnable local app** using a **safe, gated, test-driven factory loop**. Users never provide free-text app descriptions; they influence outcomes via curated options, budgets, and “vibe” controls.
+
+### The canonical artifacts
+Agents should think in terms of these stable artifacts (each persisted per session):
+- **IntentProfile**: the user’s questionnaire answers (strictly structured, no free text).
+- **BuildSpec**: deterministic contract derived from IntentProfile (stack preset, seed/twists, budgets, policies, acceptance criteria).
+- **Concept**: human-readable concept doc + structured concept data aligned to BuildSpec constraints.
+- **TaskGraph**: a DAG plan (tasks + dependencies + constraints + verification steps).
+- **AgentResult**: a standard agent output (unified diff + proposed commands + structured notes).
+- **RunSummary**: what was built + how to run + what verified + limitations.
+
+### Session phases (mental model)
+A session progresses through phases with strict guards; “wrong phase” calls must be rejected consistently:
+1) **SESSION_START** → create session + workspace + initial artifacts
+2) **QUESTIONNAIRE** → serve next question → accept answer → repeat → finalize IntentProfile
+3) **SPEC_BUILD** → BuildSpec from IntentProfile (deterministic)
+4) **IDEA** → generate Concept (seeded creativity within constraints)
+5) **PLAN_REVIEW** → generate TaskGraph → gates → show plan summary → approve/reject
+6) **EXECUTION** → iterate tasks: dispatch → gate → apply → verify → mark done/failed
+7) **VERIFICATION** → final global verification (build/test/smoke)
+8) **COMPLETE** or **FAILED/ABORTED** → produce RunSummary + preserve artifacts/logs
+
+*(Exact enum names may differ; the behavior above is the contract.)*
+
+### “Gates everywhere” principle
+Before any risky action, the system must gate it. Gates are small policy checks that return **ok / warn / block**, optionally with **multiple-choice clarifications**.
+Common gate categories:
+- **Feasibility**: scope budgets, diff size limits, unrealistic plans
+- **Risk/Policy**: command allowlists, network rule, forbidden patterns
+- **Diff/Command validation**: max files/lines, path constraints, forbidden content
+- **Plan gates**: block unsafe TaskGraphs before execution starts
+
+**Rule:** Nothing writes outside the session workspace. Nothing runs outside allowlisted command families.
+
+### Execution loop (the “factory engine”)
+Execution is intentionally boring and deterministic:
+- Pick next ready task from TaskGraph (DAG)
+- Route to a role (worker/foreman/fixer/reviewer)
+- Agent produces AgentResult (diff + commands-to-run + notes)
+- Gate the AgentResult
+- Apply diff to workspace repo (safe patching)
+- Run task verification (declared by the task)
+- Record artifacts + events
+- On failure: bounded fix-loop with escalation rules
+
+### Clarifications (structured, never free text)
+When gates or agents need more info, they must return **multiple-choice questions**. The UI only allows constrained answers. Clarifications feed back into the coordinator and the next agent step.
+
+### Determinism and reproducibility
+Randomness is controlled:
+- BuildSpec includes a **seed** (derived deterministically from IntentProfile)
+- “Twist cards” are chosen from allowlists and recorded
+- Key decisions/config hashes are persisted so runs can be replayed for debugging
+
+### What “done” means for MVP runs
+A successful run produces:
+- A workspace repo that builds and tests (at least build+test; smoke if available)
+- Clear run instructions
+- A coherent summary
+- An artifact trail and event log sufficient to debug failures
+
+### Planning and execution discipline (Work Packages)
+Agents should execute work via **Work Packages (WPs)**:
+- WPs are small bundles of VF tasks used for iterative progress (plan → implement → verify → update docs → check off).
+- The master checklist remains canonical for “what exists” and “what done means.”
+- Planning docs under `docs/ai/planning/` should reference VF IDs and verification commands.
+
+---
+
 Use the checkboxes below as a living backlog. Mark tasks complete by changing `[ ]` to `[x]`.
+
 
 ## Checklist
 
