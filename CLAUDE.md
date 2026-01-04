@@ -81,9 +81,22 @@ Rules:
 
 ## Key Commands
 When working on this project, you can run commands to:
-- Understand project requirements and goals (`review-requirements`)
-- Review architectural decisions (`review-design`)
-- Plan and execute tasks (`execute-plan`)
-- Verify implementation against design (`check-implementation`)
-- Suggest missing tests (`suggest-tests`)
-- Perform structured code reviews (`code-review`)
+
+### Requirements & Design
+- Start new features (`new-requirement`)
+- Review requirements documentation (`review-requirements`)
+- Review design documentation (`review-design`)
+
+### Planning & Execution
+- Queue next work package (`queue-next-wp`)
+- Execute work packages iteratively (`execute-plan`)
+- Update planning with progress (`update-planning`)
+
+### Implementation & Verification
+- Verify implementation vs design (`check-implementation`)
+- Write comprehensive tests (`writing-test`)
+- Perform local code review (`code-review`)
+- Debug issues systematically (`debug`)
+
+### Knowledge Management
+- Capture codebase knowledge (`capture-knowledge`)
