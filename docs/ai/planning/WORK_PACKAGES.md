@@ -166,6 +166,42 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - No free-text inputs present (only structured controls: radio, select, buttons)
   - End-to-end flow: start session → answer questions → approve plan → view progress → see summary
 
+## WP-0008 — Repository foundations + test harness
+- **Status:** Queued
+- **VF Tasks:** VF-001, VF-004
+- **Goal:** Finalize the monorepo layout and add a minimal CI/test harness so future WPs build on a stable, testable foundation.
+- **Dependencies:** None (applies to root structure)
+- **Plan Doc:** docs/ai/planning/WP-0008_VF-001-004_repo_ci_foundation.md
+- **Verify:**
+  - `cd apps/api && pytest -v`
+  - `cd apps/api && pytest tests/test_repo_layout.py -v`
+  - CI workflow runs unit tests (GitHub Actions or `act` dry-run)
+  - Documentation updated with local test instructions
+
+## WP-0009 — Questionnaire engine foundations
+- **Status:** Queued
+- **VF Tasks:** VF-040, VF-041, VF-042
+- **Goal:** Provide a deterministic questionnaire engine with curated QuestionBank, adaptive branching, and strict answer validation to keep sessions structured.
+- **Dependencies:** WP-0001 ✓ (API plumbing)
+- **Plan Doc:** docs/ai/planning/WP-0009_VF-040-042_questionnaire_engine.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_questionnaire_engine.py -v`
+  - `cd apps/api && pytest tests/test_sessions.py -k questionnaire -v`
+  - `cd apps/api && pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result -v`
+  - Manual API checks for structured questions and validation errors
+
+## WP-0010 — Stack presets + deterministic spec foundation
+- **Status:** Queued
+- **VF Tasks:** VF-050, VF-052, VF-053, VF-054
+- **Goal:** Solidify BuildSpec inputs with allowlisted stack presets, deterministic seed/twist derivation, and validated/persisted BuildSpec artifacts.
+- **Dependencies:** WP-0002 ✓ (workspace/artifacts), WP-0003 ✓ (command runner/verifiers)
+- **Plan Doc:** docs/ai/planning/WP-0010_VF-050-054_spec_builder_foundations.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_spec_builder.py -v`
+  - `cd apps/api && pytest tests/test_artifacts.py -k buildspec -v`
+  - `cd apps/api && pytest tests/test_verifiers.py -k preset -v`
+  - Manual inspection of persisted BuildSpec (seed/twists deterministic)
+
 ---
 
 ## Notes / Decisions Log
