@@ -1,0 +1,35 @@
+{
+  "id": "web_vite_react",
+  "platform": "web",
+  "runtime": "node",
+  "packageManager": "npm",
+  "scaffold": {
+    "notes": "In MVP, you can scaffold from a template directory instead of running create-vite dynamically."
+  },
+  "commands": {
+    "install": [
+      "npm",
+      "install"
+    ],
+    "dev": [
+      "npm",
+      "run",
+      "dev",
+      "--",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "5174"
+    ],
+    "build": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "test": [
+      "npm",
+      "run",
+      "test"
+    ]
+  }
+}

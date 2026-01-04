@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibeforge.local/schemas/AgentResult.schema.json",
+  "title": "AgentResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "taskId",
+    "status",
+    "diff",
+    "commandsToRun",
+    "notes"
+  ],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "taskId": { "type": "string" },
+
+    "status": {
+      "type": "string",
+      "enum": ["SUCCESS", "NEEDS_CLARIFICATION", "FAILED"]
+    },
+
+    "clarificationQuestions": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "question", "options"],
+        "properties": {
+          "id": { "type": "string", "maxLength": 40 },
+          "question": { "type": "string", "maxLength": 200 },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 6,
+            "items": { "type": "string", "maxLength": 60 }
+          }
+        }
+      }
+    },
+
+    "diff": {
+      "description": "Unified diff to apply against the workspace repo. Empty string allowed if status is NEEDS_CLARIFICATION.",
+      "type": "string",
+      "maxLength": 200000
+    },
+
+    "commandsToRun": {
+      "description": "Commands are requested, not executed by the agent. The system checks allowlists.",
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "cwd", "purpose"],
+        "properties": {
+          "command": { "type": "string", "maxLength": 200 },
+          "cwd": { "type": "string", "maxLength": 60 },
+          "purpose": { "type": "string", "maxLength": 120 }
+        }
+      }
+    },
+
+    "notes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "assumptions", "risks", "followUps"],
+      "properties": {
+        "summary": { "type": "string", "maxLength": 600 },
+        "assumptions": {
+          "type": "array",
+          "maxItems": 10,
+          "items": { "type": "string", "maxLength": 160 }
+        },
+        "risks": {
+          "type": "array",
+          "maxItems": 10,
+          "items": { "type": "string", "maxLength": 160 }
+        },
+        "followUps": {
+          "type": "array",
+          "maxItems": 15,
+          "items": { "type": "string", "maxLength": 160 }
+        }
+      }
+    },
+
+    "telemetry": {
+      "description": "Optional; useful for debugging and quality monitoring.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "estimatedFilesChanged": { "type": "integer", "minimum": 0, "maximum": 500 },
+        "estimatedDiffLines": { "type": "integer", "minimum": 0, "maximum": 100000 }
+      }
+    },
+
+    "error": {
+      "description": "If FAILED, provide a short error summary and what was tried.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["message"],
+      "properties": {
+        "message": { "type": "string", "maxLength": 400 },
+        "details": { "type": "string", "maxLength": 2000 }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "FAILED" } },
+        "required": ["status"]
+      },
+      "then": { "required": ["error"] }
+    }
+  ]
+}

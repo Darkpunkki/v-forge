@@ -1,0 +1,155 @@
+"""Tests for session endpoints."""
+
+import pytest
+from fastapi.testclient import TestClient
+
+from vibeforge_api.main import app
+from vibeforge_api.core.session import session_store
+
+client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def reset_session_store():
+    """Reset session store before each test."""
+    session_store._sessions.clear()
+    yield
+
+
+def test_health_check():
+    """Test health check endpoint."""
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_create_session():
+    """Test VF-021: POST /sessions creates a new session."""
+    response = client.post("/sessions")
+    assert response.status_code == 201
+    data = response.json()
+    assert "session_id" in data
+    assert data["phase"] == "QUESTIONNAIRE"
+
+
+def test_get_first_question():
+    """Test VF-022: GET /sessions/{id}/question returns first question."""
+    # Create session
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    # Get question
+    response = client.get(f"/sessions/{session_id}/question")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["question_id"] == "q1_audience"
+    assert "text" in data
+    assert "options" in data
+
+
+def test_submit_valid_answer():
+    """Test VF-023: POST /sessions/{id}/answers accepts valid answer."""
+    # Create session
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    # Submit answer
+    response = client.post(
+        f"/sessions/{session_id}/answers",
+        json={"question_id": "q1_audience", "answer": "general"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "accepted"
+
+
+def test_submit_invalid_answer():
+    """Test VF-023: POST /sessions/{id}/answers rejects invalid answer."""
+    # Create session
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    # Submit invalid answer
+    response = client.post(
+        f"/sessions/{session_id}/answers",
+        json={"question_id": "q1_audience", "answer": "invalid_option"},
+    )
+    assert response.status_code == 400
+
+
+def test_questionnaire_flow_completion():
+    """Test complete questionnaire flow."""
+    # Create session
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    # Answer all questions
+    questions = [
+        {"question_id": "q1_audience", "answer": "general"},
+        {"question_id": "q2_platform", "answer": "web"},
+        {"question_id": "q3_complexity", "answer": "simple"},
+    ]
+
+    for q in questions:
+        response = client.post(f"/sessions/{session_id}/answers", json=q)
+        assert response.status_code == 200
+
+    # After last question, phase should advance to BUILD_SPEC
+    final_response = response.json()
+    assert final_response["next_phase"] == "BUILD_SPEC"
+    assert final_response["is_complete"] is True
+
+
+def test_get_question_wrong_phase():
+    """Test VF-029: Cannot get question in wrong phase."""
+    # Create session and complete questionnaire
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    # Complete questionnaire
+    questions = [
+        {"question_id": "q1_audience", "answer": "general"},
+        {"question_id": "q2_platform", "answer": "web"},
+        {"question_id": "q3_complexity", "answer": "simple"},
+    ]
+    for q in questions:
+        client.post(f"/sessions/{session_id}/answers", json=q)
+
+    # Try to get question in BUILD_SPEC phase
+    response = client.get(f"/sessions/{session_id}/question")
+    assert response.status_code == 400
+    assert "QUESTIONNAIRE phase" in response.json()["detail"]
+
+
+def test_get_progress():
+    """Test VF-026: GET /sessions/{id}/progress returns progress info."""
+    # Create session
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    # Get progress
+    response = client.get(f"/sessions/{session_id}/progress")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["session_id"] == session_id
+    assert data["phase"] == "QUESTIONNAIRE"
+    assert "logs" in data
+
+
+def test_session_not_found():
+    """Test VF-029: Proper error for non-existent session."""
+    response = client.get("/sessions/nonexistent-id/question")
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"]
+
+
+def test_plan_summary_wrong_phase():
+    """Test VF-024: Cannot get plan summary in wrong phase."""
+    # Create session
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    # Try to get plan while in QUESTIONNAIRE phase
+    response = client.get(f"/sessions/{session_id}/plan")
+    assert response.status_code == 400
+    assert "PLAN_REVIEW phase" in response.json()["detail"]

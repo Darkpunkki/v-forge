@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibeforge.local/schemas/BuildSpec.schema.json",
+  "title": "BuildSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "sessionId",
+    "createdAt",
+    "target",
+    "stack",
+    "ideaSeed",
+    "scopeBudget",
+    "policies",
+    "acceptance"
+  ],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "sessionId": { "type": "string", "format": "uuid" },
+    "createdAt": { "type": "string", "format": "date-time" },
+
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "audience"],
+      "properties": {
+        "platform": { "type": "string", "enum": ["WEB_APP", "DESKTOP_APP", "CLI_APP"] },
+        "audience": { "type": "string", "enum": ["SELF", "FRIEND", "TEAM", "SMALL_BUSINESS", "PUBLIC"] }
+      }
+    },
+
+    "stack": {
+      "description": "MVP: pick from a small allowlist.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preset", "runtime", "packageManager"],
+      "properties": {
+        "preset": {
+          "type": "string",
+          "enum": [
+            "WEB_VITE_REACT_TS",
+            "WEB_NEXTJS_TS",
+            "CLI_PYTHON",
+            "API_SPRINGBOOT_JAVA"
+          ]
+        },
+        "runtime": {
+          "type": "string",
+          "enum": ["NODE_20", "PYTHON_3_12", "JAVA_17"]
+        },
+        "packageManager": {
+          "type": "string",
+          "enum": ["NPM", "PNPM", "PIP", "MAVEN"]
+        }
+      }
+    },
+
+    "ideaSeed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed", "genre", "twists"],
+      "properties": {
+        "seed": { "type": "integer", "minimum": 0 },
+        "genre": {
+          "type": "string",
+          "enum": ["TRACKER", "COACH", "PLANNER", "QUIZ", "GENERATOR", "DASHBOARD", "SIMULATOR"]
+        },
+        "twists": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "DAILY_CHALLENGES",
+              "BADGES_ACHIEVEMENTS",
+              "RETRO_THEME",
+              "PRIVACY_FIRST_LOCAL_ONLY",
+              "COZY_UI",
+              "RANDOM_PROMPT_OF_THE_DAY",
+              "STREAKS"
+            ]
+          }
+        }
+      }
+    },
+
+    "scopeBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["featureBudget", "maxScreens", "maxEntities", "maxCommandsPerTask"],
+      "properties": {
+        "featureBudget": { "type": "string", "enum": ["TINY", "SMALL", "MEDIUM"] },
+        "maxScreens": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "maxEntities": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "maxCommandsPerTask": { "type": "integer", "minimum": 1, "maximum": 6 }
+      }
+    },
+
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkAccess", "allowedCommandFamilies", "forbiddenPatterns"],
+      "properties": {
+        "networkAccess": { "type": "string", "enum": ["ALLOW", "DENY", "ASK"] },
+        "allowedCommandFamilies": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["NODE_BUILD", "NODE_TEST", "JAVA_BUILD", "JAVA_TEST", "PYTHON_TEST", "GIT", "FORMAT"]
+          }
+        },
+        "forbiddenPatterns": {
+          "description": "Regex patterns to block in commands/diffs (e.g., rm -rf, curl | sh).",
+          "type": "array",
+          "maxItems": 50,
+          "items": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mustBuild", "mustHaveTests", "mustRunLocally", "smokeRoutes"],
+      "properties": {
+        "mustBuild": { "type": "boolean" },
+        "mustHaveTests": { "type": "boolean" },
+        "mustRunLocally": { "type": "boolean" },
+        "smokeRoutes": {
+          "type": "array",
+          "maxItems": 10,
+          "items": { "type": "string", "maxLength": 120 }
+        }
+      }
+    }
+  }
+}

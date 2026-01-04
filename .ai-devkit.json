@@ -1,0 +1,17 @@
+{
+  "version": "0.4.2",
+  "environments": [
+    "claude"
+  ],
+  "initializedPhases": [
+    "requirements",
+    "design",
+    "planning",
+    "implementation",
+    "testing",
+    "deployment",
+    "monitoring"
+  ],
+  "createdAt": "2026-01-04T08:04:44.088Z",
+  "updatedAt": "2026-01-04T08:04:44.128Z"
+}

@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibeforge.local/schemas/TaskGraph.schema.json",
+  "title": "TaskGraph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "sessionId",
+    "createdAt",
+    "repo",
+    "tasks",
+    "dependencies",
+    "globalVerification"
+  ],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "sessionId": { "type": "string", "format": "uuid" },
+    "createdAt": { "type": "string", "format": "date-time" },
+
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projectName", "descriptionShort"],
+      "properties": {
+        "projectName": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "descriptionShort": { "type": "string", "minLength": 10, "maxLength": 200 }
+      }
+    },
+
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": { "$ref": "#/$defs/Task" }
+    },
+
+    "dependencies": {
+      "description": "Edges in the task DAG.",
+      "type": "array",
+      "maxItems": 400,
+      "items": { "$ref": "#/$defs/Dependency" }
+    },
+
+    "globalVerification": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/VerificationStep" }
+    }
+  },
+
+  "$defs": {
+    "Task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "roleHint",
+        "objective",
+        "inputs",
+        "expectedOutputs",
+        "constraints",
+        "verification"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9\\-]{6,40}$" },
+        "title": { "type": "string", "minLength": 4, "maxLength": 80 },
+
+        "roleHint": {
+          "type": "string",
+          "enum": [
+            "WORKER_SCAFFOLD",
+            "WORKER_UI",
+            "WORKER_LOGIC",
+            "WORKER_TESTS",
+            "WORKER_DOCS",
+            "FIXER",
+            "REVIEWER"
+          ]
+        },
+
+        "objective": { "type": "string", "minLength": 10, "maxLength": 800 },
+
+        "inputs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["filesToRead", "contextNotes"],
+          "properties": {
+            "filesToRead": {
+              "type": "array",
+              "maxItems": 40,
+              "items": { "type": "string", "maxLength": 180 }
+            },
+            "contextNotes": {
+              "type": "array",
+              "maxItems": 20,
+              "items": { "type": "string", "maxLength": 200 }
+            }
+          }
+        },
+
+        "expectedOutputs": {
+          "description": "High-level outcomes, not full code.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "type": "string", "maxLength": 180 }
+        },
+
+        "constraints": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["maxFilesChanged", "maxDiffLines", "allowedCommands"],
+          "properties": {
+            "maxFilesChanged": { "type": "integer", "minimum": 1, "maximum": 50 },
+            "maxDiffLines": { "type": "integer", "minimum": 10, "maximum": 5000 },
+            "allowedCommands": {
+              "type": "array",
+              "maxItems": 10,
+              "items": { "$ref": "#/$defs/AllowedCommand" }
+            }
+          }
+        },
+
+        "verification": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/VerificationStep" }
+        }
+      }
+    },
+
+    "Dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beforeTaskId", "afterTaskId", "type"],
+      "properties": {
+        "beforeTaskId": { "type": "string" },
+        "afterTaskId": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["BLOCKS", "SOFT_DEPENDENCY"]
+        }
+      }
+    },
+
+    "AllowedCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "command", "cwd"],
+      "properties": {
+        "family": {
+          "type": "string",
+          "enum": ["NODE_BUILD", "NODE_TEST", "JAVA_BUILD", "JAVA_TEST", "PYTHON_TEST", "GIT", "FORMAT"]
+        },
+        "command": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "cwd": {
+          "description": "Relative working directory (e.g., '.', 'frontend').",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        }
+      }
+    },
+
+    "VerificationStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "label"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["COMMAND", "SMOKE_HTTP", "FILE_EXISTS", "JSON_SCHEMA_VALIDATE"]
+        },
+        "label": { "type": "string", "minLength": 3, "maxLength": 80 },
+
+        "commandRef": {
+          "description": "For COMMAND verification: which allowed command to run.",
+          "type": "integer",
+          "minimum": 0
+        },
+
+        "http": {
+          "description": "For SMOKE_HTTP verification.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "path", "expectedStatus"],
+          "properties": {
+            "method": { "type": "string", "enum": ["GET", "POST"] },
+            "path": { "type": "string", "maxLength": 120 },
+            "expectedStatus": { "type": "integer", "minimum": 100, "maximum": 599 }
+          }
+        },
+
+        "file": {
+          "description": "For FILE_EXISTS verification.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path"],
+          "properties": {
+            "path": { "type": "string", "maxLength": 180 }
+          }
+        },
+
+        "jsonSchema": {
+          "description": "For JSON_SCHEMA_VALIDATE verification (validate an artifact).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifactKey", "schemaId"],
+          "properties": {
+            "artifactKey": { "type": "string", "maxLength": 80 },
+            "schemaId": { "type": "string", "maxLength": 180 }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "networkAccess": "ask",
+  "allowedCommandFamilies": [
+    "npm",
+    "node",
+    "git"
+  ],
+  "forbiddenDiffRegex": [
+    "(?i)rm\\s+-rf",
+    "(?i)curl\\s+http",
+    "(?i)wget\\s+http",
+    "(?i)ssh\\s+",
+    "(?i)scp\\s+"
+  ],
+  "forbiddenPaths": [
+    "^/",
+    "^\\\\\\\\",
+    "\\.\\./"
+  ]
+}

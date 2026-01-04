@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibeforge.local/schemas/IntentProfile.schema.json",
+  "title": "IntentProfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "sessionId",
+    "createdAt",
+    "audience",
+    "platformPreference",
+    "domains",
+    "vibe",
+    "constraints",
+    "scope"
+  ],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "sessionId": { "type": "string", "format": "uuid" },
+    "createdAt": { "type": "string", "format": "date-time" },
+
+    "audience": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetUser", "userCount"],
+      "properties": {
+        "targetUser": {
+          "type": "string",
+          "enum": ["SELF", "FRIEND", "TEAM", "SMALL_BUSINESS", "PUBLIC"]
+        },
+        "userCount": {
+          "type": "string",
+          "enum": ["ONE", "FEW", "MANY", "UNKNOWN"]
+        }
+      }
+    },
+
+    "platformPreference": {
+      "type": "string",
+      "enum": ["WEB_APP", "DESKTOP_APP", "CLI_APP", "NO_PREFERENCE"]
+    },
+
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "PRODUCTIVITY",
+          "FITNESS",
+          "LEARNING",
+          "FINANCE",
+          "FOOD",
+          "GAMES",
+          "CREATIVITY",
+          "HEALTH_WELLNESS",
+          "SOCIAL",
+          "TOOLS_UTILITIES"
+        ]
+      }
+    },
+
+    "vibe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seriousness", "visualStyle", "complexity", "randomness"],
+      "properties": {
+        "seriousness": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "visualStyle": {
+          "type": "string",
+          "enum": ["MINIMAL", "MODERN", "RETRO", "PLAYFUL", "NO_PREFERENCE"]
+        },
+        "complexity": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "randomness": {
+          "type": "string",
+          "enum": ["SAFE", "MEDIUM", "CHAOTIC"]
+        }
+      }
+    },
+
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offlinePreferred", "authAllowed", "dataSensitivity", "networkAccessDuringBuild"],
+      "properties": {
+        "offlinePreferred": { "type": "boolean" },
+        "authAllowed": { "type": "boolean" },
+        "dataSensitivity": {
+          "type": "string",
+          "enum": ["LOW", "MEDIUM", "HIGH"]
+        },
+        "networkAccessDuringBuild": {
+          "type": "string",
+          "enum": ["ALLOW", "DENY", "ASK"]
+        }
+      }
+    },
+
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timeBudgetMinutes", "featureBudget"],
+      "properties": {
+        "timeBudgetMinutes": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 240
+        },
+        "featureBudget": {
+          "type": "string",
+          "enum": ["TINY", "SMALL", "MEDIUM"]
+        }
+      }
+    },
+
+    "notes": {
+      "description": "Optional, but keep it constrained to short tags instead of free text.",
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "maxLength": 40
+      }
+    }
+  }
+}
