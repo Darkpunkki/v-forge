@@ -84,8 +84,31 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Verify:**
   - Unit tests for allowlist/forbidden patterns + blocked diff cases
 
+## WP-0005 — Configuration loader
+- **Status:** Queued
+- **VF Tasks:** VF-003
+- **Goal:** Load stack presets, command policies, and routing rules from config files to make system behavior adjustable without code changes.
+- **Dependencies:** None
+- **Plan Doc:** docs/ai/planning/WP-0005_VF-003_config_loader.md
+- **Verify:**
+  - Unit tests for config loading
+  - Config validation tests
+  - Test that stack presets and policies load correctly
+
+## WP-0006 — Questionnaire finalization + mock generation (E2E demo)
+- **Status:** Queued
+- **VF Tasks:** VF-043, VF-028, VF-051 (partial/stub)
+- **Goal:** Complete end-to-end flow from questionnaire → IntentProfile → mock generation → result endpoint, enabling first testable demo.
+- **Dependencies:** WP-0001 (API), WP-0002 (Workspace)
+- **Plan Doc:** docs/ai/planning/WP-0006_VF-043-028-051_e2e_demo.md
+- **Verify:**
+  - End-to-end test: Create session → answer all questions → generate mock output → get result
+  - IntentProfile validation against schema
+  - Generated files appear in workspace/repo/
+  - Result endpoint returns completion summary
+
 ---
 
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
-- Example: “MVP test runner is pytest only; add integration tests starting WP-0003.”
+- Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
