@@ -120,3 +120,7 @@ class WorkspaceManager:
         workspace_path = self.workspace_root / session_id
         if workspace_path.exists():
             shutil.rmtree(workspace_path)
+
+
+# Global workspace manager instance
+workspace_manager = WorkspaceManager()

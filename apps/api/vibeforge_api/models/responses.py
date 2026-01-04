@@ -59,3 +59,15 @@ class ProgressResponse(BaseModel):
     completed_tasks: list[TaskProgress] = []
     failed_tasks: list[TaskProgress] = []
     logs: list[str] = []
+
+
+class ResultResponse(BaseModel):
+    """Response containing final session result and summary."""
+
+    session_id: str
+    status: str  # success, failed
+    workspace_path: str
+    generated_files: list[str]
+    run_instructions: str
+    summary: str
+    artifacts: dict[str, str]  # artifact_name -> artifact_path

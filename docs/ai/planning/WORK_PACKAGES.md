@@ -96,16 +96,31 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - Test that stack presets and policies load correctly
 
 ## WP-0006 — Questionnaire finalization + mock generation (E2E demo)
-- **Status:** Queued
-- **VF Tasks:** VF-043, VF-028, VF-051 (partial/stub)
+- **Status:** Done
+- **Started:** 2026-01-04 (local)
+- **Completed:** 2026-01-04 (local)
+- **Branch:** master
+- **VF Tasks:** VF-043, VF-028, VF-051 (all complete ✓)
 - **Goal:** Complete end-to-end flow from questionnaire → IntentProfile → mock generation → result endpoint, enabling first testable demo.
-- **Dependencies:** WP-0001 (API), WP-0002 (Workspace)
-- **Plan Doc:** docs/ai/planning/WP-0006_VF-043-028-051_e2e_demo.md
-- **Verify:**
+- **Dependencies:** WP-0001 (API) ✓, WP-0002 (Workspace) ✓
+- **Verified:**
+  - `pytest tests/test_e2e_demo.py -v` - 4 E2E tests passed
+  - `pytest -v` - All 50 tests passed
   - End-to-end test: Create session → answer all questions → generate mock output → get result
-  - IntentProfile validation against schema
+  - IntentProfile generated and validated against schema
+  - BuildSpec generated from IntentProfile deterministically
   - Generated files appear in workspace/repo/
-  - Result endpoint returns completion summary
+  - Result endpoint returns completion summary with run instructions
+- **Files touched:**
+  - `apps/api/vibeforge_api/core/spec_builder.py` (new - VF-051)
+  - `apps/api/vibeforge_api/core/questionnaire.py` (added finalize() - VF-043)
+  - `apps/api/vibeforge_api/core/mock_generator.py` (new - mock generation)
+  - `apps/api/vibeforge_api/routers/sessions.py` (updated flow + result endpoint - VF-028)
+  - `apps/api/vibeforge_api/models/responses.py` (ResultResponse model)
+  - `apps/api/vibeforge_api/core/workspace.py` (added workspace_manager global)
+  - `apps/api/vibeforge_api/core/artifacts.py` (added SessionArtifactStore wrapper)
+  - `apps/api/tests/test_e2e_demo.py` (new E2E tests)
+  - `apps/api/tests/test_sessions.py` (updated expectations)
 
 ---
 

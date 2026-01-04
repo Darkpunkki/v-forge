@@ -86,8 +86,11 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 - [ ] **VF-027 — Endpoint: POST /sessions/{id}/clarifications (submitClarificationChoice)**
   - Accept user choices for clarification questions and feed them back into the coordinator/agent loop.
 
-- [ ] **VF-028 — Endpoint: GET /sessions/{id}/result (final summary)**
+- [x] **VF-028 — Endpoint: GET /sessions/{id}/result (final summary)**
   - Return completion summary and run instructions when the session reaches COMPLETE.
+  - File: `apps/api/vibeforge_api/routers/sessions.py:236`
+  - Returns ResultResponse with workspace path, generated files, run instructions, summary
+  - Verification: `pytest tests/test_e2e_demo.py::test_result_endpoint_wrong_phase`, `test_result_endpoint_nonexistent_session`
 
 - [x] **VF-029 — API validation + error mapping (bad phase, invalid session, schema violations)**
   - Provide consistent errors for invalid inputs, missing sessions, and wrong-phase calls to keep UI simple and predictable.
@@ -139,8 +142,11 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 - [ ] **VF-042 — Implement QuestionnaireEngine.applyAnswer() + validation**
   - Validate answers against allowed options and update session questionnaire state.
 
-- [ ] **VF-043 — Implement QuestionnaireEngine.finalize() -> IntentProfile (schema-validated)**
+- [x] **VF-043 — Implement QuestionnaireEngine.finalize() -> IntentProfile (schema-validated)**
   - Produce the final IntentProfile object and validate it against the schema to ensure stability downstream.
+  - File: `apps/api/vibeforge_api/core/questionnaire.py` (finalize() method)
+  - Maps questionnaire answers to IntentProfile structure
+  - Verification: `pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result`
 
 
 ### 05 Spec Builder + Seed/Twist
@@ -148,8 +154,12 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 - [ ] **VF-050 — Define StackPreset allowlist (MVP: 1 web stack)**
   - Define at least one stack preset (e.g., Vite+React) including build/test/run commands and runtime assumptions.
 
-- [ ] **VF-051 — Implement SpecBuilder.fromIntent(IntentProfile) -> BuildSpec**
+- [x] **VF-051 — Implement SpecBuilder.fromIntent(IntentProfile) -> BuildSpec**
   - Deterministically pin platform, stack preset, scope budgets, and guardrails based on IntentProfile.
+  - File: `apps/api/vibeforge_api/core/spec_builder.py`
+  - Converts IntentProfile to BuildSpec deterministically
+  - Derives seed, picks stack, genre, twists, scope budgets, policies
+  - Verification: `pytest tests/test_e2e_demo.py` (BuildSpec created and validated)
 
 - [ ] **VF-052 — Implement DeterministicSeedDeriver (replayable)**
   - Derive a deterministic seed from IntentProfile to keep ‘randomness’ reproducible and testable.

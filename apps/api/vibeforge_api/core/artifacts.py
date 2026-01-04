@@ -150,3 +150,96 @@ class ArtifactStore:
 
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
+
+
+class SessionArtifactStore:
+    """Global artifact store that works with session IDs."""
+
+    def __init__(self):
+        """Initialize session artifact store."""
+        pass
+
+    def _get_artifacts_path(self, session_id: str) -> Path:
+        """Get artifacts path for a session using workspace manager."""
+        from vibeforge_api.core.workspace import workspace_manager
+
+        return workspace_manager.get_artifacts_path(session_id)
+
+    def save_artifact(
+        self, session_id: str, name: str, content: Any, subdir: Optional[str] = None
+    ):
+        """Save an artifact for a session.
+
+        Args:
+            session_id: Session identifier
+            name: Artifact name (will be used as filename)
+            content: Content to save (dict/list will be JSON, str will be text)
+            subdir: Optional subdirectory within artifacts
+        """
+        artifacts_root = self._get_artifacts_path(session_id)
+        store = ArtifactStore(artifacts_root)
+        store.save_artifact(name, content, subdir)
+
+    def get_artifact(
+        self, session_id: str, name: str, subdir: Optional[str] = None
+    ) -> Optional[str]:
+        """Retrieve an artifact for a session.
+
+        Args:
+            session_id: Session identifier
+            name: Artifact name
+            subdir: Optional subdirectory within artifacts
+
+        Returns:
+            Content as string if found, None otherwise
+        """
+        artifacts_root = self._get_artifacts_path(session_id)
+        store = ArtifactStore(artifacts_root)
+        return store.get_artifact(name, subdir)
+
+    def save_patch_metadata(self, session_id: str, metadata: PatchMetadata) -> Path:
+        """Save patch metadata for a session.
+
+        Args:
+            session_id: Session identifier
+            metadata: PatchMetadata to save
+
+        Returns:
+            Path to saved metadata file
+        """
+        artifacts_root = self._get_artifacts_path(session_id)
+        store = ArtifactStore(artifacts_root)
+        return store.save_patch_metadata(metadata)
+
+    def get_patch_metadata(
+        self, session_id: str, task_id: str
+    ) -> Optional[PatchMetadata]:
+        """Retrieve patch metadata for a task in a session.
+
+        Args:
+            session_id: Session identifier
+            task_id: Task identifier
+
+        Returns:
+            PatchMetadata if found, None otherwise
+        """
+        artifacts_root = self._get_artifacts_path(session_id)
+        store = ArtifactStore(artifacts_root)
+        return store.get_patch_metadata(task_id)
+
+    def list_patch_metadata(self, session_id: str) -> list[PatchMetadata]:
+        """List all patch metadata for a session.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            List of PatchMetadata, sorted by timestamp (newest first)
+        """
+        artifacts_root = self._get_artifacts_path(session_id)
+        store = ArtifactStore(artifacts_root)
+        return store.list_patch_metadata()
+
+
+# Global session artifact store instance
+artifact_store = SessionArtifactStore()
