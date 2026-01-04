@@ -309,20 +309,32 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 12 Verification + Command Runner + AppRunner
 
-- [ ] **VF-120 — Implement CommandRunner (allowlist enforcement, timeouts, output capture)**
+- [x] **VF-120 — Implement CommandRunner (allowlist enforcement, timeouts, output capture)**
   - Run shell commands safely: enforce allowlists, apply timeouts, and capture stdout/stderr for UI and artifacts.
+  - File: `apps/api/vibeforge_api/core/command_runner.py`
+  - Features: Command family allowlists, timeout handling, stdout/stderr capture, working directory support
+  - Verification: `pytest tests/test_command_runner.py -v` (15 tests passed)
 
-- [ ] **VF-121 — Implement BuildVerifier (stack preset build command)**
+- [x] **VF-121 — Implement BuildVerifier (stack preset build command)**
   - Verify the project builds using commands defined by the selected stack preset.
+  - File: `apps/api/vibeforge_api/core/verifiers.py` (BuildVerifier class)
+  - Maps presets to build commands (npm run build, mvn package, etc.)
+  - Verification: `pytest tests/test_verifiers.py::TestBuildVerifier -v` (6 tests passed)
 
-- [ ] **VF-122 — Implement TestVerifier (stack preset test command)**
-  - Verify tests pass and produce readable failure outputs when they don’t.
+- [x] **VF-122 — Implement TestVerifier (stack preset test command)**
+  - Verify tests pass and produce readable failure outputs when they don't.
+  - File: `apps/api/vibeforge_api/core/verifiers.py` (TestVerifier class)
+  - Maps presets to test commands (npm test, pytest, etc.) and parses failures
+  - Verification: `pytest tests/test_verifiers.py::TestTestVerifier -v` (5 tests passed)
 
 - [ ] **VF-123 — Implement SmokeVerifier (server starts and/or route responds)**
   - Run a lightweight end-to-end check (start server or hit a route) to confirm the app can run locally.
 
-- [ ] **VF-124 — Implement VerifierSuite (per-task + global verification)**
+- [x] **VF-124 — Implement VerifierSuite (per-task + global verification)**
   - Orchestrate verification steps after each task and at the end of the run based on TaskGraph definitions.
+  - File: `apps/api/vibeforge_api/core/verifiers.py` (VerifierSuite class)
+  - Runs multiple verifiers, supports stop-on-failure, provides global verification (build + test)
+  - Verification: `pytest tests/test_verifiers.py::TestVerifierSuite -v` (6 tests passed)
 
 - [ ] **VF-125 — Implement AppRunner.getRunInstructions() per stack preset**
   - Generate clear run instructions (install/build/dev server) and expose them in the final summary.

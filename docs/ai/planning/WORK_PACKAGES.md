@@ -67,13 +67,30 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/test_artifacts.py` (13 tests)
 
 ## WP-0003 — Command runner + verification harness
-- **Status:** Queued
-- **VF Tasks:** VF-120, VF-121, VF-122, VF-124
+- **Status:** Done
+- **Started:** 2026-01-04 (local)
+- **Completed:** 2026-01-04 (local)
+- **Branch:** master
+- **VF Tasks:** VF-120, VF-121, VF-122, VF-124 (all complete ✓)
 - **Goal:** Allowlisted command execution with captured outputs; per-task + global verifier runner.
-- **Dependencies:** WP-0002 recommended (needs workspace), but can scaffold interfaces early
+- **Dependencies:** WP-0002 ✓ (workspace available)
 - **Plan Doc:** docs/ai/planning/WP-0003_VF-120-124_command_verification.md
-- **Verify:**
-  - Unit tests + one real run against a tiny fixture project
+- **Verified:**
+  - `pytest tests/test_command_runner.py -v` - 15 tests passed
+  - `pytest tests/test_verifiers.py -v` - 17 tests passed
+  - `pytest tests/test_verification_integration.py -v` - 9 tests passed (real command execution)
+  - `pytest -v` - All 91 tests passed
+  - Integration test with fixture Node.js project executes real npm commands
+  - CommandRunner enforces allowlists, timeouts, captures output
+  - BuildVerifier and TestVerifier map presets to commands correctly
+  - VerifierSuite orchestrates multiple verification steps
+- **Files touched:**
+  - `apps/api/vibeforge_api/core/command_runner.py` (new - VF-120)
+  - `apps/api/vibeforge_api/core/verifiers.py` (new - VF-121, VF-122, VF-124)
+  - `apps/api/tests/test_command_runner.py` (new - 15 tests)
+  - `apps/api/tests/test_verifiers.py` (new - 17 tests)
+  - `apps/api/tests/test_verification_integration.py` (new - 9 integration tests)
+  - `apps/api/tests/fixtures/node-project/` (fixture project for integration testing)
 
 ## WP-0004 — Gates pipeline (core safety checks)
 - **Status:** Queued
