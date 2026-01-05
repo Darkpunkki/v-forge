@@ -420,15 +420,89 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `vibeforge_master_checklist.md` (VF-060, VF-061, VF-062 marked complete)
 
 ## WP-0013 — Session model + store
-- **Status:** Queued
-- **VF Tasks:** VF-030, VF-031
+- **Status:** Done
+- **Started:** 2026-01-05 19:20 (local)
+- **Completed:** 2026-01-05 19:40 (local)
+- **Branch:** master
+- **VF Tasks:** VF-030 ✓, VF-031 ✓
 - **Goal:** Define Session domain model with phases enum and implement in-memory SessionStore with persistence interface.
 - **Dependencies:** WP-0002 ✓ (workspace/artifacts)
 - **Plan Doc:** docs/ai/planning/WP-0013_VF-030-031_session_model.md
+- **Verified:**
+  - `cd apps/api && pytest tests/test_session_model.py -v` - 15 tests passed (Session model features)
+  - `cd apps/api && pytest tests/test_session_store.py -v` - 19 tests passed (SessionStore + interface)
+  - `cd apps/api && pytest -v` - 219 tests passed (was 185, added 34 new tests)
+- **Files touched:**
+  - `apps/api/vibeforge_api/core/session.py` (added error_history, add_error() method, SessionStoreInterface, list_sessions())
+  - `apps/api/tests/test_session_model.py` (15 comprehensive Session tests - new file)
+  - `apps/api/tests/test_session_store.py` (19 comprehensive SessionStore tests - new file)
+  - `docs/ai/planning/WP-0013_VF-030-031_session_model.md` (plan doc)
+  - `vibeforge_master_checklist.md` (VF-030, VF-031 marked complete)
+
+## WP-0014 — Model routing, validation, and repair
+- **Status:** Done
+- **Started:** 2026-01-05
+- **Completed:** 2026-01-05
+- **VF Tasks:** VF-063 ✓, VF-064 ✓, VF-065 ✓, VF-066 ✓
+- **Goal:** Complete the model abstraction layer with routing policies, output validation/repair, and local provider stub to enable reliable agent dispatch.
+- **Dependencies:** WP-0012 ✓ (base model layer foundations)
+- **Plan Doc:** docs/ai/planning/WP-0014_VF-063-066_model_routing_validation.md
+- **Verified:**
+  - `cd apps/api && pytest tests/test_model_router.py -v` - 17 tests passed
+  - `cd apps/api && pytest tests/test_output_validator.py -v` - 16 tests passed
+  - `cd apps/api && pytest tests/test_output_repair.py -v` - 11 tests passed
+  - `cd apps/api && pytest tests/test_local_provider.py -v` - 16 tests passed
+  - `cd apps/api && pytest -v` - 279 tests passed (was 219, added 60 new tests)
+- **Files touched:**
+  - **VF-063: ModelRouter**
+    - `models/router.py` (RoutingContext, ModelRouter, get_model_router)
+    - `configs/models/routing.json` (routing + escalation rules)
+    - `apps/api/tests/test_model_router.py` (17 tests)
+  - **VF-064: OutputValidator**
+    - `models/validation.py` (OutputValidator, ValidationResult, validate_response)
+    - `apps/api/requirements.txt` (added jsonschema==4.23.0)
+    - `apps/api/tests/test_output_validator.py` (16 tests)
+  - **VF-065: OutputRepair**
+    - `models/repair.py` (OutputRepair, RepairFailedError, repair_response)
+    - `apps/api/tests/test_output_repair.py` (11 tests)
+  - **VF-066: LocalProvider stub**
+    - `models/local/provider.py` (LocalProvider for Ollama/llama.cpp/vLLM/MLX)
+    - `models/local/__init__.py` (module exports)
+    - `models/registry.py` (added "local" provider type support)
+    - `apps/api/tests/test_local_provider.py` (16 tests)
+  - `vibeforge_master_checklist.md` (VF-063, VF-064, VF-065, VF-066 marked complete)
+
+## WP-0015 — Orchestrator prompt templates and implementation
+- **Status:** Queued
+- **VF Tasks:** VF-070, VF-071, VF-072, VF-073, VF-074, VF-075
+- **Goal:** Enable the orchestrator to generate concepts, task graphs, and run summaries by implementing prompt templates and orchestrator methods.
+- **Dependencies:** WP-0012 ✓ (model layer), WP-0014 (routing/validation recommended)
+- **Plan Doc:** docs/ai/planning/WP-0015_VF-070-075_orchestrator.md
 - **Verify:**
-  - `cd apps/api && pytest tests/test_session_model.py -v`
-  - `cd apps/api && pytest tests/test_session_store.py -v`
-  - Verify Session can track phases and reference artifacts
+  - `cd apps/api && pytest tests/test_orchestrator.py -v`
+  - `cd apps/api && pytest -v` (all tests pass)
+
+## WP-0016 — TaskGraph foundations and task scheduling
+- **Status:** Queued
+- **VF Tasks:** VF-090, VF-091, VF-092, VF-093, VF-094
+- **Goal:** Implement TaskGraph validation, DAG dependency resolution, and TaskMaster scheduling to enable deterministic task execution.
+- **Dependencies:** WP-0015 (orchestrator generates TaskGraphs)
+- **Plan Doc:** docs/ai/planning/WP-0016_VF-090-094_taskgraph_taskmaster.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_taskgraph.py -v`
+  - `cd apps/api && pytest tests/test_taskmaster.py -v`
+  - `cd apps/api && pytest -v` (all tests pass)
+
+## WP-0017 — Task distribution and agent framework adapter
+- **Status:** Queued
+- **VF Tasks:** VF-095, VF-096, VF-100, VF-101, VF-102, VF-103
+- **Goal:** Implement task-to-role routing and pluggable agent framework adapter to enable agent dispatch and execution.
+- **Dependencies:** WP-0016 (TaskMaster), WP-0014 (model routing)
+- **Plan Doc:** docs/ai/planning/WP-0017_VF-095-103_distributor_agent_framework.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_distributor.py -v`
+  - `cd apps/api && pytest tests/test_agent_framework.py -v`
+  - `cd apps/api && pytest -v` (all tests pass)
 
 ---
 

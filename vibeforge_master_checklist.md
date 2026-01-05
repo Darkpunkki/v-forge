@@ -277,11 +277,34 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 03 Session Coordinator (Factory Brain)
 
-- [ ] **VF-030 — Implement Session model + phases enum**
+- [x] **VF-030 — Implement Session model + phases enum**
   - Define the Session aggregate containing phase, pointers to artifacts (IntentProfile/BuildSpec/TaskGraph), and error history.
+  - **File:** `apps/api/vibeforge_api/core/session.py` (Session class)
+  - **Features:**
+    - Session ID (UUID), phase tracking (SessionPhase enum)
+    - Timestamps (created_at, updated_at) with UTC timezone
+    - Questionnaire state (current_question_index, answers dict)
+    - Artifact pointers (intent_profile, build_spec, concept, task_graph)
+    - Execution state (completed_task_ids, failed_task_ids, active_task_id, logs)
+    - Clarification state (pending_clarification, clarification_answer)
+    - **Error history** (error_history list with timestamp, task_id, error_message, phase)
+    - Methods: update_phase(), add_answer(), add_log(), add_error()
+  - **Tests:** `apps/api/tests/test_session_model.py` (15 comprehensive tests)
+  - **Verification:** `cd apps/api && pytest tests/test_session_model.py -v` (15 passed)
 
-- [ ] **VF-031 — Implement SessionStore (in-memory) + persistence seam interface**
+- [x] **VF-031 — Implement SessionStore (in-memory) + persistence seam interface**
   - Store sessions in memory for MVP, but define an interface so you can later persist sessions to disk/DB without changing core logic.
+  - **File:** `apps/api/vibeforge_api/core/session.py` (SessionStoreInterface + SessionStore)
+  - **Interface:** SessionStoreInterface (abstract base class)
+    - Methods: create_session(), get_session(id), update_session(session), delete_session(id), list_sessions()
+    - Defines persistence seam for future disk/DB implementations
+  - **Implementation:** SessionStore (implements SessionStoreInterface)
+    - In-memory storage using dict (_sessions: dict[str, Session])
+    - Full CRUD operations + listing
+    - Global instance (session_store) for MVP
+    - Lazy initialization, isolated per-instance
+  - **Tests:** `apps/api/tests/test_session_store.py` (19 comprehensive tests)
+  - **Verification:** `cd apps/api && pytest tests/test_session_store.py -v` (19 passed), `pytest -v` (219 total passed)
 
 - [ ] **VF-032 — SessionCoordinator: startSession() + phase initialization**
   - Orchestrate workspace/artifact initialization and set the session to QUESTIONNAIRE.
@@ -424,17 +447,39 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Tests:** `apps/api/tests/test_model_registry.py` (11 comprehensive registry tests)
   - **Verification:** `cd apps/api && pytest tests/test_model_registry.py -v` (11 passed), `pytest -v` (185 total passed)
 
-- [ ] **VF-063 — Implement ModelRouter policy (role/complexity/failures -> modelRef)**
+- [x] **VF-063 — Implement ModelRouter policy (role/complexity/failures -> modelRef)**
   - Route calls to the right model choice based on role (orchestrator/worker/fixer/reviewer), complexity, and retry history.
+  - **Files:**
+    - `models/router.py` (RoutingContext, ModelRouter, get_model_router)
+    - `configs/models/routing.json` (routing rules for all roles + escalation policy)
+  - **Features:** Config-driven routing, escalation to stronger models on failures, temperature adjustment
+  - **Tests:** `apps/api/tests/test_model_router.py` (17 comprehensive tests)
+  - **Verification:** `cd apps/api && pytest tests/test_model_router.py -v` (17 passed)
 
-- [ ] **VF-064 — Implement OutputValidator (strict JSON schema validation)**
+- [x] **VF-064 — Implement OutputValidator (strict JSON schema validation)**
   - Validate model outputs against schemas and fail fast if malformed. This is a major reliability lever.
+  - **File:** `models/validation.py` (OutputValidator, ValidationResult, validate_response)
+  - **Features:** JSON parsing with markdown extraction, schema validation with jsonschema, detailed error messages
+  - **Dependencies:** Added `jsonschema==4.23.0` to requirements.txt
+  - **Tests:** `apps/api/tests/test_output_validator.py` (16 comprehensive tests)
+  - **Verification:** `cd apps/api && pytest tests/test_output_validator.py -v` (16 passed)
 
-- [ ] **VF-065 — Implement OutputRepair (retry/repair strategy for malformed outputs)**
-  - Implement structured ‘repair’ retries (tell the model what failed validation) so the system can recover without manual intervention.
+- [x] **VF-065 — Implement OutputRepair (retry/repair strategy for malformed outputs)**
+  - Implement structured 'repair' retries (tell the model what failed validation) so the system can recover without manual intervention.
+  - **File:** `models/repair.py` (OutputRepair, RepairFailedError, repair_response)
+  - **Features:** Repair prompts with validation errors, max attempts (default: 2), temperature escalation, metadata tracking
+  - **Tests:** `apps/api/tests/test_output_repair.py` (11 comprehensive tests)
+  - **Verification:** `cd apps/api && pytest tests/test_output_repair.py -v` (11 passed)
 
-- [ ] **VF-066 — Stub LocalProvider interface (no implementation yet)**
+- [x] **VF-066 — Stub LocalProvider interface (no implementation yet)**
   - Add a placeholder local provider adapter (Ollama/llama.cpp/vLLM later) to keep the architecture seam visible and tested.
+  - **Files:**
+    - `models/local/provider.py` (LocalProvider for Ollama/llama.cpp/vLLM/MLX)
+    - `models/local/__init__.py` (module exports)
+    - `models/registry.py` (updated to support "local" provider type)
+  - **Features:** Implements LlmClient interface, raises NotImplementedError (MVP stub), supports multiple backends
+  - **Tests:** `apps/api/tests/test_local_provider.py` (16 comprehensive tests)
+  - **Verification:** `cd apps/api && pytest tests/test_local_provider.py -v` (16 passed), registry integration validated
 
 
 ### 07 Orchestrator

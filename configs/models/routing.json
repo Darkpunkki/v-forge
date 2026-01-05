@@ -1,0 +1,95 @@
+{
+  "routing_rules": {
+    "orchestrator": {
+      "simple": {
+        "provider": "openai",
+        "model": "gpt-4o-mini"
+      },
+      "medium": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      },
+      "complex": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      }
+    },
+    "worker": {
+      "simple": {
+        "provider": "openai",
+        "model": "gpt-4o-mini"
+      },
+      "medium": {
+        "provider": "openai",
+        "model": "gpt-4o-mini"
+      },
+      "complex": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      }
+    },
+    "foreman": {
+      "simple": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      },
+      "medium": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      },
+      "complex": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      }
+    },
+    "fixer": {
+      "simple": {
+        "provider": "openai",
+        "model": "gpt-4o-mini"
+      },
+      "medium": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      },
+      "complex": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      }
+    },
+    "reviewer": {
+      "simple": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      },
+      "medium": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      },
+      "complex": {
+        "provider": "openai",
+        "model": "gpt-4o"
+      }
+    }
+  },
+  "escalation_rules": {
+    "failure_thresholds": [
+      {
+        "min_failures": 0,
+        "max_failures": 0,
+        "action": "use_configured_model"
+      },
+      {
+        "min_failures": 1,
+        "max_failures": 2,
+        "action": "escalate_to_gpt4o"
+      },
+      {
+        "min_failures": 3,
+        "max_failures": 999,
+        "action": "escalate_to_gpt4o_high_temp"
+      }
+    ]
+  },
+  "default_provider": "openai",
+  "default_model": "gpt-4o-mini"
+}

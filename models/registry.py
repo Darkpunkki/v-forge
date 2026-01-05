@@ -4,6 +4,7 @@ from typing import Dict, Optional
 
 from models.base import LlmClient
 from models.openai import OpenAiProvider
+from models.local import LocalProvider
 
 
 class ModelProviderRegistry:
@@ -73,6 +74,12 @@ class ModelProviderRegistry:
                     api_key=config.get("api_key"),
                     base_url=config.get("base_url"),
                     timeout=config.get("timeout", 60.0),
+                )
+            elif provider_type == "local":
+                provider = LocalProvider(
+                    model_name=config.get("model_name", "llama-3"),
+                    base_url=config.get("base_url"),
+                    backend=config.get("backend", "ollama"),
                 )
             else:
                 raise ValueError(f"Unsupported provider type: {provider_type}")
