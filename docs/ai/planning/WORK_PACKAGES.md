@@ -370,15 +370,27 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/test_e2e_demo.py` (E2E verification)
 
 ## WP-0011 — Clarification endpoint
-- **Status:** Queued
-- **VF Tasks:** VF-027
+- **Status:** Done
+- **Started:** 2026-01-05 18:25 (local)
+- **Completed:** 2026-01-05 18:45 (local)
+- **Branch:** master
+- **VF Tasks:** VF-027 ✓
 - **Goal:** Complete Local UI API by adding clarification endpoint to handle user choices for gate/agent clarification questions.
 - **Dependencies:** WP-0001 ✓ (API foundation), WP-0007d ✓ (UI clarification screen)
 - **Plan Doc:** docs/ai/planning/WP-0011_VF-027_clarification_endpoint.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_sessions.py -k clarification -v`
-  - `cd apps/api && pytest -v`
-  - Manual: POST /sessions/{id}/clarifications with valid/invalid payloads
+- **Verified:**
+  - `cd apps/api && pytest tests/test_sessions.py -k clarification -v` - 7 clarification tests passed
+  - `cd apps/api && pytest -v` - 162 tests passed (was 155, added 7 new tests)
+  - All new tests cover GET/POST clarification endpoints with validation
+- **Files touched:**
+  - `apps/api/vibeforge_api/models/requests.py` (added ClarificationAnswerRequest)
+  - `apps/api/vibeforge_api/models/responses.py` (added ClarificationResponse, ClarificationOption)
+  - `apps/api/vibeforge_api/models/__init__.py` (exported new models)
+  - `apps/api/vibeforge_api/routers/sessions.py` (added GET and POST /clarification endpoints - VF-027)
+  - `apps/api/vibeforge_api/core/session.py` (added pending_clarification and clarification_answer state)
+  - `apps/api/tests/test_sessions.py` (added 7 comprehensive tests)
+  - `docs/ai/planning/WP-0011_VF-027_clarification_endpoint.md` (plan doc)
+  - `vibeforge_master_checklist.md` (VF-027 marked complete)
 
 ## WP-0012 — Model layer foundations
 - **Status:** Queued

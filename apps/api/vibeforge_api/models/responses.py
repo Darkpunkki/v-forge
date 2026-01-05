@@ -71,3 +71,19 @@ class ResultResponse(BaseModel):
     run_instructions: str
     summary: str
     artifacts: dict[str, str]  # artifact_name -> artifact_path
+
+
+class ClarificationOption(BaseModel):
+    """A single option for a clarification question."""
+
+    label: str
+    value: str
+    description: Optional[str] = None
+
+
+class ClarificationResponse(BaseModel):
+    """Response containing clarification question from gates/agents."""
+
+    question: str
+    context: Optional[str] = None
+    options: list[ClarificationOption]

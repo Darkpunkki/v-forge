@@ -32,6 +32,10 @@ class Session:
         self.active_task_id: Optional[str] = None
         self.logs: list[str] = []
 
+        # Clarification state (for gates/agents)
+        self.pending_clarification: Optional[dict] = None
+        self.clarification_answer: Optional[str] = None
+
     def update_phase(self, new_phase: SessionPhase):
         """Update session phase."""
         self.phase = new_phase

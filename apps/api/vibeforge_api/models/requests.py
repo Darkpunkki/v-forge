@@ -16,3 +16,9 @@ class PlanDecisionRequest(BaseModel):
 
     approved: bool
     reason: str | None = None
+
+
+class ClarificationAnswerRequest(BaseModel):
+    """Request to submit an answer to a clarification question."""
+
+    answer: str

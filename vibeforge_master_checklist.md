@@ -247,8 +247,21 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - File: `apps/api/vibeforge_api/routers/sessions.py:155`
   - Verification: `pytest tests/test_sessions.py::test_get_progress`
 
-- [ ] **VF-027 — Endpoint: POST /sessions/{id}/clarifications (submitClarificationChoice)**
+- [x] **VF-027 — Endpoint: POST /sessions/{id}/clarifications (submitClarificationChoice)**
   - Accept user choices for clarification questions and feed them back into the coordinator/agent loop.
+  - **Files:**
+    - `apps/api/vibeforge_api/routers/sessions.py:242` (GET /clarification endpoint)
+    - `apps/api/vibeforge_api/routers/sessions.py:277` (POST /clarification endpoint - VF-027)
+    - `apps/api/vibeforge_api/models/requests.py:21` (ClarificationAnswerRequest model)
+    - `apps/api/vibeforge_api/models/responses.py:76` (ClarificationResponse, ClarificationOption models)
+    - `apps/api/vibeforge_api/core/session.py:36` (added pending_clarification and clarification_answer fields)
+  - **Implementation:**
+    - GET endpoint returns pending clarification question with options (question, context, options array)
+    - POST endpoint validates answer against allowed options and clears pending clarification
+    - Transitions session back to EXECUTION phase after accepting answer
+    - Session model tracks pending_clarification (dict) and clarification_answer (str)
+  - **Tests:** `apps/api/tests/test_sessions.py` (7 new clarification tests)
+  - **Verification:** `cd apps/api && pytest tests/test_sessions.py -k clarification -v` (7 passed), `pytest -v` (162 total passed)
 
 - [x] **VF-028 — Endpoint: GET /sessions/{id}/result (final summary)**
   - Return completion summary and run instructions when the session reaches COMPLETE.

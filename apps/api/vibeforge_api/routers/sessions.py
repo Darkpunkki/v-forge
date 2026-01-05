@@ -9,7 +9,11 @@ from vibeforge_api.core.workspace import workspace_manager
 from vibeforge_api.core.artifacts import artifact_store
 from vibeforge_api.core.mock_generator import mock_generator
 from vibeforge_api.models.types import SessionPhase
-from vibeforge_api.models.requests import SubmitAnswerRequest, PlanDecisionRequest
+from vibeforge_api.models.requests import (
+    SubmitAnswerRequest,
+    PlanDecisionRequest,
+    ClarificationAnswerRequest,
+)
 from vibeforge_api.models.responses import (
     SessionResponse,
     QuestionResponse,
@@ -17,6 +21,8 @@ from vibeforge_api.models.responses import (
     ProgressResponse,
     TaskProgress,
     ResultResponse,
+    ClarificationResponse,
+    ClarificationOption,
 )
 
 router = APIRouter()
@@ -230,6 +236,87 @@ async def get_progress(session_id: str):
         failed_tasks=failed_tasks,
         logs=session.logs[-50:],  # Return last 50 log entries
     )
+
+
+# GET /sessions/{id}/clarification (get pending clarification question)
+@router.get("/{session_id}/clarification", response_model=ClarificationResponse)
+async def get_clarification(session_id: str):
+    """Get pending clarification question from gates/agents."""
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found",
+        )
+
+    if not session.pending_clarification:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending clarification question for this session",
+        )
+
+    # Convert dict format to ClarificationResponse
+    clarification = session.pending_clarification
+    options = [
+        ClarificationOption(
+            label=opt.get("label", ""),
+            value=opt.get("value", ""),
+            description=opt.get("description"),
+        )
+        for opt in clarification.get("options", [])
+    ]
+
+    return ClarificationResponse(
+        question=clarification.get("question", ""),
+        context=clarification.get("context"),
+        options=options,
+    )
+
+
+# VF-027: POST /sessions/{id}/clarification (submit clarification answer)
+@router.post("/{session_id}/clarification", status_code=status.HTTP_200_OK)
+async def submit_clarification(
+    session_id: str, request: ClarificationAnswerRequest
+):
+    """Submit user's answer to a clarification question."""
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session {session_id} not found",
+        )
+
+    if not session.pending_clarification:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending clarification question for this session",
+        )
+
+    # Validate answer is one of the valid options
+    clarification = session.pending_clarification
+    valid_values = [opt.get("value") for opt in clarification.get("options", [])]
+    if request.answer not in valid_values:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid answer. Must be one of: {', '.join(valid_values)}",
+        )
+
+    # Store the answer and clear pending clarification
+    session.clarification_answer = request.answer
+    session.pending_clarification = None
+    session.add_log(f"Clarification answered: {request.answer}")
+
+    # For MVP, transition back to EXECUTION phase
+    # In future, the coordinator will handle this transition based on the answer
+    next_phase = SessionPhase.EXECUTION
+
+    session.update_phase(next_phase)
+    session_store.update_session(session)
+
+    return {
+        "status": "accepted",
+        "next_phase": next_phase.value,
+    }
 
 
 # VF-028: GET /sessions/{id}/result (final summary)
