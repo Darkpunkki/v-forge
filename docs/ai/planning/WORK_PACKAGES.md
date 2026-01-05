@@ -283,16 +283,36 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `vibeforge_master_checklist.md` (VF-013 and VF-014 marked complete)
 
 ## WP-0008 — Repository foundations + test harness
-- **Status:** Queued
-- **VF Tasks:** VF-001, VF-004
+- **Status:** Done
+- **Started:** 2026-01-05 17:40 (local)
+- **Completed:** 2026-01-05 18:00 (local)
+- **Branch:** master
+- **VF Tasks:** VF-001 ✓, VF-004 ✓
 - **Goal:** Finalize the monorepo layout and add a minimal CI/test harness so future WPs build on a stable, testable foundation.
 - **Dependencies:** None (applies to root structure)
 - **Plan Doc:** docs/ai/planning/WP-0008_VF-001-004_repo_ci_foundation.md
-- **Verify:**
-  - `cd apps/api && pytest -v`
-  - `cd apps/api && pytest tests/test_repo_layout.py -v`
-  - CI workflow runs unit tests (GitHub Actions or `act` dry-run)
-  - Documentation updated with local test instructions
+- **Verified:**
+  - `cd apps/api && pytest -v` - 155 tests passed in 29.03s
+  - `cd apps/api && pytest tests/test_repo_layout.py -v` - 8 tests passed
+  - `cd apps/ui && npm run build` - ✓ built in 778ms
+  - All required directories exist and documented
+  - GitHub Actions CI workflow configured
+  - Testing documentation complete
+  - All VF tasks checked off in vibeforge_master_checklist.md
+- **Files touched:**
+  - **VF-001: Monorepo structure**
+    - `core/README.md` (new - documents core domain logic)
+    - `orchestration/README.md` (new - documents coordination layer)
+    - `models/README.md` (new - documents model adapters)
+    - `runtime/README.md` (new - documents execution runtime)
+    - `storage/README.md` (new - documents persistence layer)
+    - Created subdirectories: gates/, verifiers/, spec/, coordinator/, phases/, routing/, base/, claude/, openai/, workspace/, commands/, sandbox/, sessions/, artifacts/, events/
+    - Added .gitkeep files to ensure git tracks empty directories
+  - **VF-004: Test harness + CI**
+    - `.github/workflows/ci.yml` (new - GitHub Actions workflow)
+    - `apps/api/tests/test_repo_layout.py` (new - 8 structure validation tests)
+    - `docs/testing.md` (new - comprehensive testing guide)
+  - `vibeforge_master_checklist.md` (VF-001 and VF-004 marked complete)
 
 ## WP-0009 — Questionnaire engine foundations
 - **Status:** Queued

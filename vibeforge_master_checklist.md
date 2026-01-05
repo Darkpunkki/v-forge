@@ -85,8 +85,16 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 00 Foundations
 
-- [ ] **VF-001 — Create monorepo structure (apps/core/orchestration/models/runtime/storage/configs/schemas)**
+- [x] **VF-001 — Create monorepo structure (apps/core/orchestration/models/runtime/storage/configs/schemas)**
   - Initialize the repository with a clear top-level folder layout that matches the architecture. This keeps UI, core logic, orchestration, model adapters, runtime execution, and persistence cleanly separated from day one.
+  - **Directories created:**
+    - `core/` (with subdirs: gates/, verifiers/, spec/)
+    - `orchestration/` (with subdirs: coordinator/, phases/, routing/)
+    - `models/` (with subdirs: base/, claude/, openai/)
+    - `runtime/` (with subdirs: workspace/, commands/, sandbox/)
+    - `storage/` (with subdirs: sessions/, artifacts/, events/)
+  - **Documentation:** README.md files in each top-level directory explaining purpose and structure
+  - **Verify:** All directories exist and tracked by git (test_repo_layout.py passes)
 
 - [x] **VF-002 — Define core DTOs + shared types (SessionPhase, AgentRole, GateResult)**
   - Create the shared domain types used across UI/API/core: session phases, agent roles, gate results, and common error/result envelopes. These are the contracts that prevent coupling and spaghetti.
@@ -101,8 +109,18 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Tests:** `apps/api/tests/test_config_loader.py` (20 comprehensive tests)
   - **Verify:** `pytest tests/test_config_loader.py -v` (20 passed), `pytest -v` (147 passed)
 
-- [ ] **VF-004 — Add basic test harness + CI skeleton (unit tests only)**
+- [x] **VF-004 — Add basic test harness + CI skeleton (unit tests only)**
   - Set up unit test framework and a minimal CI pipeline so new components can be verified continuously. Keep it simple: lint/format optional, unit tests required.
+  - **Files created:**
+    - `.github/workflows/ci.yml` (GitHub Actions CI workflow)
+    - `apps/api/tests/test_repo_layout.py` (repository structure validation test)
+    - `docs/testing.md` (comprehensive testing documentation)
+  - **CI Workflow:** Runs on push/PR to master/main
+    - Job 1: API tests (pytest on Python 3.11, caches pip dependencies)
+    - Job 2: UI build (npm build on Node.js 20, caches npm dependencies)
+  - **Test Coverage:** 155 tests passing (8 new repo layout tests added)
+  - **Documentation:** Local test instructions, CI workflow explanation, best practices
+  - **Verify:** `cd apps/api && pytest -v` (155 passed), `cd apps/ui && npm run build` (✓ built in 778ms)
 
 
 ### 01 UI Shell (MVP)
