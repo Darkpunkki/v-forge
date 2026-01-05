@@ -626,26 +626,78 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Tests:** `apps/api/tests/test_taskmaster.py` (11 markDone/markFailed tests + 2 integration tests)
   - **Verify:** `cd apps/api && pytest tests/test_taskmaster.py::TestTaskMasterMarkDone -v` (5 passed), `cd apps/api && pytest tests/test_taskmaster.py::TestTaskMasterMarkFailed -v` (6 passed)
 
-- [ ] **VF-095 — Implement Distributor.route(task) -> AgentRole (role hint rules)**
+- [x] **VF-095 — Implement Distributor.route(task) -> AgentRole (role hint rules)**
   - Assign each task to a role based on explicit hints and objective heuristics.
+  - **File:** `runtime/distributor.py:33` (Distributor.route method)
+  - **Implementation:**
+    - Routes tasks to agent roles based on task.role from TaskGraph
+    - Selects model tier (fast/balanced/powerful) - defaults to balanced
+    - Validates role is valid (worker/foreman/reviewer)
+    - Returns AgentRole with role, model_tier, and reason
+  - **Tests:** `apps/api/tests/test_distributor.py::TestDistributorRouting` (5 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_distributor.py::TestDistributorRouting -v` (5 passed)
 
-- [ ] **VF-096 — Implement escalation policy (failures -> stronger role/model)**
+- [x] **VF-096 — Implement escalation policy (failures -> stronger role/model)**
   - Escalate to fixer/reviewer or stronger model after repeated failures to avoid infinite loops.
+  - **File:** `runtime/distributor.py:72` (_escalate method)
+  - **Implementation:**
+    - Escalation ladder:
+      - 0 failures: use task.role with balanced model
+      - 1 failure: same role, upgrade to powerful model
+      - 2+ failures: escalate to fixer role with powerful model
+    - Prevents infinite retry loops by capping at fixer + powerful
+  - **Tests:** `apps/api/tests/test_distributor.py::TestDistributorEscalation` (5 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_distributor.py::TestDistributorEscalation -v` (5 passed)
 
 
 ### 10 Agent Framework Adapter (pluggable)
 
-- [ ] **VF-100 — Define AgentFramework.runTask() interface (role prompt + tools + context)**
+- [x] **VF-100 — Define AgentFramework.runTask() interface (role prompt + tools + context)**
   - Create an interface for running an agent role against a task, producing a standard AgentResult.
+  - **File:** `models/agent_framework.py:12` (AgentFramework abstract class, AgentResult dataclass)
+  - **Implementation:**
+    - `AgentFramework` ABC with `runTask(task, role, context)` abstract method
+    - `AgentResult` dataclass with success/outputs/logs/error_message
+    - `get_framework_name()` method for framework identification
+    - Pluggable adapter pattern for multiple framework backends
+  - **Tests:** `apps/api/tests/test_agent_framework.py::TestAgentResult` (3 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_agent_framework.py::TestAgentResult -v` (3 passed)
 
-- [ ] **VF-101 — Implement MVP AgentFrameworkAdapter (direct model call + strict AgentResult)**
+- [x] **VF-101 — Implement MVP AgentFrameworkAdapter (direct model call + strict AgentResult)**
   - Implement the simplest adapter: call the provider directly with role prompt and require AgentResult JSON output.
+  - **File:** `models/agent_framework.py:51` (DirectLlmAdapter class)
+  - **Implementation:**
+    - Calls LLM directly with role-specific prompts (hardcoded for MVP)
+    - Uses ModelRouter for model selection
+    - Creates LlmRequest with system + user prompts
+    - Returns AgentResult with success status and outputs
+    - Handles LLM failures gracefully
+  - **Tests:** `apps/api/tests/test_agent_framework.py::TestDirectLlmAdapter` (7 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_agent_framework.py::TestDirectLlmAdapter -v` (7 passed)
 
-- [ ] **VF-102 — Implement AgentRegistry (role -> prompt/tool policy/output schema)**
+- [x] **VF-102 — Implement AgentRegistry (role -> prompt/tool policy/output schema)**
   - Centralize role prompts, tool permissions, and output schemas so agent behavior is consistent and auditable.
+  - **File:** `runtime/agent_registry.py:12` (AgentRegistry class, RoleConfig dataclass)
+  - **Implementation:**
+    - Pre-configured roles: worker, foreman, reviewer, fixer
+    - Each role has: system_prompt, prompt_template, output_schema, allowed_tools
+    - `get_role_config(role)` retrieves configuration
+    - `register_role(config)` allows custom role registration
+    - `has_role(role)` checks if role exists
+    - Global singleton via `get_agent_registry()`
+  - **Tests:** `apps/api/tests/test_agent_framework.py::TestAgentRegistry` (10 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_agent_framework.py::TestAgentRegistry -v` (10 passed)
 
-- [ ] **VF-103 — Add placeholder adapters (LangGraph/CrewAI/AutoGen) as stubs**
+- [x] **VF-103 — Add placeholder adapters (LangGraph/CrewAI/AutoGen) as stubs**
   - Add stubs for future framework-backed implementations so the seam is explicit and easy to fill later.
+  - **File:** `models/agent_framework_stubs.py` (LangGraphAdapter, CrewAIAdapter, AutoGenAdapter)
+  - **Implementation:**
+    - All stubs implement AgentFramework interface
+    - `runTask()` raises NotImplementedError with helpful message
+    - `get_framework_name()` returns name with "(stub)" suffix
+    - Ready for future integration when frameworks are adopted
+  - **Tests:** `apps/api/tests/test_agent_framework.py::TestAgentFrameworkStubs` (7 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_agent_framework.py::TestAgentFrameworkStubs -v` (7 passed)
 
 
 ### 11 Workspace + Patching

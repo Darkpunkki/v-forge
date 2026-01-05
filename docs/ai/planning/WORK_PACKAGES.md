@@ -525,15 +525,29 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/test_taskmaster.py` (new - 31 comprehensive tests)
 
 ## WP-0017 — Task distribution and agent framework adapter
-- **Status:** Queued
-- **VF Tasks:** VF-095, VF-096, VF-100, VF-101, VF-102, VF-103
+- **Status:** Done
+- **Started:** 2026-01-05 (local)
+- **Completed:** 2026-01-05 (local)
+- **Branch:** master
+- **VF Tasks:** VF-095 ✓, VF-096 ✓, VF-100 ✓, VF-101 ✓, VF-102 ✓, VF-103 ✓
 - **Goal:** Implement task-to-role routing and pluggable agent framework adapter to enable agent dispatch and execution.
-- **Dependencies:** WP-0016 (TaskMaster), WP-0014 (model routing)
+- **Dependencies:** WP-0016 ✓ (TaskMaster), WP-0014 ✓ (model routing)
 - **Plan Doc:** docs/ai/planning/WP-0017_VF-095-103_distributor_agent_framework.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_distributor.py -v`
-  - `cd apps/api && pytest tests/test_agent_framework.py -v`
-  - `cd apps/api && pytest -v` (all tests pass)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_distributor.py -v` - 15 tests passed (5 routing + 5 escalation + 5 integration)
+  - `cd apps/api && pytest tests/test_agent_framework.py -v` - 28 tests passed (framework + adapter + registry + stubs)
+  - `cd apps/api && pytest -v` - 397 tests passed, 1 skipped (was 355, added 43 new tests)
+  - Distributor routes tasks based on role with escalation policy (1 failure -> powerful model, 2+ -> fixer)
+  - DirectLlmAdapter executes tasks via direct LLM calls (MVP implementation)
+  - AgentRegistry provides role configs (worker/foreman/reviewer/fixer) with prompts and schemas
+  - Framework stubs (LangGraph/CrewAI/AutoGen) ready for future integrations
+- **Files touched:**
+  - `runtime/distributor.py` (new - VF-095, VF-096: task routing and escalation)
+  - `models/agent_framework.py` (new - VF-100, VF-101: interface and DirectLlmAdapter)
+  - `runtime/agent_registry.py` (new - VF-102: role configuration registry)
+  - `models/agent_framework_stubs.py` (new - VF-103: placeholder adapters)
+  - `apps/api/tests/test_distributor.py` (new - 15 comprehensive tests)
+  - `apps/api/tests/test_agent_framework.py` (new - 28 comprehensive tests)
 
 ---
 
