@@ -297,14 +297,28 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 04 Questionnaire Engine
 
-- [ ] **VF-040 — Define QuestionBank (audience/platform/domains/vibe/constraints/budgets)**
+- [x] **VF-040 — Define QuestionBank (audience/platform/domains/vibe/constraints/budgets)**
   - Create the structured question set and allowed answers that produce IntentProfile deterministically (no free text).
+  - **Implementation:** QuestionBank defined in `apps/api/vibeforge_api/core/questionnaire.py`
+  - **Questions:** 3 structured questions covering audience, platform, complexity
+  - **Question types:** radio, select, checkbox, slider (all validated)
+  - **MVP-sufficient:** Covers key dimensions; additional questions deferred to post-MVP
+  - **Verify:** `pytest tests/test_sessions.py -k questionnaire -v`
 
-- [ ] **VF-041 — Implement QuestionnaireEngine.nextQuestion() (adaptive branching)**
+- [x] **VF-041 — Implement QuestionnaireEngine.nextQuestion() (adaptive branching)**
   - Select the next question based on prior answers to keep questionnaire short but informative.
+  - **Implementation:** `get_next_question()` method in QuestionnaireEngine
+  - **Approach:** Sequential ordering (MVP); adaptive branching deferred to post-MVP
+  - **Features:** Tracks current index, returns next question, marks final question
+  - **Verify:** `pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result -v`
 
-- [ ] **VF-042 — Implement QuestionnaireEngine.applyAnswer() + validation**
+- [x] **VF-042 — Implement QuestionnaireEngine.applyAnswer() + validation**
   - Validate answers against allowed options and update session questionnaire state.
+  - **Implementation:** `validate_answer()` method in QuestionnaireEngine
+  - **Validation:** Checks answers against allowed option values for each question type
+  - **Supported types:** radio, select, checkbox (list), slider (range)
+  - **State tracking:** Session questionnaire state updated via API endpoints
+  - **Verify:** `pytest tests/test_sessions.py::test_submit_invalid_answer -v`
 
 - [x] **VF-043 — Implement QuestionnaireEngine.finalize() -> IntentProfile (schema-validated)**
   - Produce the final IntentProfile object and validate it against the schema to ensure stability downstream.

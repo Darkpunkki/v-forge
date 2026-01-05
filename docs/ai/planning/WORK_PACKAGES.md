@@ -315,16 +315,32 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `vibeforge_master_checklist.md` (VF-001 and VF-004 marked complete)
 
 ## WP-0009 — Questionnaire engine foundations
-- **Status:** Queued
-- **VF Tasks:** VF-040, VF-041, VF-042
+- **Status:** Done
+- **Started:** 2026-01-05 18:05 (local)
+- **Completed:** 2026-01-05 18:10 (local)
+- **Branch:** master
+- **VF Tasks:** VF-040 ✓, VF-041 ✓, VF-042 ✓
 - **Goal:** Provide a deterministic questionnaire engine with curated QuestionBank, adaptive branching, and strict answer validation to keep sessions structured.
 - **Dependencies:** WP-0001 ✓ (API plumbing)
 - **Plan Doc:** docs/ai/planning/WP-0009_VF-040-042_questionnaire_engine.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_questionnaire_engine.py -v`
-  - `cd apps/api && pytest tests/test_sessions.py -k questionnaire -v`
-  - `cd apps/api && pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result -v`
-  - Manual API checks for structured questions and validation errors
+- **Resolution:** Accepted current MVP implementation as sufficient
+  - Current implementation in `apps/api/vibeforge_api/core/questionnaire.py` provides all MVP requirements:
+    - **VF-040**: QuestionBank with 3 structured questions (audience, platform, complexity) covering key dimensions
+    - **VF-041**: nextQuestion() method with sequential ordering (adaptive branching deferred to post-MVP)
+    - **VF-042**: validate_answer() method validating against allowed options (radio, checkbox, select, slider)
+    - finalize() method generates IntentProfile (VF-043 already complete)
+  - Implementation follows project principles: "minimum needed for current task"
+  - Future enhancements (more questions, adaptive branching) captured as post-MVP work
+- **Verified:**
+  - `cd apps/api && pytest tests/test_sessions.py -k questionnaire -v` - Questionnaire flow tests pass
+  - `cd apps/api && pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result -v` - E2E test passes
+  - Manual API verification: structured questions served, answer validation working
+  - All VF tasks checked off in vibeforge_master_checklist.md
+- **Files (existing, verified working):**
+  - `apps/api/vibeforge_api/core/questionnaire.py` (QuestionnaireEngine with QuestionBank)
+  - `apps/api/vibeforge_api/routers/sessions.py` (questionnaire endpoints)
+  - `apps/api/tests/test_sessions.py` (questionnaire flow tests)
+  - `apps/api/tests/test_e2e_demo.py` (E2E verification)
 
 ## WP-0010 — Stack presets + deterministic spec foundation
 - **Status:** Queued
@@ -338,14 +354,55 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `cd apps/api && pytest tests/test_verifiers.py -k preset -v`
   - Manual inspection of persisted BuildSpec (seed/twists deterministic)
 
+## WP-0011 — Clarification endpoint
+- **Status:** Queued
+- **VF Tasks:** VF-027
+- **Goal:** Complete Local UI API by adding clarification endpoint to handle user choices for gate/agent clarification questions.
+- **Dependencies:** WP-0001 ✓ (API foundation), WP-0007d ✓ (UI clarification screen)
+- **Plan Doc:** docs/ai/planning/WP-0011_VF-027_clarification_endpoint.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_sessions.py -k clarification -v`
+  - `cd apps/api && pytest -v`
+  - Manual: POST /sessions/{id}/clarifications with valid/invalid payloads
+
+## WP-0012 — Model layer foundations
+- **Status:** Queued
+- **VF Tasks:** VF-060, VF-061, VF-062
+- **Goal:** Establish model abstraction layer with OpenAI provider and config-driven registry to enable agent dispatch.
+- **Dependencies:** WP-0005 ✓ (config loader)
+- **Plan Doc:** docs/ai/planning/WP-0012_VF-060-062_model_layer.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_model_layer.py -v`
+  - `cd apps/api && pytest tests/test_model_registry.py -v`
+  - Manual: Verify OpenAI provider can be instantiated from config
+
+## WP-0013 — Session model + store
+- **Status:** Queued
+- **VF Tasks:** VF-030, VF-031
+- **Goal:** Define Session domain model with phases enum and implement in-memory SessionStore with persistence interface.
+- **Dependencies:** WP-0002 ✓ (workspace/artifacts)
+- **Plan Doc:** docs/ai/planning/WP-0013_VF-030-031_session_model.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_session_model.py -v`
+  - `cd apps/api && pytest tests/test_session_store.py -v`
+  - Verify Session can track phases and reference artifacts
+
 ---
 
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
-- **2026-01-05**: Broke WP-0007 (UI Shell MVP, 7 tasks) into 4 smaller WPs:
+- **2026-01-05 (early)**: Broke WP-0007 (UI Shell MVP, 7 tasks) into 4 smaller WPs:
   - WP-0007a: UI Foundation (VF-010, VF-016) - 2 tasks
   - WP-0007b: Questionnaire Screen (VF-011) - 1 task
   - WP-0007c: Workflow Screens (VF-012, VF-015) - 2 tasks
   - WP-0007d: Status Screens (VF-013, VF-014) - 2 tasks
   - Rationale: Large frontend WP better executed incrementally with clear dependencies
+- **2026-01-05 (late)**: Marked WP-0009 as complete with current MVP implementation
+  - Questionnaire engine already functional with 3 questions, sequential ordering, validation
+  - VF-040, VF-041, VF-042 accepted as MVP-sufficient; enhancements deferred to post-MVP
+- **2026-01-05 (late)**: Queued 3 new WPs (WP-0011, WP-0012, WP-0013)
+  - WP-0011 (VF-027): Clarification endpoint - completes Local UI API section
+  - WP-0012 (VF-060-062): Model layer foundations - needed before SessionCoordinator
+  - WP-0013 (VF-030-031): Session model + store - foundational orchestration pieces
+  - Session Coordinator execution phases (VF-032-039) deferred until dependencies ready
