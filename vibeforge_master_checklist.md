@@ -139,13 +139,36 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Polished UI with section-based layout
   - **Verify:** `cd apps/ui && npm run build` (TypeScript compilation succeeds)
 
-- [ ] **VF-013 — Progress screen (timeline + log stream)**
+- [x] **VF-013 — Progress screen (timeline + log stream)**
   - Display current phase, active task, completed tasks, and streaming logs (commands + verification results).
-  - **Note:** Screen component created in VF-010 with polling, ready for use when EXECUTION phase is implemented
+  - **Files:** `apps/ui/src/screens/Progress.tsx` (enhanced with visual timeline and polished UI)
+  - **Features implemented:**
+    - Phase indicator with gradient styling, progress bar, and percentage
+    - Active task card with spinning animation
+    - Visual task timeline with status icons (✅ completed, 🔄 in progress, ❌ failed)
+    - Live logs in terminal-style display with auto-scroll to latest
+    - Summary stats cards showing completed/in progress/failed counts
+    - Auto-navigation to /result when phase transitions to COMPLETE
+    - Polling every 2 seconds for real-time updates
+  - **Verify:** `cd apps/ui && npm run build` (TypeScript compilation succeeds)
 
-- [ ] **VF-014 — Clarification screen (multiple-choice answers)**
+- [x] **VF-014 — Clarification screen (multiple-choice answers)**
   - Render clarification questions returned by gates or agents, allowing only multiple-choice or constrained answers.
-  - **Note:** Placeholder screen created in VF-010, implementation pending when gates/agents return clarifications
+  - **Files:** `apps/ui/src/screens/Clarification.tsx` (complete implementation with polished UI)
+  - **Files:** `apps/ui/src/types/api.ts` (added ClarificationResponse, ClarificationOption, ClarificationAnswerRequest types)
+  - **Files:** `apps/ui/src/api/client.ts` (added getClarification and submitClarification endpoints)
+  - **Features implemented:**
+    - Warning banner indicating clarification is needed
+    - Question display with prominent text
+    - Optional context section with highlighted background
+    - Clickable option cards with radio button styling
+    - Visual selection feedback (border and background color)
+    - Option descriptions support
+    - Submit button (disabled until option selected)
+    - Loading and submitting states
+    - Navigate back to /progress after submission
+    - Error handling for failed API calls
+  - **Verify:** `cd apps/ui && npm run build` (TypeScript compilation succeeds)
 
 - [x] **VF-015 — Summary screen (run instructions + open workspace link)**
   - Present final run instructions, key features built, and the location of the generated workspace folder/repo.

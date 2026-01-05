@@ -11,6 +11,8 @@ import type {
   ProgressResponse,
   ResultResponse,
   PlanResponse,
+  ClarificationResponse,
+  ClarificationAnswerRequest,
   ErrorResponse,
   SessionPhase,
 } from '../types/api'
@@ -124,6 +126,30 @@ export async function decidePlan(
   return fetchJson(`/sessions/${sessionId}/plan/decision`, {
     method: 'POST',
     body: JSON.stringify({ approved: decision === 'approve', reason }),
+  })
+}
+
+/**
+ * Get clarification question (when gates/agents need user input)
+ */
+export async function getClarification(
+  sessionId: string
+): Promise<ClarificationResponse> {
+  return fetchJson<ClarificationResponse>(
+    `/sessions/${sessionId}/clarification`
+  )
+}
+
+/**
+ * Submit clarification answer
+ */
+export async function submitClarification(
+  sessionId: string,
+  answer: ClarificationAnswerRequest
+): Promise<{ status: string; next_phase: SessionPhase }> {
+  return fetchJson(`/sessions/${sessionId}/clarification`, {
+    method: 'POST',
+    body: JSON.stringify(answer),
   })
 }
 

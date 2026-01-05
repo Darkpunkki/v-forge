@@ -86,6 +86,25 @@ export interface ResultResponse {
   artifacts: Record<string, string>
 }
 
+// Clarification option
+export interface ClarificationOption {
+  label: string
+  value: string
+  description?: string
+}
+
+// Clarification response
+export interface ClarificationResponse {
+  question: string
+  context?: string
+  options: ClarificationOption[]
+}
+
+// Clarification answer request
+export interface ClarificationAnswerRequest {
+  answer: string
+}
+
 // Error response
 export interface ErrorResponse {
   detail: string

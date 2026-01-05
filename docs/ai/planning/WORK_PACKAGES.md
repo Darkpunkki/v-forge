@@ -250,17 +250,37 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `vibeforge_master_checklist.md` (VF-012 and VF-015 marked complete)
 
 ## WP-0007d — Status Screens (progress + clarification)
-- **Status:** Queued
-- **VF Tasks:** VF-013, VF-014
+- **Status:** Done
+- **Started:** 2026-01-05 17:10 (local)
+- **Completed:** 2026-01-05 17:35 (local)
+- **Branch:** master
+- **VF Tasks:** VF-013 ✓, VF-014 ✓
 - **Goal:** Implement progress screen (timeline + log stream) and clarification screen (multiple-choice questions from gates/agents).
 - **Dependencies:** WP-0007a ✓ (UI foundation)
 - **Plan Doc:** docs/ai/planning/WP-0007d_VF-013-014_status_screens.md
-- **Verify:**
-  - Progress screen displays current phase and active task
-  - Completed tasks shown in timeline
-  - Log stream updates with command/verification results
-  - Clarification screen renders multiple-choice options
-  - User can select and submit clarification answers
+- **Verified:**
+  - `cd apps/ui && npm run build` - TypeScript build passes (✓ built in 991ms)
+  - Progress.tsx enhanced with visual timeline, live logs, and auto-navigation
+  - Clarification.tsx fully implemented with option cards and submission
+  - Both screens integrate with API client correctly
+  - All VF tasks checked off in vibeforge_master_checklist.md
+- **Files touched:**
+  - `apps/ui/src/screens/Progress.tsx` (enhanced - VF-013)
+    - Phase indicator with progress bar and percentage
+    - Active task card with spinning animation
+    - Visual timeline with status icons
+    - Live logs with auto-scroll
+    - Summary stats cards
+    - Auto-navigation to /result on COMPLETE
+  - `apps/ui/src/screens/Clarification.tsx` (implemented - VF-014)
+    - Question and context display
+    - Clickable option cards with radio styling
+    - Selection feedback and descriptions
+    - Submit functionality with loading states
+  - `apps/ui/src/types/api.ts` (added clarification types)
+  - `apps/ui/src/api/client.ts` (added getClarification/submitClarification)
+  - `docs/ai/planning/WP-0007d_VF-013-014_status_screens.md` (plan document created)
+  - `vibeforge_master_checklist.md` (VF-013 and VF-014 marked complete)
 
 ## WP-0008 — Repository foundations + test harness
 - **Status:** Queued
