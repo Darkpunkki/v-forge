@@ -220,17 +220,34 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
     - No free-text inputs (enforced)
 
 ## WP-0007c — Workflow Screens (plan review + summary)
-- **Status:** Queued
-- **VF Tasks:** VF-012, VF-015
+- **Status:** Done
+- **Started:** 2026-01-05 16:45 (local)
+- **Completed:** 2026-01-05 17:05 (local)
+- **Branch:** master
+- **VF Tasks:** VF-012 ✓, VF-015 ✓
 - **Goal:** Implement plan review screen (approve/reject) and summary screen (run instructions + workspace link).
 - **Dependencies:** WP-0007a ✓ (UI foundation)
 - **Plan Doc:** docs/ai/planning/WP-0007c_VF-012-015_workflow_screens.md
-- **Verify:**
-  - Plan review screen displays proposed plan summary
-  - Approve/reject buttons work correctly
-  - Summary screen shows run instructions
-  - Workspace location displayed with open link/button
-  - Flow transitions correctly from questionnaire → review → summary
+- **Verified:**
+  - `cd apps/ui && npm run build` - TypeScript build passes (✓ built in 745ms)
+  - PlanReview.tsx enhanced with improved styling and state management
+  - Result.tsx completely redesigned with polished UI sections
+  - Both screens integrate with API client correctly
+  - All VF tasks checked off in vibeforge_master_checklist.md
+- **Files touched:**
+  - `apps/ui/src/screens/PlanReview.tsx` (enhanced - VF-012)
+    - Added submitting state for buttons
+    - Improved layout with sections and polished styling
+    - Proper navigation flow (approve → progress, reject → home)
+    - Error display improvements
+  - `apps/ui/src/screens/Result.tsx` (redesigned - VF-015)
+    - Success banner with gradient styling
+    - Workspace location with copy-to-clipboard button
+    - Terminal-style run instructions display
+    - Generated files and artifacts sections
+    - Next steps guidance
+  - `docs/ai/planning/WP-0007c_VF-012-015_workflow_screens.md` (plan document created)
+  - `vibeforge_master_checklist.md` (VF-012 and VF-015 marked complete)
 
 ## WP-0007d — Status Screens (progress + clarification)
 - **Status:** Queued

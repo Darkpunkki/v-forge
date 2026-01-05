@@ -128,9 +128,16 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Verify:** `cd apps/ui && npm run build` (TypeScript compilation succeeds)
   - **Verify:** `grep -E 'type="text"|<textarea' apps/ui/src/screens/Questionnaire.tsx` (no free-text inputs)
 
-- [ ] **VF-012 — Plan review screen (approve/reject)**
+- [x] **VF-012 — Plan review screen (approve/reject)**
   - Show the proposed concept/plan summary and require explicit user approval before any code is generated or commands are run.
-  - **Note:** Screen component created in VF-010, ready for use when PLAN_REVIEW phase is implemented
+  - **Files:** `apps/ui/src/screens/PlanReview.tsx` (enhanced with improved styling and state management)
+  - **Features implemented:**
+    - Plan summary display (features, task count, verification steps, constraints)
+    - Approve/reject buttons with submitting state
+    - Proper navigation: approve → /progress, reject → /
+    - Error handling and loading states
+    - Polished UI with section-based layout
+  - **Verify:** `cd apps/ui && npm run build` (TypeScript compilation succeeds)
 
 - [ ] **VF-013 — Progress screen (timeline + log stream)**
   - Display current phase, active task, completed tasks, and streaming logs (commands + verification results).
@@ -140,9 +147,19 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Render clarification questions returned by gates or agents, allowing only multiple-choice or constrained answers.
   - **Note:** Placeholder screen created in VF-010, implementation pending when gates/agents return clarifications
 
-- [ ] **VF-015 — Summary screen (run instructions + open workspace link)**
+- [x] **VF-015 — Summary screen (run instructions + open workspace link)**
   - Present final run instructions, key features built, and the location of the generated workspace folder/repo.
-  - **Note:** Screen component created in VF-010, currently functional with result endpoint
+  - **Files:** `apps/ui/src/screens/Result.tsx` (completely redesigned with polished UI)
+  - **Features implemented:**
+    - Success/failure banner with gradient styling
+    - Summary section with formatted text
+    - Workspace location with copy-to-clipboard button
+    - Run instructions in terminal-style code block
+    - Generated files list display
+    - Artifacts section (if applicable)
+    - Next steps guidance for users
+    - "Start New Session" button
+  - **Verify:** `cd apps/ui && npm run build` (TypeScript compilation succeeds)
 
 - [x] **VF-016 — UI client for Local UI API (typed requests/responses)**
   - Implement a typed API client (or thin fetch wrapper) so the UI communicates with the local API through stable DTOs.

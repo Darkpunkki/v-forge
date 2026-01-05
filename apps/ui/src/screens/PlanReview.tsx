@@ -26,15 +26,26 @@ export function PlanReviewScreen() {
     }
   }
 
+  const [submitting, setSubmitting] = useState(false)
+
   async function handleDecision(decision: 'approve' | 'reject') {
     if (!sessionId) return
 
     setError(null)
+    setSubmitting(true)
     try {
-      await decidePlan(sessionId, decision)
-      navigate(`/result/${sessionId}`)
+      const response = await decidePlan(sessionId, decision)
+      if (decision === 'approve') {
+        // Navigate to progress screen for execution phase
+        navigate(`/progress/${sessionId}`)
+      } else {
+        // Navigate to home or show rejection message
+        navigate('/')
+      }
     } catch (err: any) {
       setError(err.message || String(err))
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -61,51 +72,92 @@ export function PlanReviewScreen() {
   }
 
   return (
-    <div>
-      <div style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16 }}>
-        <h2 style={{ marginTop: 0 }}>Plan Review</h2>
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <h1>Plan Review</h1>
+      <p style={{ color: '#666', marginBottom: 24 }}>
+        Review the proposed plan and approve to begin implementation.
+      </p>
 
-        <h3>Features</h3>
-        <ul>
-          {plan.features.map((feature, idx) => (
-            <li key={idx}>{feature}</li>
-          ))}
-        </ul>
+      <div style={{ border: '1px solid #ddd', borderRadius: 12, padding: 24, background: '#fafafa' }}>
+        <section style={{ marginBottom: 24 }}>
+          <h2 style={{ marginTop: 0, fontSize: 20, color: '#0070f3' }}>Features</h2>
+          <ul style={{ lineHeight: 1.8 }}>
+            {plan.features.map((feature, idx) => (
+              <li key={idx}>{feature}</li>
+            ))}
+          </ul>
+        </section>
 
-        <h3>Details</h3>
-        <p>
-          <strong>Task Count:</strong> {plan.task_count}
-        </p>
-        <p>
-          <strong>Estimated Scope:</strong> {plan.estimated_scope}
-        </p>
+        <section style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 20, color: '#0070f3' }}>Plan Details</h2>
+          <div style={{ background: 'white', padding: 16, borderRadius: 8, marginTop: 12 }}>
+            <p style={{ margin: '8px 0' }}>
+              <strong>Task Count:</strong> {plan.task_count}
+            </p>
+            <p style={{ margin: '8px 0' }}>
+              <strong>Estimated Scope:</strong> {plan.estimated_scope}
+            </p>
+          </div>
+        </section>
 
-        <h3>Verification Steps</h3>
-        <ul>
-          {plan.verification_steps.map((step, idx) => (
-            <li key={idx}>{step}</li>
-          ))}
-        </ul>
+        <section style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 20, color: '#0070f3' }}>Verification Steps</h2>
+          <ul style={{ lineHeight: 1.8 }}>
+            {plan.verification_steps.map((step, idx) => (
+              <li key={idx}>{step}</li>
+            ))}
+          </ul>
+        </section>
 
-        <h3>Constraints</h3>
-        <ul>
-          {plan.constraints.map((constraint, idx) => (
-            <li key={idx}>{constraint}</li>
-          ))}
-        </ul>
+        <section style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: 20, color: '#0070f3' }}>Constraints</h2>
+          <ul style={{ lineHeight: 1.8 }}>
+            {plan.constraints.map((constraint, idx) => (
+              <li key={idx}>{constraint}</li>
+            ))}
+          </ul>
+        </section>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
+        {error && (
+          <div style={{ background: '#fee', padding: 12, borderRadius: 6, marginBottom: 16, color: '#c00' }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
           <button
             onClick={() => handleDecision('approve')}
-            style={{ padding: '10px 20px', background: '#0070f3', color: 'white', border: 'none', borderRadius: 6 }}
+            disabled={submitting}
+            style={{
+              padding: '12px 32px',
+              background: submitting ? '#ccc' : '#0070f3',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              transition: 'background 0.2s',
+            }}
           >
-            Approve Plan
+            {submitting ? 'Submitting...' : 'Approve Plan'}
           </button>
           <button
             onClick={() => handleDecision('reject')}
-            style={{ padding: '10px 20px', background: '#f44336', color: 'white', border: 'none', borderRadius: 6 }}
+            disabled={submitting}
+            style={{
+              padding: '12px 32px',
+              background: submitting ? '#ccc' : '#f44336',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              transition: 'background 0.2s',
+            }}
           >
-            Reject Plan
+            {submitting ? 'Submitting...' : 'Reject Plan'}
           </button>
         </div>
       </div>
