@@ -93,8 +93,13 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Files: `apps/api/vibeforge_api/models/types.py`, `apps/api/vibeforge_api/models/requests.py`, `apps/api/vibeforge_api/models/responses.py`
   - Verification: Models imported and used in routers; pytest passes
 
-- [ ] **VF-003 — Add configuration loader (stack presets, policies, router rules)**
+- [x] **VF-003 — Add configuration loader (stack presets, policies, router rules)**
   - Implement config loading (e.g., YAML/JSON) for allowlisted stack presets, command policies, forbidden patterns, and model routing rules. Make behavior adjustable without code changes.
+  - **Files:** `apps/api/vibeforge_api/config/models.py` (PolicyConfig, StackPreset, CommandSpec, NetworkAccess, VibeForgeConfig)
+  - **Files:** `apps/api/vibeforge_api/config/loader.py` (ConfigLoader with caching and validation)
+  - **Files:** `apps/api/vibeforge_api/config/__init__.py` (exported functions: load_config, get_stack_preset, get_policy_config, list_available_stacks)
+  - **Tests:** `apps/api/tests/test_config_loader.py` (20 comprehensive tests)
+  - **Verify:** `pytest tests/test_config_loader.py -v` (20 passed), `pytest -v` (147 passed)
 
 - [ ] **VF-004 — Add basic test harness + CI skeleton (unit tests only)**
   - Set up unit test framework and a minimal CI pipeline so new components can be verified continuously. Keep it simple: lint/format optional, unit tests required.
@@ -102,26 +107,49 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 01 UI Shell (MVP)
 
-- [ ] **VF-010 — UI skeleton (simple web UI)**
+- [x] **VF-010 — UI skeleton (simple web UI)**
   - Create a minimal, user-friendly UI shell (web is easiest for MVP). It should be able to start a session and render the main screens without any free-text input.
+  - **Files:** `apps/ui/src/ui/App.tsx` (React Router setup), `apps/ui/src/components/Layout.tsx` (layout with navigation)
+  - **Files:** `apps/ui/src/screens/Home.tsx`, `apps/ui/src/screens/Questionnaire.tsx`, `apps/ui/src/screens/PlanReview.tsx`, `apps/ui/src/screens/Progress.tsx`, `apps/ui/src/screens/Clarification.tsx`, `apps/ui/src/screens/Result.tsx`
+  - **Verify:** `cd apps/ui && npm run build` (build succeeds), `cd apps/ui && npm run dev` (dev server starts on http://localhost:5173)
 
-- [ ] **VF-011 — Questionnaire screen (single-question flow, no free text)**
+- [x] **VF-011 — Questionnaire screen (single-question flow, no free text)**
   - Implement a step-by-step questionnaire UI that only supports structured inputs (radio buttons, pick lists, sliders).
+  - **Files:** `apps/ui/src/screens/Questionnaire.tsx` (enhanced with all question types)
+  - **Implementation:**
+    - Radio buttons: Single-choice with visual selection feedback
+    - Checkboxes: Multi-select with comma-separated answer format
+    - Select dropdown: Traditional dropdown with default prompt
+    - Slider: Numeric range input with min/max/current value display
+    - Form state management for each input type
+    - Validation before submission (ensures selection made)
+    - Loading/submitting states for better UX
+    - Final question indicator
+  - **Verify:** `cd apps/ui && npm run build` (TypeScript compilation succeeds)
+  - **Verify:** `grep -E 'type="text"|<textarea' apps/ui/src/screens/Questionnaire.tsx` (no free-text inputs)
 
 - [ ] **VF-012 — Plan review screen (approve/reject)**
   - Show the proposed concept/plan summary and require explicit user approval before any code is generated or commands are run.
+  - **Note:** Screen component created in VF-010, ready for use when PLAN_REVIEW phase is implemented
 
 - [ ] **VF-013 — Progress screen (timeline + log stream)**
   - Display current phase, active task, completed tasks, and streaming logs (commands + verification results).
+  - **Note:** Screen component created in VF-010 with polling, ready for use when EXECUTION phase is implemented
 
 - [ ] **VF-014 — Clarification screen (multiple-choice answers)**
   - Render clarification questions returned by gates or agents, allowing only multiple-choice or constrained answers.
+  - **Note:** Placeholder screen created in VF-010, implementation pending when gates/agents return clarifications
 
 - [ ] **VF-015 — Summary screen (run instructions + open workspace link)**
   - Present final run instructions, key features built, and the location of the generated workspace folder/repo.
+  - **Note:** Screen component created in VF-010, currently functional with result endpoint
 
-- [ ] **VF-016 — UI client for Local UI API (typed requests/responses)**
+- [x] **VF-016 — UI client for Local UI API (typed requests/responses)**
   - Implement a typed API client (or thin fetch wrapper) so the UI communicates with the local API through stable DTOs.
+  - **Files:** `apps/ui/src/types/api.ts` (TypeScript types matching backend Pydantic models)
+  - **Files:** `apps/ui/src/api/client.ts` (typed API client with error handling)
+  - **Endpoints:** createSession, getQuestion, submitAnswer, getProgress, getResult, getPlan, decidePlan
+  - **Verify:** `cd apps/ui && npm run build` (TypeScript compilation succeeds with no errors)
 
 
 ### 02 Local UI API

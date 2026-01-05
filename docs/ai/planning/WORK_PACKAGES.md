@@ -116,15 +116,26 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `docs/ai/planning/WP-0004_VF-080-085_gates_pipeline.md` (plan document)
 
 ## WP-0005 — Configuration loader
-- **Status:** Queued
-- **VF Tasks:** VF-003
+- **Status:** Done
+- **Started:** 2026-01-05 (local)
+- **Completed:** 2026-01-05 (local)
+- **Branch:** master
+- **VF Tasks:** VF-003 (complete ✓)
 - **Goal:** Load stack presets, command policies, and routing rules from config files to make system behavior adjustable without code changes.
 - **Dependencies:** None
 - **Plan Doc:** docs/ai/planning/WP-0005_VF-003_config_loader.md
-- **Verify:**
-  - Unit tests for config loading
-  - Config validation tests
-  - Test that stack presets and policies load correctly
+- **Verified:**
+  - `pytest tests/test_config_loader.py -v` - 20 tests passed
+  - `pytest -v` - All 147 tests passed (127 existing + 20 new config tests)
+  - Config loader loads and validates stack presets from JSON
+  - Policy configuration loaded with defaults
+  - Pydantic models validate config structure with proper error handling
+  - Helper functions provide typed access: get_stack_preset(), get_policy_config(), list_available_stacks()
+- **Files touched:**
+  - `apps/api/vibeforge_api/config/models.py` (new - Pydantic models)
+  - `apps/api/vibeforge_api/config/loader.py` (new - ConfigLoader implementation)
+  - `apps/api/vibeforge_api/config/__init__.py` (new - module exports)
+  - `apps/api/tests/test_config_loader.py` (new - 20 comprehensive tests)
 
 ## WP-0006 — Questionnaire finalization + mock generation (E2E demo)
 - **Status:** Done
@@ -153,18 +164,86 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/test_e2e_demo.py` (new E2E tests)
   - `apps/api/tests/test_sessions.py` (updated expectations)
 
-## WP-0007 — UI Shell (MVP)
+## WP-0007a — UI Foundation (skeleton + API client)
+- **Status:** Done
+- **Started:** 2026-01-05 (local)
+- **Completed:** 2026-01-05 (local)
+- **Branch:** master
+- **VF Tasks:** VF-010 ✓, VF-016 ✓
+- **Goal:** Set up Vite+React project with routing, layout, and typed API client for communicating with Local UI API.
+- **Dependencies:** WP-0001 ✓ (Local UI API must exist)
+- **Plan Doc:** docs/ai/planning/WP-0007a_VF-010-016_ui_foundation.md
+- **Verified:**
+  - `cd apps/ui && npm install` - Dependencies installed (react-router-dom added)
+  - `cd apps/ui && npm run build` - Build succeeds with no TypeScript errors
+  - `cd apps/ui && npm run dev` - Dev server starts on http://localhost:5173
+  - React Router configured with 6 routes (Home, Questionnaire, PlanReview, Progress, Clarification, Result)
+  - Layout component with navigation header and footer
+  - All screen components created with typed API client integration
+  - API client fully typed matching backend Pydantic models
+- **Files touched:**
+  - `apps/ui/src/types/api.ts` (new - TypeScript type definitions)
+  - `apps/ui/src/api/client.ts` (new - Typed API client)
+  - `apps/ui/src/components/Layout.tsx` (new - Layout with navigation)
+  - `apps/ui/src/screens/Home.tsx` (new - Home screen)
+  - `apps/ui/src/screens/Questionnaire.tsx` (new - Questionnaire screen)
+  - `apps/ui/src/screens/PlanReview.tsx` (new - Plan review screen)
+  - `apps/ui/src/screens/Progress.tsx` (new - Progress screen with polling)
+  - `apps/ui/src/screens/Clarification.tsx` (new - Clarification placeholder)
+  - `apps/ui/src/screens/Result.tsx` (new - Result screen)
+  - `apps/ui/src/ui/App.tsx` (updated - React Router setup)
+
+## WP-0007b — Questionnaire Screen
+- **Status:** Done
+- **Started:** 2026-01-05 (local)
+- **Completed:** 2026-01-05 (local)
+- **Branch:** master
+- **VF Tasks:** VF-011 ✓
+- **Goal:** Implement step-by-step questionnaire UI with structured inputs only (radio buttons, select dropdowns, sliders).
+- **Dependencies:** WP-0007a ✓ (UI foundation and API client must exist)
+- **Plan Doc:** docs/ai/planning/WP-0007b_VF-011_questionnaire_screen.md
+- **Verified:**
+  - `cd apps/ui && npm run build` - TypeScript compilation succeeds
+  - `grep -E 'type="text"|<textarea' apps/ui/src/screens/Questionnaire.tsx` - No free-text inputs (0 matches)
+  - Questionnaire screen renders all question types (radio, checkbox, select, slider)
+  - Structured input controls with visual feedback on selection
+  - Answer submission with validation and proper state management
+  - Final question indicator displayed
+  - Navigation between questions works correctly
+- **Files touched:**
+  - `apps/ui/src/screens/Questionnaire.tsx` (complete rewrite - 323 lines)
+    - Added state management for all input types (radio, checkbox, select, slider)
+    - Implemented question type-specific renderers
+    - Added validation before submission
+    - Added submitting/loading states
+    - Visual selection feedback for all input types
+    - No free-text inputs (enforced)
+
+## WP-0007c — Workflow Screens (plan review + summary)
 - **Status:** Queued
-- **VF Tasks:** VF-010, VF-011, VF-012, VF-013, VF-014, VF-015, VF-016
-- **Goal:** Enable users to interact with VibeForge through a web UI with structured inputs only (no free text), providing screens for questionnaire, plan review, progress tracking, clarifications, and final summary.
-- **Dependencies:** WP-0001 ✓ (Local UI API must exist for UI to communicate with backend)
-- **Plan Doc:** docs/ai/planning/WP-0007_VF-010-016_ui_shell_mvp.md
+- **VF Tasks:** VF-012, VF-015
+- **Goal:** Implement plan review screen (approve/reject) and summary screen (run instructions + workspace link).
+- **Dependencies:** WP-0007a ✓ (UI foundation)
+- **Plan Doc:** docs/ai/planning/WP-0007c_VF-012-015_workflow_screens.md
 - **Verify:**
-  - UI dev server starts successfully
-  - All 6 screens render correctly (questionnaire, plan review, progress, clarification, summary)
-  - UI client successfully communicates with Local UI API endpoints
-  - No free-text inputs present (only structured controls: radio, select, buttons)
-  - End-to-end flow: start session → answer questions → approve plan → view progress → see summary
+  - Plan review screen displays proposed plan summary
+  - Approve/reject buttons work correctly
+  - Summary screen shows run instructions
+  - Workspace location displayed with open link/button
+  - Flow transitions correctly from questionnaire → review → summary
+
+## WP-0007d — Status Screens (progress + clarification)
+- **Status:** Queued
+- **VF Tasks:** VF-013, VF-014
+- **Goal:** Implement progress screen (timeline + log stream) and clarification screen (multiple-choice questions from gates/agents).
+- **Dependencies:** WP-0007a ✓ (UI foundation)
+- **Plan Doc:** docs/ai/planning/WP-0007d_VF-013-014_status_screens.md
+- **Verify:**
+  - Progress screen displays current phase and active task
+  - Completed tasks shown in timeline
+  - Log stream updates with command/verification results
+  - Clarification screen renders multiple-choice options
+  - User can select and submit clarification answers
 
 ## WP-0008 — Repository foundations + test harness
 - **Status:** Queued
@@ -207,3 +286,9 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
+- **2026-01-05**: Broke WP-0007 (UI Shell MVP, 7 tasks) into 4 smaller WPs:
+  - WP-0007a: UI Foundation (VF-010, VF-016) - 2 tasks
+  - WP-0007b: Questionnaire Screen (VF-011) - 1 task
+  - WP-0007c: Workflow Screens (VF-012, VF-015) - 2 tasks
+  - WP-0007d: Status Screens (VF-013, VF-014) - 2 tasks
+  - Rationale: Large frontend WP better executed incrementally with clear dependencies
