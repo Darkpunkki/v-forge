@@ -562,20 +562,69 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 09 TaskGraph + TaskMaster + Distributor
 
-- [ ] **VF-090 — Define TaskGraph types + parser + schema validation**
+- [x] **VF-090 — Define TaskGraph types + parser + schema validation**
   - Implement types and schema validation for TaskGraph so the scheduler can rely on strong invariants.
+  - **File:** `orchestration/models.py:110` (TaskGraph.validate_dag enhanced)
+  - **Implementation:**
+    - Enhanced validate_dag() with comprehensive checks:
+      - Duplicate task ID detection
+      - Non-existent dependency detection
+      - Cycle detection using DFS
+      - Role validation (worker/foreman/reviewer)
+      - Verification type validation (build/test/lint/manual/integration)
+    - Detailed error messages for each validation failure
+  - **Tests:** `apps/api/tests/test_taskgraph.py::TestTaskGraphValidation` (8 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_taskgraph.py::TestTaskGraphValidation -v` (8 passed)
 
-- [ ] **VF-091 — Validate DAG (no cycles) + dependency resolver**
+- [x] **VF-091 — Validate DAG (no cycles) + dependency resolver**
   - Reject cyclical plans and compute ready-task sets deterministically.
+  - **File:** `orchestration/models.py:192` (get_execution_order, get_ready_tasks methods)
+  - **Implementation:**
+    - `get_execution_order()`: Topological sort using Kahn's algorithm with deterministic ordering (alphabetical tie-breaking)
+    - `get_ready_tasks(completed, running, failed)`: Returns tasks ready to run based on dependency satisfaction
+    - Both methods ensure deterministic, reproducible task ordering
+    - Raises ValueError on cyclical graphs
+  - **Tests:** `apps/api/tests/test_taskgraph.py::TestTaskGraphDependencyResolution` (11 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_taskgraph.py::TestTaskGraphDependencyResolution -v` (11 passed)
 
-- [ ] **VF-092 — Implement TaskMaster.enqueue(TaskGraph)**
+- [x] **VF-092 — Implement TaskMaster.enqueue(TaskGraph)**
   - Load the validated task graph into the scheduler and initialize task statuses.
+  - **File:** `runtime/task_master.py:64` (TaskMaster.enqueue method)
+  - **Implementation:**
+    - Validates TaskGraph using validate_dag()
+    - Computes execution order using get_execution_order()
+    - Initializes TaskExecution tracking for each task (status: PENDING)
+    - Marks root tasks (no dependencies) as READY
+    - Stores max_retries configuration per task
+  - **Tests:** `apps/api/tests/test_taskmaster.py::TestTaskMasterEnqueue` (5 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_taskmaster.py::TestTaskMasterEnqueue -v` (5 passed)
 
-- [ ] **VF-093 — Implement TaskMaster.scheduleNext() (ready tasks only)**
+- [x] **VF-093 — Implement TaskMaster.scheduleNext() (ready tasks only)**
   - Select the next runnable task based on dependencies and failure policy.
+  - **File:** `runtime/task_master.py:99` (TaskMaster.scheduleNext method)
+  - **Implementation:**
+    - Returns first READY task in execution order
+    - Marks selected task as RUNNING
+    - Increments attempt counter
+    - Sets started_at timestamp
+    - Returns None if no tasks are READY
+    - Respects topological ordering
+  - **Tests:** `apps/api/tests/test_taskmaster.py::TestTaskMasterScheduleNext` (6 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_taskmaster.py::TestTaskMasterScheduleNext -v` (6 passed)
 
-- [ ] **VF-094 — Implement TaskMaster.markDone/markFailed + retry counters**
+- [x] **VF-094 — Implement TaskMaster.markDone/markFailed + retry counters**
   - Track completion/failure and retry history; provide hooks for escalation policies.
+  - **File:** `runtime/task_master.py:142` (markDone, markFailed methods)
+  - **Implementation:**
+    - `markDone(task_id, result)`: Marks task as DONE, stores result, sets completed_at, updates downstream tasks to READY
+    - `markFailed(task_id, error_message)`: Handles failures with retry logic
+      - If attempts < max_retries: resets task to READY for retry, returns True
+      - If max_retries exceeded: marks task as FAILED, skips all downstream tasks, sets completed_at, returns False
+    - `_skip_downstream_tasks()`: Recursively marks dependent tasks as SKIPPED
+    - `get_status()`: Returns execution summary (total, completed, running, ready, pending, failed, skipped)
+    - Configurable max_retries (default: 2)
+  - **Tests:** `apps/api/tests/test_taskmaster.py` (11 markDone/markFailed tests + 2 integration tests)
+  - **Verify:** `cd apps/api && pytest tests/test_taskmaster.py::TestTaskMasterMarkDone -v` (5 passed), `cd apps/api && pytest tests/test_taskmaster.py::TestTaskMasterMarkFailed -v` (6 passed)
 
 - [ ] **VF-095 — Implement Distributor.route(task) -> AgentRole (role hint rules)**
   - Assign each task to a role based on explicit hints and objective heuristics.

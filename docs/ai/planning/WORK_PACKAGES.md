@@ -503,15 +503,26 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
     - `apps/api/tests/test_orchestration_models.py` (new - 17 model + DAG tests)
 
 ## WP-0016 — TaskGraph foundations and task scheduling
-- **Status:** Queued
-- **VF Tasks:** VF-090, VF-091, VF-092, VF-093, VF-094
+- **Status:** Done
+- **Started:** 2026-01-05 (local)
+- **Completed:** 2026-01-05 (local)
+- **Branch:** master
+- **VF Tasks:** VF-090 ✓, VF-091 ✓, VF-092 ✓, VF-093 ✓, VF-094 ✓
 - **Goal:** Implement TaskGraph validation, DAG dependency resolution, and TaskMaster scheduling to enable deterministic task execution.
-- **Dependencies:** WP-0015 (orchestrator generates TaskGraphs)
+- **Dependencies:** WP-0015 ✓ (orchestrator generates TaskGraphs)
 - **Plan Doc:** docs/ai/planning/WP-0016_VF-090-094_taskgraph_taskmaster.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_taskgraph.py -v`
-  - `cd apps/api && pytest tests/test_taskmaster.py -v`
-  - `cd apps/api && pytest -v` (all tests pass)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_taskgraph.py -v` - 19 tests passed (8 validation + 11 dependency resolution)
+  - `cd apps/api && pytest tests/test_taskmaster.py -v` - 31 tests passed (TaskMaster enqueue/schedule/complete/fail)
+  - `cd apps/api && pytest -v` - 354 tests passed, 1 skipped (was 304, added 50 new tests)
+  - TaskGraph enhanced with role/verification validation, topological sort, ready task selection
+  - TaskMaster implements full task lifecycle: enqueue, schedule, completion, failure with retries
+  - Downstream task skipping on failure working correctly
+- **Files touched:**
+  - `orchestration/models.py` (VF-090, VF-091: enhanced validate_dag, added get_execution_order, get_ready_tasks)
+  - `runtime/task_master.py` (VF-092, VF-093, VF-094: new TaskMaster class with full scheduling)
+  - `apps/api/tests/test_taskgraph.py` (new - 19 comprehensive tests)
+  - `apps/api/tests/test_taskmaster.py` (new - 31 comprehensive tests)
 
 ## WP-0017 — Task distribution and agent framework adapter
 - **Status:** Queued

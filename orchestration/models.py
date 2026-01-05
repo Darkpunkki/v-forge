@@ -109,7 +109,14 @@ class TaskGraph:
 
     def validate_dag(self) -> tuple[bool, list[str]]:
         """
-        Validate that task dependencies form a valid DAG.
+        VF-090: Validate that task dependencies form a valid DAG.
+
+        Checks:
+        - All task_ids are unique
+        - All dependencies reference existing tasks
+        - No cycles exist
+        - Roles are valid (worker/foreman/reviewer)
+        - Verification types are valid
 
         Returns:
             Tuple of (is_valid, list_of_errors)
@@ -125,7 +132,27 @@ class TaskGraph:
         for task in self.tasks:
             for dep in task.dependencies:
                 if dep not in task_ids:
-                    errors.append(f"Task {task.task_id} depends on non-existent task {dep}")
+                    errors.append(
+                        f"Task {task.task_id} depends on non-existent task {dep}"
+                    )
+
+            # Validate role
+            valid_roles = {"worker", "foreman", "reviewer"}
+            if task.role not in valid_roles:
+                errors.append(
+                    f"Task {task.task_id} has invalid role '{task.role}'. "
+                    f"Must be one of: {valid_roles}"
+                )
+
+            # Validate verification type if present
+            if task.verification:
+                ver_type = task.verification.get("type")
+                valid_types = {"build", "test", "lint", "manual", "integration"}
+                if ver_type and ver_type not in valid_types:
+                    errors.append(
+                        f"Task {task.task_id} has invalid verification type '{ver_type}'. "
+                        f"Must be one of: {valid_types}"
+                    )
 
         # Check for cycles using DFS
         def has_cycle() -> bool:
@@ -158,9 +185,107 @@ class TaskGraph:
             return False
 
         if has_cycle():
-            errors.append("Task graph contains cycles - must be a DAG")
+            errors.append("DAG validation failed: task graph contains cycles")
 
         return (len(errors) == 0, errors)
+
+    def get_execution_order(self) -> list[str]:
+        """
+        VF-091: Return task_ids in valid topological sort order.
+
+        Uses Kahn's algorithm for deterministic ordering.
+        Tasks with equal priority are sorted alphabetically by task_id.
+
+        Returns:
+            List of task_ids in execution order
+
+        Raises:
+            ValueError: If graph contains cycles
+        """
+        # Build in-degree map and adjacency list
+        in_degree = {task.task_id: 0 for task in self.tasks}
+        adj_list = {task.task_id: [] for task in self.tasks}
+
+        for task in self.tasks:
+            for dep in task.dependencies:
+                adj_list[dep].append(task.task_id)
+                in_degree[task.task_id] += 1
+
+        # Queue nodes with no dependencies (in-degree 0)
+        queue = [tid for tid, degree in in_degree.items() if degree == 0]
+        result = []
+
+        while queue:
+            # Sort for deterministic ordering
+            queue.sort()
+            current = queue.pop(0)
+            result.append(current)
+
+            # Reduce in-degree for neighbors
+            for neighbor in adj_list[current]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        # If result doesn't contain all tasks, there's a cycle
+        if len(result) != len(self.tasks):
+            raise ValueError(
+                "Cannot compute execution order: graph contains cycles"
+            )
+
+        return result
+
+    def get_ready_tasks(
+        self,
+        completed: set[str],
+        running: set[str],
+        failed: set[str],
+    ) -> list[Task]:
+        """
+        VF-091: Return tasks that are ready to run.
+
+        A task is ready if:
+        - All dependencies are completed
+        - Task is not already running
+        - Task is not already completed
+        - Task has not failed
+
+        Args:
+            completed: Set of task_ids that are completed
+            running: Set of task_ids currently running
+            failed: Set of task_ids that have failed
+
+        Returns:
+            List of Task objects ready to run (in execution order)
+        """
+        ready = []
+        for task in self.tasks:
+            # Skip if already in a terminal or active state
+            if (
+                task.task_id in completed
+                or task.task_id in running
+                or task.task_id in failed
+            ):
+                continue
+
+            # Check if all dependencies are completed
+            deps_satisfied = all(dep in completed for dep in task.dependencies)
+            if deps_satisfied:
+                ready.append(task)
+
+        # Return in execution order
+        if not ready:
+            return []
+
+        # Sort by execution order
+        try:
+            execution_order = self.get_execution_order()
+            ready.sort(key=lambda t: execution_order.index(t.task_id))
+        except ValueError:
+            # If we can't get execution order, just return alphabetically
+            ready.sort(key=lambda t: t.task_id)
+
+        return ready
 
 
 @dataclass
