@@ -93,3 +93,7 @@ workspaces/
 *.swp
 *.swo
 *~
+
+
+# Reports and visualizations
+/tools/visualizations/reports/*

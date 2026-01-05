@@ -1,0 +1,10 @@
+{
+  "providers": {
+    "openai": {
+      "type": "openai",
+      "default_model": "gpt-4o-mini",
+      "timeout": 60.0
+    }
+  },
+  "default_provider": "openai"
+}

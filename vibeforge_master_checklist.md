@@ -378,14 +378,51 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 06 Model Layer (Cloud-first, local later)
 
-- [ ] **VF-060 — Define LlmClient interface + LlmRequest/LlmResponse types**
+- [x] **VF-060 — Define LlmClient interface + LlmRequest/LlmResponse types**
   - Create a provider-agnostic interface for model calls so OpenAI and local backends can be swapped without touching execution logic.
+  - **Files:**
+    - `models/base/llm_client.py` (LlmClient abstract base class, LlmMessage, LlmRequest, LlmResponse, LlmUsage dataclasses)
+    - `models/base/__init__.py` (module exports)
+  - **Design:**
+    - LlmMessage: role (system/user/assistant) + content
+    - LlmRequest: messages, model, temperature, max_tokens, stop_sequences, metadata
+    - LlmResponse: content, model, finish_reason, usage, metadata
+    - LlmUsage: prompt_tokens, completion_tokens, total_tokens
+    - LlmClient: abstract base with complete() and get_provider_name() methods
+  - **Tests:** `apps/api/tests/test_model_layer.py` (5 tests for types and interface)
+  - **Verification:** `cd apps/api && pytest tests/test_model_layer.py::TestLlmTypes -v`, `pytest tests/test_model_layer.py::TestLlmClientInterface -v`
 
-- [ ] **VF-061 — Implement OpenAiProvider (MVP)**
+- [x] **VF-061 — Implement OpenAiProvider (MVP)**
   - Implement the MVP model client using OpenAI API. Keep prompts and routing outside this class so it stays a thin adapter.
+  - **Files:**
+    - `models/openai/provider.py` (OpenAiProvider class)
+    - `models/openai/__init__.py` (module exports)
+    - `apps/api/requirements.txt` (added openai==1.54.0)
+    - `apps/api/pytest.ini` (added pythonpath for models/ directory)
+  - **Implementation:**
+    - Uses AsyncOpenAI client from openai Python SDK
+    - Maps LlmRequest → OpenAI chat.completions.create format
+    - Maps OpenAI response → LlmResponse with usage tracking
+    - Handles API errors with context
+    - Supports API key from param or OPENAI_API_KEY env var
+    - Supports custom base URL for proxies/testing
+  - **Tests:** `apps/api/tests/test_model_layer.py` (7 OpenAiProvider tests with mocking)
+  - **Verification:** `cd apps/api && pytest tests/test_model_layer.py::TestOpenAiProvider -v` (7 passed)
 
-- [ ] **VF-062 — Implement ModelProviderRegistry (config-driven)**
-  - Allow selecting provider + model by config. This is the switch you’ll flip when moving to local models later.
+- [x] **VF-062 — Implement ModelProviderRegistry (config-driven)**
+  - Allow selecting provider + model by config. This is the switch you'll flip when moving to local models later.
+  - **Files:**
+    - `models/registry.py` (ModelProviderRegistry class, global registry instance)
+    - `configs/models/providers.json` (provider configuration)
+  - **Implementation:**
+    - register_provider(name, config): Register provider configuration
+    - get_provider(name): Get or create provider instance (lazy-loaded, cached)
+    - list_providers(): List all registered provider names
+    - get_default_model(provider_name): Get default model from config
+    - Supports provider types: "openai" (extensible for claude, local, etc.)
+    - Config includes: type, api_key, base_url, timeout, default_model
+  - **Tests:** `apps/api/tests/test_model_registry.py` (11 comprehensive registry tests)
+  - **Verification:** `cd apps/api && pytest tests/test_model_registry.py -v` (11 passed), `pytest -v` (185 total passed)
 
 - [ ] **VF-063 — Implement ModelRouter policy (role/complexity/failures -> modelRef)**
   - Route calls to the right model choice based on role (orchestrator/worker/fixer/reviewer), complexity, and retry history.

@@ -1,0 +1,2 @@
+visualization:
+    python tools/visualizations/vf_progress.py

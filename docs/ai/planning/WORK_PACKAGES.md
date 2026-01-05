@@ -393,15 +393,31 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `vibeforge_master_checklist.md` (VF-027 marked complete)
 
 ## WP-0012 — Model layer foundations
-- **Status:** Queued
-- **VF Tasks:** VF-060, VF-061, VF-062
+- **Status:** Done
+- **Started:** 2026-01-05 18:50 (local)
+- **Completed:** 2026-01-05 19:15 (local)
+- **Branch:** master
+- **VF Tasks:** VF-060 ✓, VF-061 ✓, VF-062 ✓
 - **Goal:** Establish model abstraction layer with OpenAI provider and config-driven registry to enable agent dispatch.
 - **Dependencies:** WP-0005 ✓ (config loader)
 - **Plan Doc:** docs/ai/planning/WP-0012_VF-060-062_model_layer.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_model_layer.py -v`
-  - `cd apps/api && pytest tests/test_model_registry.py -v`
-  - Manual: Verify OpenAI provider can be instantiated from config
+- **Verified:**
+  - `cd apps/api && pytest tests/test_model_layer.py -v` - 12 tests passed (types, interface, OpenAI provider)
+  - `cd apps/api && pytest tests/test_model_registry.py -v` - 11 tests passed (registry functionality)
+  - `cd apps/api && pytest -v` - 185 tests passed (was 162, added 23 model layer tests)
+- **Files touched:**
+  - `models/base/llm_client.py` (LlmClient interface, LlmMessage, LlmRequest, LlmResponse, LlmUsage)
+  - `models/base/__init__.py` (module exports)
+  - `models/openai/provider.py` (OpenAiProvider implementation)
+  - `models/openai/__init__.py` (module exports)
+  - `models/registry.py` (ModelProviderRegistry for config-driven provider selection)
+  - `configs/models/providers.json` (provider configuration)
+  - `apps/api/requirements.txt` (added openai==1.54.0)
+  - `apps/api/pytest.ini` (added pythonpath for models/ directory)
+  - `apps/api/tests/test_model_layer.py` (12 comprehensive tests)
+  - `apps/api/tests/test_model_registry.py` (11 comprehensive tests)
+  - `docs/ai/planning/WP-0012_VF-060-062_model_layer.md` (plan doc)
+  - `vibeforge_master_checklist.md` (VF-060, VF-061, VF-062 marked complete)
 
 ## WP-0013 — Session model + store
 - **Status:** Queued
