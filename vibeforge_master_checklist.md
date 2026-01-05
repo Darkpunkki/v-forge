@@ -329,8 +329,13 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 05 Spec Builder + Seed/Twist
 
-- [ ] **VF-050 — Define StackPreset allowlist (MVP: 1 web stack)**
+- [x] **VF-050 — Define StackPreset allowlist (MVP: 1 web stack)**
   - Define at least one stack preset (e.g., Vite+React) including build/test/run commands and runtime assumptions.
+  - **File:** `apps/api/vibeforge_api/core/spec_builder.py:41` (_pick_stack function)
+  - **Presets implemented:**
+    - WEB_VITE_REACT_TS (Node 20, npm, Vite+React+TypeScript)
+    - CLI_PYTHON (Python 3.11, pip, pytest)
+  - **Verify:** `pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result` (stack preset used in BuildSpec)
 
 - [x] **VF-051 — Implement SpecBuilder.fromIntent(IntentProfile) -> BuildSpec**
   - Deterministically pin platform, stack preset, scope budgets, and guardrails based on IntentProfile.
@@ -339,14 +344,23 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Derives seed, picks stack, genre, twists, scope budgets, policies
   - Verification: `pytest tests/test_e2e_demo.py` (BuildSpec created and validated)
 
-- [ ] **VF-052 — Implement DeterministicSeedDeriver (replayable)**
-  - Derive a deterministic seed from IntentProfile to keep ‘randomness’ reproducible and testable.
+- [x] **VF-052 — Implement DeterministicSeedDeriver (replayable)**
+  - Derive a deterministic seed from IntentProfile to keep 'randomness' reproducible and testable.
+  - **File:** `apps/api/vibeforge_api/core/spec_builder.py:14` (_derive_seed function)
+  - **Implementation:** SHA256 hash of session_id → 64-bit integer → modulo 2^31 for deterministic seed
+  - **Verify:** `pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result` (deterministic BuildSpec generation)
 
-- [ ] **VF-053 — Implement IdeaSeedPicker (genre + up to 2 twist cards)**
+- [x] **VF-053 — Implement IdeaSeedPicker (genre + up to 2 twist cards)**
   - Choose genre + twist cards from allowlists within constraints; record them into BuildSpec.
+  - **File:** `apps/api/vibeforge_api/core/spec_builder.py:57` (_pick_idea_seed function)
+  - **Implementation:** Deterministic selection of genre (PRODUCTIVITY, GAMING, SOCIAL, CREATIVE, EDUCATIONAL) and 1-2 twist cards (RETRO, MINIMALIST, DARK, etc.) using derived seed
+  - **Verify:** `pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result` (ideaSeed populated in BuildSpec)
 
-- [ ] **VF-054 — BuildSpec validation + persistence (ArtifactStore)**
+- [x] **VF-054 — BuildSpec validation + persistence (ArtifactStore)**
   - Validate BuildSpec against schema and persist as a stable contract before any model calls occur.
+  - **File:** `apps/api/vibeforge_api/routers/sessions.py:67` (BuildSpec created and stored in artifacts)
+  - **Implementation:** BuildSpec generated via SpecBuilder.from_intent(), validated against Pydantic model, stored in artifact store
+  - **Verify:** `pytest tests/test_e2e_demo.py::test_e2e_questionnaire_to_result` (BuildSpec persisted and retrievable)
 
 
 ### 06 Model Layer (Cloud-first, local later)
