@@ -549,6 +549,37 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/test_distributor.py` (new - 15 comprehensive tests)
   - `apps/api/tests/test_agent_framework.py` (new - 28 comprehensive tests)
 
+## WP-0018 — SessionCoordinator initialization and questionnaire phases
+- **Status:** Queued
+- **VF Tasks:** VF-032, VF-033, VF-034
+- **Goal:** Enable SessionCoordinator to initialize sessions, drive questionnaire flow, and generate BuildSpec deterministically from user answers.
+- **Dependencies:** WP-0013 ✓ (Session model), WP-0009 ✓ (Questionnaire), WP-0010 ✓ (SpecBuilder), WP-0002 ✓ (Workspace)
+- **Plan Doc:** docs/ai/planning/WP-0018_VF-032-034_sessioncoordinator_init_questionnaire.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_session_coordinator.py -v` - SessionCoordinator tests pass
+  - `cd apps/api && pytest -v` - Full test suite passes
+
+## WP-0019 — SessionCoordinator concept and plan generation
+- **Status:** Queued
+- **VF Tasks:** VF-035, VF-036
+- **Goal:** Enable SessionCoordinator to generate concepts and TaskGraphs, run gates, and present plan summaries for user approval.
+- **Dependencies:** WP-0018 (SessionCoordinator foundations), WP-0015 ✓ (Orchestrator), WP-0004 ✓ (Gates)
+- **Plan Doc:** docs/ai/planning/WP-0019_VF-035-036_sessioncoordinator_concept_planning.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_session_coordinator.py -v` - SessionCoordinator tests pass
+  - `cd apps/api && pytest -v` - Full test suite passes
+
+## WP-0020 — SessionCoordinator execution loop and completion
+- **Status:** Queued
+- **VF Tasks:** VF-037, VF-038, VF-039
+- **Goal:** Complete SessionCoordinator with task execution loop, global verification, and abort/reset flows to enable full end-to-end session orchestration.
+- **Dependencies:** WP-0018, WP-0019, WP-0016 ✓ (TaskMaster), WP-0017 ✓ (Distributor/Agent), WP-0003 ✓ (Verifiers)
+- **Plan Doc:** docs/ai/planning/WP-0020_VF-037-039_sessioncoordinator_execution_completion.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_session_coordinator.py -v` - SessionCoordinator tests pass
+  - `cd apps/api && pytest -v` - Full test suite passes
+  - End-to-end session flow test (questionnaire → concept → plan → execution → completion)
+
 ---
 
 ## Notes / Decisions Log
