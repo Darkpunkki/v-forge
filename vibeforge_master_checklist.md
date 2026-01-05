@@ -484,23 +484,41 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 07 Orchestrator
 
-- [ ] **VF-070 — Orchestrator prompt templates: Concept generation (JSON + Markdown)**
+- [x] **VF-070 — Orchestrator prompt templates: Concept generation (JSON + Markdown)**
   - Write templates that produce a structured concept JSON plus a human-readable concept doc, aligned to BuildSpec constraints.
+  - **Files:** `orchestration/prompts.py` (CONCEPT_GENERATION_TEMPLATE with Jinja2)
+  - **Features:** Comprehensive template with BuildSpec context, JSON schema requirements, complexity-specific guidance
+  - **Verify:** Tested through Orchestrator.generateConcept() integration tests
 
-- [ ] **VF-071 — Orchestrator prompt templates: TaskGraph generation (DAG + constraints)**
+- [x] **VF-071 — Orchestrator prompt templates: TaskGraph generation (DAG + constraints)**
   - Write templates that generate a TaskGraph DAG with per-task constraints, inputs, outputs, and verification steps.
+  - **Files:** `orchestration/prompts.py` (TASKGRAPH_GENERATION_TEMPLATE)
+  - **Features:** DAG structure with dependencies, role assignment, verification specs, constraints by task
+  - **Verify:** Tested through Orchestrator.createTaskGraph() with DAG validation
 
-- [ ] **VF-072 — Orchestrator prompt templates: Run summary**
+- [x] **VF-072 — Orchestrator prompt templates: Run summary**
   - Write templates for summarizing what was built, how to run it, and what limitations remain.
+  - **Files:** `orchestration/prompts.py` (RUN_SUMMARY_TEMPLATE)
+  - **Features:** Status, summary, files, verification results, run instructions, limitations
+  - **Verify:** Tested through Orchestrator.summarize() integration tests
 
-- [ ] **VF-073 — Implement Orchestrator.generateConcept(BuildSpec)**
+- [x] **VF-073 — Implement Orchestrator.generateConcept(BuildSpec)**
   - Call the model to generate the concept; validate output and return either concept or clarification requests.
+  - **Files:** `orchestration/orchestrator.py` (Orchestrator.generateConcept method)
+  - **Features:** Template rendering, ModelRouter selection, OutputValidator + OutputRepair integration, ConceptDoc parsing
+  - **Verify:** `cd apps/api && pytest tests/test_orchestrator.py::TestOrchestrator::test_generate_concept_success -v`
 
-- [ ] **VF-074 — Implement Orchestrator.createTaskGraph(BuildSpec, ConceptDoc)**
+- [x] **VF-074 — Implement Orchestrator.createTaskGraph(BuildSpec, ConceptDoc)**
   - Call the model to produce TaskGraph; validate DAG and enforce scope/command policies via gates.
+  - **Files:** `orchestration/orchestrator.py` (Orchestrator.createTaskGraph method)
+  - **Features:** TaskGraph generation with DAG validation, cycle detection, dependency validation
+  - **Verify:** `cd apps/api && pytest tests/test_orchestrator.py::TestOrchestrator::test_create_task_graph_validates_dag -v`
 
-- [ ] **VF-075 — Implement Orchestrator.summarize(artifacts)**
+- [x] **VF-075 — Implement Orchestrator.summarize(artifacts)**
   - Generate the final summary response from stored artifacts (tasks, diffs, verification results).
+  - **Files:** `orchestration/orchestrator.py` (Orchestrator.summarize method)
+  - **Features:** RunSummary generation from artifacts with lower temperature for consistency
+  - **Verify:** `cd apps/api && pytest tests/test_orchestrator.py::TestOrchestrator::test_summarize_success -v`
 
 
 ### 08 Gates & Policies

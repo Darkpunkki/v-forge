@@ -473,14 +473,34 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `vibeforge_master_checklist.md` (VF-063, VF-064, VF-065, VF-066 marked complete)
 
 ## WP-0015 — Orchestrator prompt templates and implementation
-- **Status:** Queued
-- **VF Tasks:** VF-070, VF-071, VF-072, VF-073, VF-074, VF-075
+- **Status:** Done
+- **Started:** 2026-01-05
+- **Completed:** 2026-01-05
+- **Branch:** master
+- **VF Tasks:** VF-070 ✓, VF-071 ✓, VF-072 ✓, VF-073 ✓, VF-074 ✓, VF-075 ✓
 - **Goal:** Enable the orchestrator to generate concepts, task graphs, and run summaries by implementing prompt templates and orchestrator methods.
-- **Dependencies:** WP-0012 ✓ (model layer), WP-0014 (routing/validation recommended)
+- **Dependencies:** WP-0012 ✓ (model layer), WP-0014 ✓ (routing/validation)
 - **Plan Doc:** docs/ai/planning/WP-0015_VF-070-075_orchestrator.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_orchestrator.py -v`
-  - `cd apps/api && pytest -v` (all tests pass)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_orchestrator.py -v` - 8 tests passed (1 skipped)
+  - `cd apps/api && pytest tests/test_orchestration_models.py -v` - 17 tests passed
+  - `cd apps/api && pytest -v` - 304 tests passed (was 279, added 25 new tests)
+  - All orchestrator methods implemented with comprehensive validation/repair integration
+  - DAG cycle detection working correctly
+  - Model routing integration verified
+- **Files touched:**
+  - **VF-070, VF-071, VF-072: Prompt templates**
+    - `orchestration/prompts.py` (new - 3 comprehensive Jinja2 templates)
+    - `orchestration/schemas.py` (new - JSON schemas for validation)
+  - **Data models**
+    - `orchestration/models.py` (new - ConceptDoc, Task, TaskGraph, RunSummary)
+    - `orchestration/__init__.py` (new - module initialization)
+  - **VF-073, VF-074, VF-075: Orchestrator**
+    - `orchestration/orchestrator.py` (new - Orchestrator class with all 3 methods)
+    - `apps/api/requirements.txt` (added jinja2==3.1.4)
+  - **Tests**
+    - `apps/api/tests/test_orchestrator.py` (new - 8 comprehensive tests)
+    - `apps/api/tests/test_orchestration_models.py` (new - 17 model + DAG tests)
 
 ## WP-0016 — TaskGraph foundations and task scheduling
 - **Status:** Queued
