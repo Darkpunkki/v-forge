@@ -6,10 +6,10 @@ VF-101: Implements DirectLlmAdapter (MVP)
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Optional
 
-from models.base.llm_client import LlmClient, LlmRequest, LlmMessage
+from models.base.llm_client import LlmClient, LlmRequest, LlmMessage, LlmUsage
 from models.router import get_model_router, RoutingContext
 from models.validation import OutputValidator
 from orchestration.models import Task
@@ -22,6 +22,7 @@ class AgentResult:
     success: bool
     outputs: dict[str, Any]  # Files, artifacts produced
     logs: list[str]  # Execution logs
+    usage: Optional[LlmUsage] = None
     error_message: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -30,6 +31,7 @@ class AgentResult:
             "success": self.success,
             "outputs": self.outputs,
             "logs": self.logs,
+            "usage": asdict(self.usage) if self.usage else None,
             "error_message": self.error_message,
         }
 
@@ -146,6 +148,7 @@ class DirectLlmAdapter(AgentFramework):
                     f"Provider: {provider}",
                     f"Role: {role}",
                 ],
+                usage=response.usage,
             )
         except Exception as e:
             return AgentResult(

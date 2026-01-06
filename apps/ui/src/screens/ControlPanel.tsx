@@ -9,6 +9,8 @@ import {
   type SessionStatusResponse,
   type SessionEvent,
 } from '../api/controlClient'
+import AgentDashboard from './control/widgets/AgentDashboard'
+import TokenVisualization from './control/widgets/TokenVisualization'
 
 export function ControlPanelScreen() {
   const [allSessions, setAllSessions] = useState<SessionListItem[]>([])
@@ -244,111 +246,123 @@ export function ControlPanelScreen() {
               <>
                 {/* Session Status */}
                 {sessionStatus && (
-                  <section style={{ marginBottom: '32px' }}>
+                  <section style={{ marginBottom: '24px' }}>
                     <h2>Session Status</h2>
-                <div style={{
-                  background: '#f5f5f5',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                  gap: '16px',
-                }}>
-                  <div>
-                    <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
-                      Session ID
-                    </div>
-                    <div style={{ fontWeight: 'bold' }}>{sessionStatus.session_id}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
-                      Phase
-                    </div>
-                    <div style={{ fontWeight: 'bold' }}>{sessionStatus.phase}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
-                      Active Task
-                    </div>
-                    <div style={{ fontWeight: 'bold' }}>
-                      {sessionStatus.active_task_id || '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
-                      Completed Tasks
-                    </div>
-                    <div style={{ fontWeight: 'bold' }}>{sessionStatus.completed_tasks}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
-                      Failed Tasks
-                    </div>
-                    <div style={{ fontWeight: 'bold', color: sessionStatus.failed_tasks > 0 ? '#d32f2f' : 'inherit' }}>
-                      {sessionStatus.failed_tasks}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
-                      Updated At
-                    </div>
-                    <div style={{ fontSize: '14px' }}>
-                      {new Date(sessionStatus.updated_at).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Event Stream */}
-            <section>
-              <h2>Event Stream</h2>
-              {sessionEvents.length === 0 ? (
-                <p style={{ opacity: 0.6 }}>No events yet (listening for real-time updates...)</p>
-              ) : (
-                <div style={{
-                  background: '#fafafa',
-                  border: '1px solid #ddd',
-                  borderRadius: '8px',
-                  maxHeight: '500px',
-                  overflowY: 'auto',
-                }}>
-                  {sessionEvents.map((event, idx) => (
                     <div
-                      key={idx}
                       style={{
-                        padding: '12px 16px',
-                        borderBottom: idx < sessionEvents.length - 1 ? '1px solid #eee' : 'none',
+                        background: '#f5f5f5',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: '16px',
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                          textTransform: 'uppercase',
-                          color: '#1976d2',
-                        }}>
-                          {event.event_type.replace(/_/g, ' ')}
-                        </span>
-                        <span style={{ fontSize: '11px', opacity: 0.6 }}>
-                          {new Date(event.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                        {event.message}
-                      </div>
-                      {(event.phase || event.task_id) && (
-                        <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                          {event.phase && <span>Phase: {event.phase}</span>}
-                          {event.phase && event.task_id && <span> | </span>}
-                          {event.task_id && <span>Task: {event.task_id}</span>}
+                      <div>
+                        <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
+                          Session ID
                         </div>
-                      )}
+                        <div style={{ fontWeight: 'bold' }}>{sessionStatus.session_id}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
+                          Phase
+                        </div>
+                        <div style={{ fontWeight: 'bold' }}>{sessionStatus.phase}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
+                          Active Task
+                        </div>
+                        <div style={{ fontWeight: 'bold' }}>
+                          {sessionStatus.active_task_id || '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
+                          Completed Tasks
+                        </div>
+                        <div style={{ fontWeight: 'bold' }}>{sessionStatus.completed_tasks}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
+                          Failed Tasks
+                        </div>
+                        <div
+                          style={{
+                            fontWeight: 'bold',
+                            color: sessionStatus.failed_tasks > 0 ? '#d32f2f' : 'inherit',
+                          }}
+                        >
+                          {sessionStatus.failed_tasks}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
+                          Updated At
+                        </div>
+                        <div style={{ fontSize: '14px' }}>
+                          {new Date(sessionStatus.updated_at).toLocaleString()}
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                  </section>
+                )}
+
+                <div style={{ display: 'grid', gap: '24px' }}>
+                  <AgentDashboard events={sessionEvents} />
+                  <TokenVisualization events={sessionEvents} />
                 </div>
-              )}
-            </section>
+
+                {/* Event Stream */}
+                <section>
+                  <h2>Event Stream</h2>
+                  {sessionEvents.length === 0 ? (
+                    <p style={{ opacity: 0.6 }}>No events yet (listening for real-time updates...)</p>
+                  ) : (
+                    <div style={{
+                      background: '#fafafa',
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      maxHeight: '500px',
+                      overflowY: 'auto',
+                    }}>
+                      {sessionEvents.map((event, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '12px 16px',
+                            borderBottom: idx < sessionEvents.length - 1 ? '1px solid #eee' : 'none',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              textTransform: 'uppercase',
+                              color: '#1976d2',
+                            }}>
+                              {event.event_type.replace(/_/g, ' ')}
+                            </span>
+                            <span style={{ fontSize: '11px', opacity: 0.6 }}>
+                              {new Date(event.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '14px', marginBottom: '4px' }}>
+                            {event.message}
+                          </div>
+                          {(event.phase || event.task_id) && (
+                            <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                              {event.phase && <span>Phase: {event.phase}</span>}
+                              {event.phase && event.task_id && <span> | </span>}
+                              {event.task_id && <span>Task: {event.task_id}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
               </>
             )}
           </>
