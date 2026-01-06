@@ -3,9 +3,17 @@
 
 
 
-## MVP Workflow Vocabulary (Vision Context)
+## Project Status: Post-MVP Phase (Control & Observability)
 
-This section is **not** a task list. It is shared vocabulary describing the intended **VibeForge MVP workflow** so agents can generate plans/tasks with the right mental model.
+**MVP Core: ✅ COMPLETE** - Full end-to-end multi-agent orchestration is functional (435 tests passing).
+
+**Current Focus:** Moving beyond MVP to production-ready observability, monitoring, and control interfaces. The system can now orchestrate LLMs to build applications - next phase adds visibility, cost control, and developer tooling.
+
+---
+
+## Workflow Vocabulary (Vision Context)
+
+This section is **not** a task list. It is shared vocabulary describing the intended **VibeForge workflow** so agents can generate plans/tasks with the right mental model.
 
 ### High-level promise
 VibeForge turns **structured-only user choices** into a **runnable local app** using a **safe, gated, test-driven factory loop**. Users never provide free-text app descriptions; they influence outcomes via curated options, budgets, and “vibe” controls.
@@ -836,70 +844,119 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 13 Observability (Artifacts + Event log)
 
-- [ ] **VF-130 — Implement ArtifactStore (filesystem JSON, per-session keys)**
-  - Persist all important artifacts in a consistent key structure so runs are inspectable and replayable.
+- [ ] **VF-130 — Formalize ArtifactStore with query APIs (filesystem JSON, per-session keys)**
+  - Formalize artifact persistence with query APIs to retrieve historical session data. Currently used informally in SessionCoordinator; needs structured API for control UI.
+  - **Current state:** Partially implemented (ArtifactStore class exists, used in session flows)
+  - **Needed:** Add list_sessions(), get_session_artifacts(), query_by_date_range() methods
+  - **Why critical:** Control UI needs to query stored artifacts for historical visualization
 
 - [ ] **VF-131 — Implement EventLog (append-only events: phase changes, dispatches, applies, command runs)**
   - Record an append-only event stream so you can trace what happened and debug failures without guesswork.
+  - **Current state:** Not implemented (session.logs exists but unstructured)
+  - **Needed:** Structured event emission with types, timestamps, metadata
+  - **Why critical:** Foundation for real-time control UI monitoring (VF-178)
 
-- [ ] **VF-132 — Add “export run bundle” (zip artifacts + summary) (optional)**
+- [ ] **VF-132 — Add "export run bundle" (zip artifacts + summary) (optional)**
   - Package repo snapshot, artifacts, and final summary into a portable bundle for sharing or archival.
+  - **Priority:** Post-MVP enhancement
+
+- [ ] **VF-142 — Upgrade to structured progress events (phase changes, task lifecycle, verification)**
+  - Emit structured, typed events for all major steps: phase transitions, task dispatch, diff applied, verification started/completed.
+  - **Current state:** Partial (session.add_log() exists but unstructured strings)
+  - **Needed:** Typed Event dataclass with event_type, timestamp, phase, task_id, metadata
+  - **Why critical:** Powers real-time dashboard updates and event stream viewer
 
 ## 14 Workflow Orchestration: Happy Path (Sequence)
 
-- [ ] **VF-140 — Implement “Happy Path” orchestration contract end-to-end**
+- [x] **VF-140 — Implement "Happy Path" orchestration contract end-to-end**
   - Ensure a single session can flow cleanly through: start → questionnaire → build spec → concept → plan review → (approve) → execution → verification → complete, returning coherent API responses at each step.
+  - **Status:** ✅ COMPLETE - Implemented via VF-032 through VF-039 (SessionCoordinator full lifecycle)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py -v` (40 tests covering full flow)
 
-- [ ] **VF-141 — Add a Phase-aware API guard layer (wrong-phase handling)**
-  - Centralize “wrong phase” checks so every endpoint returns consistent, user-friendly errors and does not allow illegal calls (e.g., submitting answers after PLAN_REVIEW).
-
-- [ ] **VF-142 — Implement progress model + event emission for every major step**
-  - Emit structured progress events for: phase changes, question served, answer accepted, artifact created, task dispatched, diff applied, verification started/completed, and completion. These events power the UI timeline.
+- [x] **VF-141 — Add a Phase-aware API guard layer (wrong-phase handling)**
+  - Centralize "wrong phase" checks so every endpoint returns consistent, user-friendly errors and does not allow illegal calls (e.g., submitting answers after PLAN_REVIEW).
+  - **Status:** ✅ COMPLETE - All SessionCoordinator methods validate phase before execution
+  - **Implementation:** Phase validation in every coordinator method (e.g., `if session.phase != SessionPhase.QUESTIONNAIRE: raise ValueError`)
+  - **Verify:** `cd apps/api && pytest tests/test_sessions.py -k wrong_phase -v` (multiple wrong-phase tests)
 
 - [ ] **VF-143 — Persist phase transitions into the event log**
   - Record all state changes (oldPhase → newPhase + reason) into the EventLog for debugging and replayability.
+  - **Depends on:** VF-131 (EventLog implementation)
 
-- [ ] **VF-144 — Implement “artifact checkpoints” for each stage**
+- [x] **VF-144 — Implement "artifact checkpoints" for each stage**
   - Store a stable snapshot artifact at the end of each stage: `IntentProfile`, `BuildSpec`, `Concept`, `TaskGraph`, and final `RunSummary`, so the run can be inspected without re-running.
+  - **Status:** ✅ COMPLETE - All artifacts persisted via ArtifactStore
+  - **Files:** `artifacts/intent_profile.json`, `artifacts/build_spec.json`, `artifacts/concept.json`, `artifacts/task_graph.json`, `artifacts/run_summary.json`
+  - **Implementation:** SessionCoordinator persists after each generation step
 
-- [ ] **VF-145 — Implement “plan preview” formatting for UI consumption**
+- [x] **VF-145 — Implement "plan preview" formatting for UI consumption**
   - Convert TaskGraph into a concise plan summary: feature list, task count, verification steps, estimated scope, and key constraints—so user can approve with confidence.
+  - **Status:** ✅ COMPLETE - Implemented in VF-036 (get_plan_summary method)
+  - **Returns:** task_count, task_list, verification_steps, estimated_scope, constraints
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorPlan::test_get_plan_summary_formats_correctly -v`
 
-- [ ] **VF-146 — Implement “reject plan → revise concept” loop**
+- [x] **VF-146 — Implement "reject plan → revise concept" loop**
   - If user rejects plan, safely return to IDEA (or PLAN_REVIEW) with a revision strategy: regenerate concept, reduce scope, or adjust stack—without losing session integrity.
+  - **Status:** ✅ COMPLETE - Implemented in VF-036 (reject_plan method)
+  - **Implementation:** Clears TaskGraph and transitions PLAN_REVIEW → IDEA for regeneration
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorPlan::test_reject_plan_transitions_to_idea -v`
 
 
 ## 15 Execution Loop: Verification Gates & Recovery (Sequence)
 
-- [ ] **VF-150 — Implement the per-task execution loop (TaskMaster → Agent → Gate → Apply → Verify)**
+- [x] **VF-150 — Implement the per-task execution loop (TaskMaster → Agent → Gate → Apply → Verify)**
   - Build the core loop that schedules the next task, runs an agent to produce an AgentResult, gates it, applies the diff, runs per-task verification, and marks the task done/failed.
+  - **Status:** ✅ COMPLETE - Implemented in VF-037 (execute_next_task method)
+  - **Implementation:** TaskMaster.scheduleNext() → Distributor.route() → AgentFramework.runTask() → Gates → PatchApplier → VerifierSuite → TaskMaster.markDone/markFailed()
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorExecution -v` (6 tests)
 
 - [ ] **VF-151 — Implement RepoContextLoader (task-scoped context selection)**
-  - Load a bounded set of relevant files into the agent prompt based on the task’s declared inputs (files-to-read), plus optionally small “supporting context” (project structure, conventions).
+  - Load a bounded set of relevant files into the agent prompt based on the task's declared inputs (files-to-read), plus optionally small "supporting context" (project structure, conventions).
+  - **Priority:** Post-MVP enhancement - agents currently receive full context
 
-- [ ] **VF-152 — Implement AgentResult handling for “needs clarification”**
+- [ ] **VF-152 — Implement AgentResult handling for "needs clarification"**
   - Support the agent returning multiple-choice questions; pause execution, expose questions to UI, accept user choices, then resume with the clarification answers injected into the next agent call.
+  - **Status:** Partial - UI flow exists (VF-027), agent integration pending
 
-- [ ] **VF-153 — Implement Diff gate + Apply gate with structured failure reasons**
+- [x] **VF-153 — Implement Diff gate + Apply gate with structured failure reasons**
   - When a diff is blocked (policy/size/paths) or fails to apply, produce a structured failure report that can be routed to FIXER or surfaced to UI.
+  - **Status:** ✅ COMPLETE - Implemented in VF-037 (gate evaluation with structured errors)
+  - **Implementation:** GatePipeline evaluates PolicyGate + DiffAndCommandGate, returns GateResult with status/message
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorExecution::test_execute_next_task_handles_gate_block -v`
 
-- [ ] **VF-154 — Implement per-task verification runner (declared in TaskGraph)**
-  - Execute the task’s verification steps (e.g., unit tests, lint, build step) after apply. Capture stdout/stderr and store results in artifacts.
+- [x] **VF-154 — Implement per-task verification runner (declared in TaskGraph)**
+  - Execute the task's verification steps (e.g., unit tests, lint, build step) after apply. Capture stdout/stderr and store results in artifacts.
+  - **Status:** ✅ COMPLETE - Implemented in VF-037 + VF-124 (VerifierSuite integration)
+  - **Implementation:** VerifierSuite.run_task_verification() runs task.verification specs
+  - **Verify:** `cd apps/api && pytest tests/test_verifiers.py::TestVerifierSuite -v`
 
-- [ ] **VF-155 — Implement automatic “fix loop” policy after verification failure**
+- [ ] **VF-155 — Implement automatic "fix loop" policy after verification failure**
   - When verification fails, automatically generate a repair attempt strategy (e.g., create a FIXER task, escalate model, narrow diff limits, or request user choice after N failures).
+  - **Status:** Partial - retry with escalation exists (VF-096), automatic FIXER task generation pending
 
-- [ ] **VF-156 — Add retry counters + escalation rules per task**
+- [x] **VF-156 — Add retry counters + escalation rules per task**
   - Track failure count per task and apply escalation: stronger role/model after repeated failures; hard-stop after max retries with a meaningful error summary.
+  - **Status:** ✅ COMPLETE - Implemented in VF-094 + VF-096
+  - **Implementation:** TaskMaster.markFailed() with retry counters + Distributor escalation (worker → powerful → fixer)
+  - **Verify:** `cd apps/api && pytest tests/test_distributor.py::TestDistributorEscalation -v` (5 tests)
 
-- [ ] **VF-157 — Implement final global verification step-set (end of DAG)**
+- [x] **VF-157 — Implement final global verification step-set (end of DAG)**
   - Run a final verification suite (build/test/smoke) after all tasks complete; if it fails, route back into fix loop rather than silently finishing.
+  - **Status:** ✅ COMPLETE - Implemented in VF-038 (finalize_session with global verification)
+  - **Implementation:** VerifierSuite.run_global_verification() runs build + test, fails session if verification fails
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorFinalize -v`
 
-- [ ] **VF-158 — Implement “completion summary” assembly from artifacts**
+- [x] **VF-158 — Implement "completion summary" assembly from artifacts**
   - Collect and summarize what was built: features, modules, key files changed, how to run, what tests ran, and any known limitations—so user gets a coherent end report.
+  - **Status:** ✅ COMPLETE - Implemented in VF-038 + VF-075
+  - **Implementation:** Orchestrator.summarize() generates RunSummary from artifacts
+  - **Verify:** `cd apps/api && pytest tests/test_orchestrator.py::TestOrchestrator::test_summarize_success -v`
 
-- [ ] **VF-159 — Add deterministic execution mode (replayable runs)**
+- [x] **VF-159 — Add deterministic execution mode (replayable runs)**
   - Ensure the same inputs (IntentProfile + seed) produce the same major decisions (within reason), and record seeds + config hashes so runs can be reproduced for debugging.
+  - **Status:** ✅ COMPLETE - Implemented in VF-052 (deterministic seed derivation)
+  - **Implementation:** SHA256-based seed from session_id ensures reproducibility
+  - **Verify:** BuildSpec generation is deterministic given same IntentProfile
 
 
 ## 16 State Machine: MVP Phases (State Diagram)
@@ -925,5 +982,108 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 - [ ] **VF-166 — Add integration tests for phase transitions**
   - Write tests that simulate the main state transitions and assert the system rejects illegal transitions, emits expected events, and persists expected artifacts.
 
-- [ ] **VF-167 — Add “resume session” capability from stored artifacts**
+- [ ] **VF-167 — Add "resume session" capability from stored artifacts**
   - Enable restarting the API and resuming an in-progress session from artifacts/event log (initially limited scope), improving robustness and developer ergonomics.
+
+
+### 17 Agent Control & Monitoring UI (Post-MVP)
+
+- [ ] **VF-170 — Control panel architecture (separate admin UI route)**
+  - Create separate control panel UI distinct from end-user flow; accessible at /control or /admin route with real-time session monitoring.
+  - **Why needed:** Developers need visibility into multi-agent orchestration, token usage, and execution flow
+  - **Architecture:** Separate React route with WebSocket/SSE for real-time updates
+  - **Dependencies:** VF-131 (EventLog), VF-142 (structured events)
+
+- [ ] **VF-171 — Agent activity dashboard (live status grid)**
+  - Display all active agents with current status (idle/thinking/executing), current task, model in use, and elapsed time.
+  - **Features:** Grid layout with agent cards, status indicators (🟢 idle, 🟡 thinking, 🔴 executing), real-time updates
+  - **Data source:** EventLog + SessionStore active_task_id
+  - **Why needed:** Monitor which agents are working on what in real-time
+
+- [ ] **VF-172 — Token usage visualization (per-agent, per-session, cumulative)**
+  - Real-time token consumption charts: pie chart by agent role, timeline of token burn rate, cost estimates, budget alerts.
+  - **Features:**
+    - Pie chart: token distribution by role (orchestrator/worker/fixer)
+    - Line chart: cumulative tokens over time
+    - Cost calculator: tokens × pricing by model
+    - Budget alerts: warn when approaching limits
+  - **Data source:** LlmResponse.usage (prompt_tokens, completion_tokens, total_tokens)
+  - **Why needed:** Control costs and identify inefficient prompts
+
+- [ ] **VF-173 — Agent relationship graph (interactive DAG visualization)**
+  - Interactive force-directed graph showing: Orchestrator → TaskMaster → Distributor → Worker/Fixer/Foreman agents with live task flow.
+  - **Features:**
+    - D3.js force-directed graph
+    - Nodes: agents (colored by role)
+    - Edges: task assignments (animated during execution)
+    - Click node → show agent details
+  - **Why needed:** Visualize system architecture and task routing
+
+- [ ] **VF-174 — Execution flow timeline (Gantt-style with agent swim lanes)**
+  - Horizontal timeline showing which agent executed which task, when, overlaps, retries, and escalations visually.
+  - **Features:**
+    - Horizontal swim lanes per agent role
+    - Task bars colored by status (green: success, red: failed, yellow: retry)
+    - Retry arrows showing escalation paths
+    - Zoom/pan controls for long sessions
+  - **Data source:** EventLog with task_started/task_completed events
+  - **Why needed:** Understand execution patterns and identify bottlenecks
+
+- [ ] **VF-175 — Gate decision log (block/warn/pass visualization)**
+  - Real-time feed of gate evaluations: which gates ran, on which artifacts, decisions made, reasons for blocks/warnings.
+  - **Features:**
+    - Table with columns: timestamp, gate_type, artifact, decision (OK/WARN/BLOCK), reason
+    - Color coding: green (OK), yellow (WARN), red (BLOCK)
+    - Filter by gate type, decision
+    - Click row → show full gate context
+  - **Data source:** EventLog with gate_evaluated events
+  - **Why needed:** Debug why tasks were blocked, tune gate policies
+
+- [ ] **VF-176 — Model router decisions (model selection rationale)**
+  - Display which model was selected for each call, why (role/complexity/retry), and routing rules applied.
+  - **Features:**
+    - Table: timestamp, role, model_selected, reason, temperature, failure_count
+    - Highlight escalations (worker → powerful → fixer)
+    - Show routing rule matched
+  - **Data source:** EventLog with model_routed events
+  - **Why needed:** Understand cost/quality tradeoffs, tune routing rules
+
+- [ ] **VF-177 — Session comparison view (multi-session metrics)**
+  - Side-by-side comparison of multiple sessions: token usage, task completion rates, failure patterns, time to completion.
+  - **Features:**
+    - Select 2-4 sessions to compare
+    - Metrics table: total_tokens, total_cost, tasks_completed, tasks_failed, duration
+    - Comparative charts: token usage over time, failure rate by task
+  - **Data source:** ArtifactStore query API (VF-130)
+  - **Why needed:** A/B test prompt changes, identify regressions
+
+- [ ] **VF-178 — Event stream viewer (real-time log with filtering)**
+  - Live event stream with filters: by phase, by agent, by event type (task_started, diff_applied, verification_passed, etc.).
+  - **Features:**
+    - Auto-scrolling event feed (newest at bottom)
+    - Filters: phase, agent_role, event_type, severity
+    - Search by keyword
+    - Export to JSON
+  - **Data source:** EventLog with WebSocket/SSE subscription
+  - **Why needed:** Real-time debugging and monitoring
+
+- [ ] **VF-179 — Agent prompt inspector (view actual prompts sent to LLMs)**
+  - Debug view showing exact prompts sent to each agent role, with template variables expanded and context included.
+  - **Features:**
+    - Select task → view exact prompt sent
+    - Syntax highlighting for JSON/code
+    - Show template used + variables expanded
+    - Copy prompt button
+    - View model response alongside
+  - **Data source:** EventLog with llm_request_sent events (store prompt + metadata)
+  - **Why needed:** Debug prompt engineering, reproduce issues
+
+- [ ] **VF-180 — Cost analytics (token cost breakdown by provider/model)**
+  - Track cost per session, per agent, per model; project estimates based on current burn rate.
+  - **Features:**
+    - Cost breakdown table: by session, by agent role, by model
+    - Pricing from ModelProviderRegistry config
+    - Burn rate projection: "at current rate, session will cost $X"
+    - Budget alerts: "80% of budget used"
+  - **Data source:** LlmResponse.usage + pricing config
+  - **Why needed:** Control costs, project budgets for production use

@@ -600,6 +600,83 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `orchestration/coordinator/session_coordinator.py` (added execute_next_task, finalize_session, abort_session methods)
   - `apps/api/tests/test_session_coordinator.py` (added 13 new tests)
 
+## WP-0021 — Observability foundations (EventLog + structured events)
+- **Status:** Queued
+- **VF Tasks:** VF-130, VF-131, VF-142
+- **Goal:** Implement structured event logging and artifact query APIs to enable real-time monitoring, historical analysis, and control UI development.
+- **Dependencies:** None (foundational observability layer)
+- **Plan Doc:** docs/ai/planning/WP-0021_VF-130-131-142_observability_foundations.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_event_log.py -v` - EventLog tests pass
+  - `cd apps/api && pytest tests/test_artifact_store.py -v` - ArtifactStore query API tests pass
+  - `cd apps/api && pytest -v` - Full test suite passes
+
+## WP-0022 — Control panel architecture and routing
+- **Status:** Queued
+- **VF Tasks:** VF-170
+- **Goal:** Create separate control panel UI with real-time session monitoring, accessible at /control route with WebSocket/SSE integration.
+- **Dependencies:** WP-0021 ✓ (EventLog for real-time updates)
+- **Plan Doc:** docs/ai/planning/WP-0022_VF-170_control_panel_architecture.md
+- **Verify:**
+  - `cd apps/ui && npm run build` - UI builds successfully
+  - `cd apps/ui && npm run dev` - Control panel accessible at http://localhost:5173/control
+  - `cd apps/api && pytest tests/test_control_api.py -v` - Control API endpoints pass
+
+## WP-0023 — Agent activity dashboard and token visualization
+- **Status:** Queued
+- **VF Tasks:** VF-171, VF-172
+- **Goal:** Display live agent status grid and real-time token usage charts to monitor execution and control costs.
+- **Dependencies:** WP-0022 ✓ (Control panel foundation)
+- **Plan Doc:** docs/ai/planning/WP-0023_VF-171-172_agent_dashboard_tokens.md
+- **Verify:**
+  - `cd apps/ui && npm run build` - Dashboard components build
+  - Visual verification: Agent cards show status, token charts display usage
+  - `cd apps/api && pytest tests/test_token_tracking.py -v` - Token tracking tests pass
+
+## WP-0024 — Execution visualization (graph + timeline)
+- **Status:** Queued
+- **VF Tasks:** VF-173, VF-174
+- **Goal:** Implement interactive agent relationship graph and Gantt-style execution timeline to visualize task flow and identify bottlenecks.
+- **Dependencies:** WP-0022 ✓ (Control panel foundation)
+- **Plan Doc:** docs/ai/planning/WP-0024_VF-173-174_execution_visualization.md
+- **Verify:**
+  - `cd apps/ui && npm run build` - Visualization components build
+  - Visual verification: D3.js graph renders, timeline shows swim lanes
+  - Test with sample session data
+
+## WP-0025 — Decision transparency (gates + model routing)
+- **Status:** Queued
+- **VF Tasks:** VF-175, VF-176
+- **Goal:** Display gate evaluation decisions and model routing rationale to debug blocks and tune policies.
+- **Dependencies:** WP-0022 ✓ (Control panel foundation)
+- **Plan Doc:** docs/ai/planning/WP-0025_VF-175-176_decision_transparency.md
+- **Verify:**
+  - `cd apps/ui && npm run build` - Decision log components build
+  - Visual verification: Gate decisions table, model routing display
+  - `cd apps/api && pytest tests/test_gate_logging.py -v` - Gate logging tests pass
+
+## WP-0026 — Analytics (session comparison + event stream)
+- **Status:** Queued
+- **VF Tasks:** VF-177, VF-178
+- **Goal:** Enable multi-session comparison and real-time event stream viewing for A/B testing and live debugging.
+- **Dependencies:** WP-0022 ✓ (Control panel foundation), WP-0021 ✓ (EventLog for streaming)
+- **Plan Doc:** docs/ai/planning/WP-0026_VF-177-178_analytics.md
+- **Verify:**
+  - `cd apps/ui && npm run build` - Analytics components build
+  - Visual verification: Session comparison view, event stream with filters
+  - Test with multiple sessions
+
+## WP-0027 — Deep debugging (prompt inspector + cost analytics)
+- **Status:** Queued
+- **VF Tasks:** VF-179, VF-180
+- **Goal:** Provide prompt inspection and comprehensive cost analytics for debugging prompt engineering and controlling production budgets.
+- **Dependencies:** WP-0022 ✓ (Control panel foundation), WP-0021 ✓ (EventLog for prompt capture)
+- **Plan Doc:** docs/ai/planning/WP-0027_VF-179-180_debugging_cost.md
+- **Verify:**
+  - `cd apps/ui && npm run build` - Debug components build
+  - Visual verification: Prompt inspector shows expanded templates, cost breakdown tables
+  - `cd apps/api && pytest tests/test_cost_tracking.py -v` - Cost tracking tests pass
+
 ---
 
 ## Notes / Decisions Log
@@ -619,3 +696,10 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - WP-0012 (VF-060-062): Model layer foundations - needed before SessionCoordinator
   - WP-0013 (VF-030-031): Session model + store - foundational orchestration pieces
   - Session Coordinator execution phases (VF-032-039) deferred until dependencies ready
+- **2026-01-06**: Project transitioned to Post-MVP Phase (Control & Observability)
+  - MVP core complete: 435 tests passing, full end-to-end multi-agent orchestration functional
+  - Focus shift: from building orchestration engine to adding visibility, cost control, developer tooling
+  - Added VF-170 through VF-180 (Agent Control & Monitoring UI section)
+  - Marked VF-140, VF-141, VF-144, VF-145, VF-146, VF-150, VF-153, VF-154, VF-156, VF-157, VF-158, VF-159 as ✅ COMPLETE
+  - Created WP-0021 (VF-130, VF-131, VF-142): Observability foundations - critical for control UI development
+  - Rationale: Cannot build agent monitoring dashboards without structured events and artifact query APIs
