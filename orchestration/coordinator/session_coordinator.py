@@ -19,10 +19,16 @@ from vibeforge_api.core.workspace import WorkspaceManager
 from vibeforge_api.core.questionnaire import QuestionnaireEngine
 from vibeforge_api.core.spec_builder import SpecBuilder
 from vibeforge_api.core.artifacts import ArtifactStore
+from vibeforge_api.core.patch import PatchApplier
+from vibeforge_api.core.gates import GatePipeline, DiffAndCommandGate, PolicyGate, GateContext
+from vibeforge_api.core.verifiers import VerifierSuite
 from vibeforge_api.models.types import SessionPhase
 from vibeforge_api.models.responses import QuestionResponse
 from orchestration.orchestrator import Orchestrator
-from orchestration.models import ConceptDoc, TaskGraph
+from orchestration.models import ConceptDoc, TaskGraph, RunSummary
+from runtime.task_master import TaskMaster
+from runtime.distributor import Distributor
+from models.agent_framework import AgentFramework, AgentResult
 
 
 class SessionCoordinator:
@@ -39,6 +45,8 @@ class SessionCoordinator:
         questionnaire_engine: QuestionnaireEngine,
         spec_builder: SpecBuilder,
         orchestrator: Orchestrator,
+        agent_framework: Optional[AgentFramework] = None,
+        distributor: Optional[Distributor] = None,
     ):
         """Initialize SessionCoordinator with dependencies.
 
@@ -48,12 +56,19 @@ class SessionCoordinator:
             questionnaire_engine: Questionnaire flow driver
             spec_builder: BuildSpec generator
             orchestrator: High-level concept/plan generator
+            agent_framework: Agent execution framework (optional, for VF-037)
+            distributor: Task-to-role distributor (optional, for VF-037)
         """
         self.session_store = session_store
         self.workspace_manager = workspace_manager
         self.questionnaire_engine = questionnaire_engine
         self.spec_builder = spec_builder
         self.orchestrator = orchestrator
+        self.agent_framework = agent_framework
+        self.distributor = distributor or Distributor()
+
+        # Task execution state (per session)
+        self._task_masters: dict[str, TaskMaster] = {}
 
     # =========================================================================
     # VF-032: startSession() + phase initialization
@@ -533,6 +548,453 @@ class SessionCoordinator:
         self.session_store.update_session(session)
 
         return {"status": "rejected", "message": "Plan rejected, returning to concept stage"}
+
+    # =========================================================================
+    # VF-037: executeNextTask() loop
+    # =========================================================================
+
+    async def execute_next_task(self, session_id: str) -> dict[str, Any]:
+        """Execute the next ready task from the TaskGraph.
+
+        This orchestrates the full execution loop:
+        1. Schedule next ready task (TaskMaster)
+        2. Route to agent role (Distributor)
+        3. Execute via agent (AgentFramework)
+        4. Gate the result (PolicyGate, DiffAndCommandGate)
+        5. Apply diff (PatchApplier)
+        6. Verify (VerifierSuite)
+        7. Mark done/failed (TaskMaster)
+
+        Args:
+            session_id: ID of the session
+
+        Returns:
+            dict: Execution result with status and details
+
+        Raises:
+            ValueError: If session not found, wrong phase, or agent framework missing
+            RuntimeError: If task execution fails unrecoverably
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Validate phase
+        if session.phase != SessionPhase.EXECUTION:
+            raise ValueError(
+                f"Cannot execute task: session {session_id} is in phase {session.phase.value}, "
+                f"expected {SessionPhase.EXECUTION.value}"
+            )
+
+        # Ensure agent framework is configured
+        if not self.agent_framework:
+            raise ValueError("AgentFramework not configured for task execution")
+
+        # Get or create TaskMaster for this session
+        if session_id not in self._task_masters:
+            # First execution - enqueue TaskGraph
+            if not session.task_graph:
+                raise ValueError(f"TaskGraph missing for session {session_id}")
+
+            task_graph = TaskGraph.from_dict(session_id, session.task_graph)
+            task_master = TaskMaster(max_retries=2)
+            task_master.enqueue(task_graph)
+            self._task_masters[session_id] = task_master
+            session.add_log("TaskGraph enqueued for execution")
+
+        task_master = self._task_masters[session_id]
+
+        # Schedule next ready task
+        task = task_master.scheduleNext()
+
+        if not task:
+            # No ready tasks - check if execution complete
+            status = task_master.get_status()
+            if status["completed"] == status["total_tasks"]:
+                session.add_log("All tasks complete - ready for finalization")
+                return {
+                    "status": "all_tasks_complete",
+                    "message": "All tasks complete, call finalize_session()",
+                }
+            else:
+                # Tasks blocked by failures
+                return {
+                    "status": "blocked",
+                    "message": "No ready tasks - execution blocked by failures",
+                    "task_status": status,
+                }
+
+        session.add_log(f"Executing task: {task.task_id} ({task.description})")
+        session.active_task_id = task.task_id
+
+        try:
+            # Get failure count for escalation
+            exec_state = task_master.executions[task.task_id]
+            failure_count = exec_state.attempts - 1  # attempts includes current run
+
+            # Route task to agent role
+            agent_role = self.distributor.route(task, failure_count)
+            session.add_log(
+                f"Task routed to {agent_role.role} ({agent_role.model_tier}): {agent_role.reason}"
+            )
+
+            # Prepare execution context
+            workspace_path = self.workspace_manager.workspace_root / session_id
+            context = {
+                "session_id": session_id,
+                "workspace_path": str(workspace_path / "repo"),
+                "artifacts_path": str(workspace_path / "artifacts"),
+                "build_spec": session.build_spec,
+                "concept": session.concept,
+            }
+
+            # Execute task via agent
+            session.add_log(f"Calling agent to execute task...")
+            agent_result: AgentResult = await self.agent_framework.runTask(
+                task, agent_role.role, context
+            )
+
+            if not agent_result.success:
+                # Agent failed to produce result
+                error_msg = agent_result.error_message or "Agent execution failed"
+                session.add_log(f"Agent execution failed: {error_msg}")
+                session.add_error(task_id=task.task_id, error_message=error_msg)
+
+                # Mark failed (retry or terminal failure)
+                should_retry = task_master.markFailed(task.task_id, error_msg)
+                self.session_store.update_session(session)
+
+                if should_retry:
+                    return {
+                        "status": "task_failed_retrying",
+                        "task_id": task.task_id,
+                        "error": error_msg,
+                        "attempts": exec_state.attempts,
+                    }
+                else:
+                    return {
+                        "status": "task_failed_terminal",
+                        "task_id": task.task_id,
+                        "error": error_msg,
+                    }
+
+            # Agent succeeded - validate and apply outputs
+            session.add_log(f"Agent produced result: {len(agent_result.outputs)} outputs")
+
+            # Gate the agent result
+            gate_context = GateContext(
+                build_spec=session.build_spec,
+                proposed_diff=agent_result.outputs.get("diff", ""),
+                proposed_commands=agent_result.outputs.get("commands", []),
+                task_data=task.constraints,
+            )
+
+            # Create gate pipeline
+            gates = GatePipeline([PolicyGate(), DiffAndCommandGate()])
+
+            gate_result = gates.evaluate(gate_context)
+
+            # Import enum for comparison
+            from vibeforge_api.models.types import GateResultStatus
+
+            if gate_result.status == GateResultStatus.BLOCK:
+                # Gates blocked
+                error_msg = f"Gates blocked: {gate_result.message}"
+                session.add_log(error_msg)
+                session.add_error(task_id=task.task_id, error_message=error_msg)
+
+                should_retry = task_master.markFailed(task.task_id, error_msg)
+                self.session_store.update_session(session)
+
+                if should_retry:
+                    return {
+                        "status": "task_failed_retrying",
+                        "task_id": task.task_id,
+                        "error": error_msg,
+                        "gate_message": gate_result.message,
+                    }
+                else:
+                    return {
+                        "status": "task_failed_terminal",
+                        "task_id": task.task_id,
+                        "error": error_msg,
+                    }
+
+            # Apply diff if present
+            if "diff" in agent_result.outputs and agent_result.outputs["diff"]:
+                session.add_log("Applying diff to workspace...")
+                patch_applier = PatchApplier(str(workspace_path / "repo"))
+
+                try:
+                    patch_applier.apply_patch(agent_result.outputs["diff"])
+                    session.add_log("Diff applied successfully")
+                except Exception as e:
+                    error_msg = f"Patch apply failed: {str(e)}"
+                    session.add_log(error_msg)
+                    session.add_error(task_id=task.task_id, error_message=error_msg)
+
+                    should_retry = task_master.markFailed(task.task_id, error_msg)
+                    self.session_store.update_session(session)
+
+                    if should_retry:
+                        return {
+                            "status": "task_failed_retrying",
+                            "task_id": task.task_id,
+                            "error": error_msg,
+                        }
+                    else:
+                        return {
+                            "status": "task_failed_terminal",
+                            "task_id": task.task_id,
+                            "error": error_msg,
+                        }
+
+            # Run task verification
+            if task.verification and task.verification.get("type") != "manual":
+                session.add_log(
+                    f"Running verification: {task.verification.get('type', 'unknown')}"
+                )
+                verifier_suite = VerifierSuite(str(workspace_path / "repo"))
+
+                # Run task-specific verification
+                verification_result = verifier_suite.run_task_verification(
+                    task.verification, session.build_spec.get("stack", {}).get("preset", "UNKNOWN")
+                )
+
+                if not verification_result["passed"]:
+                    error_msg = f"Verification failed: {verification_result.get('error', 'Unknown error')}"
+                    session.add_log(error_msg)
+                    session.add_error(task_id=task.task_id, error_message=error_msg)
+
+                    should_retry = task_master.markFailed(task.task_id, error_msg)
+                    self.session_store.update_session(session)
+
+                    if should_retry:
+                        return {
+                            "status": "task_failed_retrying",
+                            "task_id": task.task_id,
+                            "error": error_msg,
+                            "verification": verification_result,
+                        }
+                    else:
+                        return {
+                            "status": "task_failed_terminal",
+                            "task_id": task.task_id,
+                            "error": error_msg,
+                        }
+
+                session.add_log("Verification passed")
+
+            # Task completed successfully
+            task_master.markDone(task.task_id, result=agent_result.to_dict())
+            session.completed_task_ids.append(task.task_id)
+            session.active_task_id = None
+            session.add_log(f"Task {task.task_id} completed successfully")
+
+            # Persist agent result as artifact
+            artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
+            artifact_store.save_artifact(f"task_{task.task_id}_result.json", agent_result.to_dict())
+
+            self.session_store.update_session(session)
+
+            return {
+                "status": "task_complete",
+                "task_id": task.task_id,
+                "outputs": agent_result.outputs,
+            }
+
+        except Exception as e:
+            # Unhandled error
+            error_msg = f"Unexpected error executing task {task.task_id}: {str(e)}"
+            session.add_log(error_msg)
+            session.add_error(task_id=task.task_id, error_message=error_msg)
+
+            task_master.markFailed(task.task_id, error_msg)
+            self.session_store.update_session(session)
+
+            raise RuntimeError(error_msg) from e
+
+    # =========================================================================
+    # VF-038: finalize() global verification + summary
+    # =========================================================================
+
+    async def finalize_session(self, session_id: str) -> dict[str, Any]:
+        """Finalize session with global verification and summary generation.
+
+        Runs global verification suite (build + test) and requests final
+        summary from Orchestrator. Transitions to COMPLETE on success.
+
+        Args:
+            session_id: ID of the session
+
+        Returns:
+            dict: RunSummary with status, summary, files, run_instructions
+
+        Raises:
+            ValueError: If session not found, wrong phase, or tasks incomplete
+            RuntimeError: If global verification fails
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Validate phase
+        if session.phase != SessionPhase.EXECUTION:
+            raise ValueError(
+                f"Cannot finalize: session {session_id} is in phase {session.phase.value}, "
+                f"expected {SessionPhase.EXECUTION.value}"
+            )
+
+        # Check TaskMaster status
+        if session_id not in self._task_masters:
+            raise ValueError("No TaskMaster found - execution not started")
+
+        task_master = self._task_masters[session_id]
+        status = task_master.get_status()
+
+        if status["completed"] != status["total_tasks"]:
+            raise ValueError(
+                f"Cannot finalize: tasks incomplete ({status['completed']}/{status['total_tasks']} done)"
+            )
+
+        session.add_log("Starting global verification...")
+
+        # Run global verification
+        workspace_path = self.workspace_manager.workspace_root / session_id
+        verifier_suite = VerifierSuite(str(workspace_path / "repo"))
+
+        stack_preset = session.build_spec.get("stack", {}).get("preset", "UNKNOWN")
+        verification_results = verifier_suite.run_global_verification(stack_preset, session.build_spec)
+
+        # Check if verification passed
+        all_passed = all(result["passed"] for result in verification_results.values())
+
+        if not all_passed:
+            # Global verification failed
+            failed_steps = [
+                step for step, result in verification_results.items() if not result["passed"]
+            ]
+            error_msg = f"Global verification failed: {', '.join(failed_steps)}"
+            session.add_log(error_msg)
+            session.add_error(task_id="global_verification", error_message=error_msg)
+            self.session_store.update_session(session)
+
+            raise RuntimeError(
+                f"Global verification failed: {failed_steps}. "
+                f"Results: {verification_results}"
+            )
+
+        session.add_log("Global verification passed")
+
+        # Request summary from Orchestrator
+        session.add_log("Generating final summary from Orchestrator...")
+
+        # Prepare artifacts for summary
+        artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
+        artifacts = {
+            "build_spec": session.build_spec,
+            "concept": session.concept,
+            "task_graph": session.task_graph,
+            "verification_results": verification_results,
+            "completed_tasks": session.completed_task_ids,
+        }
+
+        try:
+            run_summary: RunSummary = await self.orchestrator.summarize(artifacts)
+            summary_dict = run_summary.to_dict()
+
+            # Persist RunSummary
+            artifact_store.save_artifact("run_summary.json", summary_dict)
+            session.add_log("RunSummary generated and persisted")
+
+            # Transition to COMPLETE
+            session.update_phase(SessionPhase.COMPLETE)
+            session.add_log("Phase transition: EXECUTION → COMPLETE")
+
+            self.session_store.update_session(session)
+
+            return summary_dict
+
+        except Exception as e:
+            # Orchestrator summary failed - generate fallback
+            session.add_log(f"Orchestrator summarize failed: {str(e)}, using fallback")
+
+            fallback_summary = {
+                "status": "complete",
+                "summary": f"Session completed with {len(session.completed_task_ids)} tasks",
+                "files_generated": [],
+                "verification_results": verification_results,
+                "how_to_run": ["See build_spec.json for stack-specific run commands"],
+                "limitations": ["Orchestrator summary generation failed"],
+            }
+
+            artifact_store.save_artifact("run_summary.json", fallback_summary)
+
+            # Transition to COMPLETE anyway
+            session.update_phase(SessionPhase.COMPLETE)
+            session.add_log("Phase transition: EXECUTION → COMPLETE (with fallback summary)")
+
+            self.session_store.update_session(session)
+
+            return fallback_summary
+
+    # =========================================================================
+    # VF-039: abort/reset session flows
+    # =========================================================================
+
+    def abort_session(self, session_id: str, reason: str = "User aborted") -> dict[str, str]:
+        """Abort session and preserve artifacts.
+
+        Safely stops execution and transitions to terminal state.
+        Can be called from any non-terminal phase.
+
+        Args:
+            session_id: ID of the session
+            reason: Reason for abort (for logging)
+
+        Returns:
+            dict: Confirmation with preserved artifacts location
+
+        Raises:
+            ValueError: If session not found or already in terminal state
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Check if already in terminal state
+        terminal_states = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+        if session.phase in terminal_states:
+            raise ValueError(
+                f"Cannot abort: session {session_id} already in terminal state {session.phase.value}"
+            )
+
+        # Stop running task if any
+        if session.active_task_id:
+            session.add_log(f"Aborting active task: {session.active_task_id}")
+            if session_id in self._task_masters:
+                task_master = self._task_masters[session_id]
+                task_master.markFailed(
+                    session.active_task_id, f"Aborted by user: {reason}"
+                )
+            session.active_task_id = None
+
+        # Log abort
+        session.add_log(f"Session aborted: {reason}")
+        session.add_error(task_id="session", error_message=f"Aborted: {reason}")
+
+        # Preserve current phase for reference
+        old_phase = session.phase
+
+        # Transition to FAILED (using FAILED to indicate aborted state)
+        session.update_phase(SessionPhase.FAILED)
+        session.add_log(f"Phase transition: {old_phase.value} → FAILED (aborted)")
+
+        # Update session
+        self.session_store.update_session(session)
+
+        workspace_path = self.workspace_manager.workspace_root / session_id
+
+        return {
+            "status": "aborted",
+            "message": f"Session aborted: {reason}",
+            "artifacts_preserved": str(workspace_path / "artifacts"),
+            "workspace_preserved": str(workspace_path / "repo"),
+        }
 
     # =========================================================================
     # Helper methods

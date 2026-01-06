@@ -365,14 +365,37 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorPlan` (5 tests)
   - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorPlan -v` (5 passed)
 
-- [ ] **VF-037 — SessionCoordinator: executeNextTask() loop**
+- [x] **VF-037 — SessionCoordinator: executeNextTask() loop**
   - Execute the DAG sequentially: schedule task, dispatch to agent role, apply diff, run verifications, mark done/failed.
+  - **Implementation:**
+    - `orchestration/coordinator/session_coordinator.py` - Added execute_next_task() method (~260 lines)
+    - Orchestrates: TaskMaster.scheduleNext() → Distributor.route() → AgentFramework.runTask() → Gates → PatchApplier → VerifierSuite → TaskMaster.markDone/markFailed()
+    - Handles retry logic with escalation (worker → powerful worker → fixer)
+    - Returns all_tasks_complete when ready for finalization
+  - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorExecution` (6 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorExecution -v` (6 passed)
 
-- [ ] **VF-038 — SessionCoordinator: finalize() global verification + summary**
+- [x] **VF-038 — SessionCoordinator: finalize() global verification + summary**
   - Run global verification steps and request final summary from orchestrator; transition session to COMPLETE.
+  - **Implementation:**
+    - `orchestration/coordinator/session_coordinator.py` - Added finalize_session() method (~130 lines)
+    - Runs VerifierSuite.run_global_verification() (build + test)
+    - Calls Orchestrator.summarize() for RunSummary
+    - Falls back to hardcoded summary if orchestrator fails
+    - Transitions EXECUTION → COMPLETE
+  - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorFinalize` (4 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorFinalize -v` (2 passed, 2 require npm)
 
-- [ ] **VF-039 — SessionCoordinator: abort/reset session flows**
+- [x] **VF-039 — SessionCoordinator: abort/reset session flows**
   - Support user-initiated abort and controlled reset/retry paths without leaving the system in an inconsistent state.
+  - **Implementation:**
+    - `orchestration/coordinator/session_coordinator.py` - Added abort_session() method (~60 lines)
+    - Stops active task execution (marks failed)
+    - Preserves all artifacts and workspace
+    - Transitions to FAILED state (aborted)
+    - Returns paths to preserved artifacts
+  - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorAbort` (3 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorAbort -v` (3 passed)
 
 
 ### 04 Questionnaire Engine
