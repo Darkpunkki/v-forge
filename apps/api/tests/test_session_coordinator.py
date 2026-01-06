@@ -7,6 +7,7 @@ from unittest.mock import Mock, MagicMock, AsyncMock
 from orchestration.coordinator import SessionCoordinator
 from orchestration.models import ConceptDoc, TaskGraph
 from orchestration.models import Task as TaskModel
+from vibeforge_api.core.event_log import EventLog, EventType
 from vibeforge_api.core.session import Session, SessionStore
 from vibeforge_api.core.workspace import WorkspaceManager
 from vibeforge_api.core.questionnaire import QuestionnaireEngine
@@ -105,6 +106,111 @@ class TestSessionCoordinatorStartSession:
 
         assert "Failed to initialize session workspace" in str(exc_info.value)
 
+
+class TestSessionCoordinatorEvents:
+    """Event emission behavior for structured observability (VF-142)."""
+
+    def _answer_all_questions(self, coordinator: SessionCoordinator, session_id: str):
+        while True:
+            question = coordinator.get_next_question(session_id)
+            if not question:
+                break
+            coordinator.submit_answer(session_id, question.question_id, question.options[0].value)
+
+    def test_start_session_emits_workspace_event(self, tmp_path):
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(str(tmp_path / "workspaces"))
+        event_log = EventLog(workspace_manager.workspace_root)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orch = Mock()
+
+        coordinator = SessionCoordinator(
+            session_store,
+            workspace_manager,
+            questionnaire_engine,
+            spec_builder,
+            mock_orch,
+            event_log=event_log,
+        )
+
+        session_id = coordinator.start_session()
+
+        events = event_log.get_events(session_id)
+        assert any(event.event_type == EventType.WORKSPACE_INITIALIZED for event in events)
+
+    def test_finalize_questionnaire_emits_phase_transition(self, tmp_path):
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(str(tmp_path / "workspaces"))
+        event_log = EventLog(workspace_manager.workspace_root)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orch = Mock()
+
+        coordinator = SessionCoordinator(
+            session_store,
+            workspace_manager,
+            questionnaire_engine,
+            spec_builder,
+            mock_orch,
+            event_log=event_log,
+        )
+
+        session_id = coordinator.start_session()
+        self._answer_all_questions(coordinator, session_id)
+        coordinator.finalize_questionnaire(session_id)
+
+        events = event_log.get_events(session_id, event_type=EventType.PHASE_TRANSITION)
+        assert any(event.metadata == {"from": "QUESTIONNAIRE", "to": "BUILD_SPEC"} for event in events)
+
+    @pytest.mark.asyncio
+    async def test_generate_plan_emits_task_graph_event(self, tmp_path):
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(str(tmp_path / "workspaces"))
+        event_log = EventLog(workspace_manager.workspace_root)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+
+        mock_orch = Mock()
+        mock_orch.createTaskGraph = AsyncMock(
+            return_value=TaskGraph(
+                session_id="sid",
+                tasks=[
+                    TaskModel(
+                        task_id="t1",
+                        description="Do work",
+                        role="worker",
+                        dependencies=[],
+                        inputs={},
+                        expected_outputs=[],
+                        verification={},
+                        constraints={},
+                    )
+                ],
+            )
+        )
+
+        coordinator = SessionCoordinator(
+            session_store,
+            workspace_manager,
+            questionnaire_engine,
+            spec_builder,
+            mock_orch,
+            event_log=event_log,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.build_spec = {"stack": {}}
+        session.concept = {"idea": "demo"}
+        session.phase = SessionPhase.PLAN_REVIEW
+        session_store.update_session(session)
+
+        await coordinator.generate_plan(session_id)
+
+        events = event_log.get_events(session_id, event_type=EventType.TASK_GRAPH_CREATED)
+        assert len(events) == 1
+        assert events[0].metadata == {"task_count": 1}
 
 class TestSessionCoordinatorQuestionnaire:
     """Test VF-033: SessionCoordinator questionnaire loop."""

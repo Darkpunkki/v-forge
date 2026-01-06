@@ -12,6 +12,8 @@ VF-032, VF-033, VF-034 (WP-0018)
 VF-035, VF-036 (WP-0019)
 """
 
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 
 from vibeforge_api.core.session import Session, SessionStoreInterface
@@ -19,6 +21,12 @@ from vibeforge_api.core.workspace import WorkspaceManager
 from vibeforge_api.core.questionnaire import QuestionnaireEngine
 from vibeforge_api.core.spec_builder import SpecBuilder
 from vibeforge_api.core.artifacts import ArtifactStore
+from vibeforge_api.core.event_log import (
+    Event,
+    EventLog,
+    EventType,
+    create_phase_transition_event,
+)
 from vibeforge_api.core.patch import PatchApplier
 from vibeforge_api.core.gates import GatePipeline, DiffAndCommandGate, PolicyGate, GateContext
 from vibeforge_api.core.verifiers import VerifierSuite
@@ -47,6 +55,7 @@ class SessionCoordinator:
         orchestrator: Orchestrator,
         agent_framework: Optional[AgentFramework] = None,
         distributor: Optional[Distributor] = None,
+        event_log: Optional[EventLog] = None,
     ):
         """Initialize SessionCoordinator with dependencies.
 
@@ -66,9 +75,21 @@ class SessionCoordinator:
         self.orchestrator = orchestrator
         self.agent_framework = agent_framework
         self.distributor = distributor or Distributor()
+        self.event_log = event_log or EventLog(
+            getattr(self.workspace_manager, "workspace_root", Path("./workspaces"))
+        )
 
         # Task execution state (per session)
         self._task_masters: dict[str, TaskMaster] = {}
+
+    def _emit_event(self, event: Event) -> None:
+        """Persist an event to the event log, ignoring failures."""
+
+        try:
+            self.event_log.append(event)
+        except Exception:
+            # Observability should not break execution; errors are logged via session logs.
+            pass
 
     # =========================================================================
     # VF-032: startSession() + phase initialization
@@ -99,6 +120,15 @@ class SessionCoordinator:
 
             # Log workspace initialization
             session.add_log(f"Workspace initialized at {workspace_path}")
+            self._emit_event(
+                Event(
+                    event_type=EventType.WORKSPACE_INITIALIZED,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message=f"Workspace initialized at {workspace_path}",
+                    phase=session.phase.value,
+                )
+            )
 
             # Update session in storage
             self.session_store.update_session(session)
@@ -220,10 +250,26 @@ class SessionCoordinator:
         # Store in session
         session.intent_profile = intent_profile
         session.add_log("IntentProfile generated")
+        self._emit_event(
+            Event(
+                event_type=EventType.INTENT_PROFILE_CREATED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message="IntentProfile generated",
+                phase=session.phase.value,
+                metadata={"question_count": total_questions},
+            )
+        )
 
         # Transition to BUILD_SPEC phase
+        old_phase = session.phase
         session.update_phase(SessionPhase.BUILD_SPEC)
         session.add_log(f"Phase transition: QUESTIONNAIRE → BUILD_SPEC")
+        self._emit_event(
+            create_phase_transition_event(
+                session_id, old_phase.value, SessionPhase.BUILD_SPEC.value
+            )
+        )
 
         # Update session
         self.session_store.update_session(session)
@@ -268,6 +314,15 @@ class SessionCoordinator:
         # Store in session
         session.build_spec = build_spec
         session.add_log("BuildSpec generated")
+        self._emit_event(
+            Event(
+                event_type=EventType.BUILD_SPEC_CREATED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message="BuildSpec generated",
+                phase=session.phase.value,
+            )
+        )
 
         # Persist BuildSpec as artifact
         workspace_path = self.workspace_manager.workspace_root / session_id
@@ -276,8 +331,14 @@ class SessionCoordinator:
         session.add_log("BuildSpec persisted to artifacts/build_spec.json")
 
         # Transition to IDEA phase
+        old_phase = session.phase
         session.update_phase(SessionPhase.IDEA)
         session.add_log(f"Phase transition: BUILD_SPEC → IDEA")
+        self._emit_event(
+            create_phase_transition_event(
+                session_id, old_phase.value, SessionPhase.IDEA.value
+            )
+        )
 
         # Update session
         self.session_store.update_session(session)
@@ -328,6 +389,15 @@ class SessionCoordinator:
             # Store in session
             session.concept = concept
             session.add_log("Concept generated successfully")
+            self._emit_event(
+                Event(
+                    event_type=EventType.CONCEPT_CREATED,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message="Concept generated",
+                    phase=session.phase.value,
+                )
+            )
 
             # Persist concept as artifact
             workspace_path = self.workspace_manager.workspace_root / session_id
@@ -336,8 +406,14 @@ class SessionCoordinator:
             session.add_log("Concept persisted to artifacts/concept.json")
 
             # Transition to PLAN_REVIEW phase
+            old_phase = session.phase
             session.update_phase(SessionPhase.PLAN_REVIEW)
             session.add_log(f"Phase transition: IDEA → PLAN_REVIEW")
+            self._emit_event(
+                create_phase_transition_event(
+                    session_id, old_phase.value, SessionPhase.PLAN_REVIEW.value
+                )
+            )
 
             # Update session
             self.session_store.update_session(session)
@@ -405,6 +481,16 @@ class SessionCoordinator:
             # Store in session
             session.task_graph = task_graph_dict
             session.add_log(f"TaskGraph generated: {len(task_graph.tasks)} tasks")
+            self._emit_event(
+                Event(
+                    event_type=EventType.TASK_GRAPH_CREATED,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message="TaskGraph generated",
+                    phase=session.phase.value,
+                    metadata={"task_count": len(task_graph.tasks)},
+                )
+            )
 
             # Persist TaskGraph as artifact
             workspace_path = self.workspace_manager.workspace_root / session_id
@@ -505,9 +591,24 @@ class SessionCoordinator:
             raise ValueError(f"TaskGraph missing for session {session_id}")
 
         # Transition to EXECUTION phase
+        old_phase = session.phase
         session.update_phase(SessionPhase.EXECUTION)
         session.add_log("Plan approved by user")
         session.add_log(f"Phase transition: PLAN_REVIEW → EXECUTION")
+        self._emit_event(
+            Event(
+                event_type=EventType.PLAN_APPROVED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message="Plan approved by user",
+                phase=session.phase.value,
+            )
+        )
+        self._emit_event(
+            create_phase_transition_event(
+                session_id, old_phase.value, SessionPhase.EXECUTION.value
+            )
+        )
 
         # Update session
         self.session_store.update_session(session)
@@ -540,9 +641,24 @@ class SessionCoordinator:
         session.task_graph = None
 
         # Transition back to IDEA phase
+        old_phase = session.phase
         session.update_phase(SessionPhase.IDEA)
         session.add_log(f"Plan rejected by user: {reason}")
         session.add_log(f"Phase transition: PLAN_REVIEW → IDEA (for regeneration)")
+        self._emit_event(
+            Event(
+                event_type=EventType.PLAN_REJECTED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message=f"Plan rejected: {reason}",
+                phase=session.phase.value,
+            )
+        )
+        self._emit_event(
+            create_phase_transition_event(
+                session_id, old_phase.value, SessionPhase.IDEA.value
+            )
+        )
 
         # Update session
         self.session_store.update_session(session)
@@ -599,6 +715,15 @@ class SessionCoordinator:
             task_master.enqueue(task_graph)
             self._task_masters[session_id] = task_master
             session.add_log("TaskGraph enqueued for execution")
+            self._emit_event(
+                Event(
+                    event_type=EventType.INFO,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message="TaskGraph enqueued for execution",
+                    phase=session.phase.value,
+                )
+            )
 
         task_master = self._task_masters[session_id]
 
@@ -624,6 +749,17 @@ class SessionCoordinator:
 
         session.add_log(f"Executing task: {task.task_id} ({task.description})")
         session.active_task_id = task.task_id
+        self._emit_event(
+            Event(
+                event_type=EventType.TASK_STARTED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message=f"Executing task {task.task_id}",
+                phase=session.phase.value,
+                task_id=task.task_id,
+                metadata={"description": task.description},
+            )
+        )
 
         try:
             # Get failure count for escalation
@@ -657,6 +793,16 @@ class SessionCoordinator:
                 error_msg = agent_result.error_message or "Agent execution failed"
                 session.add_log(f"Agent execution failed: {error_msg}")
                 session.add_error(task_id=task.task_id, error_message=error_msg)
+                self._emit_event(
+                    Event(
+                        event_type=EventType.TASK_FAILED,
+                        timestamp=datetime.now(timezone.utc),
+                        session_id=session_id,
+                        message=error_msg,
+                        phase=session.phase.value,
+                        task_id=task.task_id,
+                    )
+                )
 
                 # Mark failed (retry or terminal failure)
                 should_retry = task_master.markFailed(task.task_id, error_msg)
@@ -795,6 +941,16 @@ class SessionCoordinator:
             session.completed_task_ids.append(task.task_id)
             session.active_task_id = None
             session.add_log(f"Task {task.task_id} completed successfully")
+            self._emit_event(
+                Event(
+                    event_type=EventType.TASK_COMPLETED,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message=f"Task {task.task_id} completed successfully",
+                    phase=session.phase.value,
+                    task_id=task.task_id,
+                )
+            )
 
             # Persist agent result as artifact
             artifact_store = ArtifactStore(str(workspace_path / "artifacts"))

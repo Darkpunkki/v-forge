@@ -151,6 +151,43 @@ class ArtifactStore:
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
 
+    def list_artifacts(self) -> list[str]:
+        """List all artifacts stored in this store (excluding directories)."""
+
+        if not self.artifacts_root.exists():
+            return []
+
+        return [f.stem for f in self.artifacts_root.glob("*.json") if f.is_file()]
+
+    def artifact_exists(self, name: str) -> bool:
+        """Check whether an artifact exists."""
+
+        return (self.artifacts_root / name).exists()
+
+    def get_artifact_metadata(self, name: str) -> dict[str, Any]:
+        """Return basic metadata for an artifact (empty if not found)."""
+
+        path = self.artifacts_root / name
+        if not path.exists():
+            return {}
+
+        stat = path.stat()
+        return {
+            "key": Path(name).stem,
+            "size_bytes": stat.st_size,
+            "modified_at": stat.st_mtime,
+            "path": str(path),
+        }
+
+    def delete_artifact(self, name: str) -> bool:
+        """Delete an artifact if it exists, returning True when removed."""
+
+        path = self.artifacts_root / name
+        if path.exists():
+            path.unlink()
+            return True
+        return False
+
 
 class SessionArtifactStore:
     """Global artifact store that works with session IDs."""
@@ -239,6 +276,69 @@ class SessionArtifactStore:
         artifacts_root = self._get_artifacts_path(session_id)
         store = ArtifactStore(artifacts_root)
         return store.list_patch_metadata()
+
+
+class SessionArtifactQuery:
+    """Query artifacts across sessions for observability and control UI."""
+
+    def __init__(self, workspace_root: Path):
+        self.workspace_root = Path(workspace_root)
+
+    def list_sessions(self) -> list[str]:
+        """Return all session IDs that have a workspace."""
+
+        if not self.workspace_root.exists():
+            return []
+        return [d.name for d in self.workspace_root.iterdir() if d.is_dir()]
+
+    def get_session_artifacts(self, session_id: str) -> list[str]:
+        """List artifact keys for a given session."""
+
+        artifacts_path = self.workspace_root / session_id / "artifacts"
+        if not artifacts_path.exists():
+            return []
+
+        store = ArtifactStore(artifacts_path)
+        return store.list_artifacts()
+
+    def query_sessions_by_date(
+        self, start_date: Optional[float] = None, end_date: Optional[float] = None
+    ) -> list[dict[str, Any]]:
+        """Return session metadata filtered by creation/modification time."""
+
+        sessions = []
+        for session_id in self.list_sessions():
+            workspace_path = self.workspace_root / session_id
+            if not workspace_path.exists():
+                continue
+
+            created_at = workspace_path.stat().st_mtime
+
+            if start_date and created_at < start_date:
+                continue
+            if end_date and created_at > end_date:
+                continue
+
+            artifacts = self.get_session_artifacts(session_id)
+            sessions.append(
+                {
+                    "session_id": session_id,
+                    "created_at": created_at,
+                    "artifacts": artifacts,
+                }
+            )
+
+        return sessions
+
+    def get_session_summary(self, session_id: str) -> dict[str, Any]:
+        """Return a summary for a session including artifact details."""
+
+        artifacts = self.get_session_artifacts(session_id)
+        return {
+            "session_id": session_id,
+            "artifact_count": len(artifacts),
+            "artifacts": artifacts,
+        }
 
 
 # Global session artifact store instance

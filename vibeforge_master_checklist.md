@@ -844,27 +844,24 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 13 Observability (Artifacts + Event log)
 
-- [ ] **VF-130 — Formalize ArtifactStore with query APIs (filesystem JSON, per-session keys)**
+- [x] **VF-130 — Formalize ArtifactStore with query APIs (filesystem JSON, per-session keys)**
   - Formalize artifact persistence with query APIs to retrieve historical session data. Currently used informally in SessionCoordinator; needs structured API for control UI.
-  - **Current state:** Partially implemented (ArtifactStore class exists, used in session flows)
-  - **Needed:** Add list_sessions(), get_session_artifacts(), query_by_date_range() methods
-  - **Why critical:** Control UI needs to query stored artifacts for historical visualization
+  - Added list/metadata/delete helpers and SessionArtifactQuery for cross-session listings.
+  - **Verify:** `cd apps/api && pytest tests/test_artifact_store.py -v`
 
-- [ ] **VF-131 — Implement EventLog (append-only events: phase changes, dispatches, applies, command runs)**
+- [x] **VF-131 — Implement EventLog (append-only events: phase changes, dispatches, applies, command runs)**
   - Record an append-only event stream so you can trace what happened and debug failures without guesswork.
-  - **Current state:** Not implemented (session.logs exists but unstructured)
-  - **Needed:** Structured event emission with types, timestamps, metadata
-  - **Why critical:** Foundation for real-time control UI monitoring (VF-178)
+  - Implemented structured Event dataclass + EventLog JSONL persistence with cache-backed queries.
+  - **Verify:** `cd apps/api && pytest tests/test_event_log.py -v`
 
 - [ ] **VF-132 — Add "export run bundle" (zip artifacts + summary) (optional)**
   - Package repo snapshot, artifacts, and final summary into a portable bundle for sharing or archival.
   - **Priority:** Post-MVP enhancement
 
-- [ ] **VF-142 — Upgrade to structured progress events (phase changes, task lifecycle, verification)**
+- [x] **VF-142 — Upgrade to structured progress events (phase changes, task lifecycle, verification)**
   - Emit structured, typed events for all major steps: phase transitions, task dispatch, diff applied, verification started/completed.
-  - **Current state:** Partial (session.add_log() exists but unstructured strings)
-  - **Needed:** Typed Event dataclass with event_type, timestamp, phase, task_id, metadata
-  - **Why critical:** Powers real-time dashboard updates and event stream viewer
+  - SessionCoordinator now emits workspace init, phase transitions, task lifecycle, and plan events via EventLog while retaining logs for compatibility.
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py -k event -v`
 
 ## 14 Workflow Orchestration: Happy Path (Sequence)
 
