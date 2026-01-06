@@ -996,13 +996,15 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Tests: 8 backend tests (test_control_api.py), UI builds successfully
     - Verification: `pytest tests/test_control_api.py -v`, `npm run build`
 
-- [ ] **VF-171 — Agent activity dashboard (live status grid)**
+- [x] **VF-171 — Agent activity dashboard (live status grid)**
   - Display all active agents with current status (idle/thinking/executing), current task, model in use, and elapsed time.
   - **Features:** Grid layout with agent cards, status indicators (🟢 idle, 🟡 thinking, 🔴 executing), real-time updates
   - **Data source:** EventLog + SessionStore active_task_id
   - **Why needed:** Monitor which agents are working on what in real-time
+  - Implemented AgentDashboard widget and ControlPanel integration (apps/ui/src/screens/control/widgets/AgentDashboard.tsx, apps/ui/src/screens/ControlPanel.tsx).
+  - Verified via `npm run build`.
 
-- [ ] **VF-172 — Token usage visualization (per-agent, per-session, cumulative)**
+- [x] **VF-172 — Token usage visualization (per-agent, per-session, cumulative)**
   - Real-time token consumption charts: pie chart by agent role, timeline of token burn rate, cost estimates, budget alerts.
   - **Features:**
     - Pie chart: token distribution by role (orchestrator/worker/fixer)
@@ -1011,6 +1013,8 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Budget alerts: warn when approaching limits
   - **Data source:** LlmResponse.usage (prompt_tokens, completion_tokens, total_tokens)
   - **Why needed:** Control costs and identify inefficient prompts
+  - Added token visualization widget plus token metadata events/tests (apps/ui/src/screens/control/widgets/TokenVisualization.tsx; apps/api/tests/test_token_tracking.py).
+  - Verified via `pytest tests/test_token_tracking.py -v` and `npm run build`.
 
 - [ ] **VF-173 — Agent relationship graph (interactive DAG visualization)**
   - Interactive force-directed graph showing: Orchestrator → TaskMaster → Distributor → Worker/Fixer/Foreman agents with live task flow.

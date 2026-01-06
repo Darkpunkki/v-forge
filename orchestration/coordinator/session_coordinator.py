@@ -749,17 +749,6 @@ class SessionCoordinator:
 
         session.add_log(f"Executing task: {task.task_id} ({task.description})")
         session.active_task_id = task.task_id
-        self._emit_event(
-            Event(
-                event_type=EventType.TASK_STARTED,
-                timestamp=datetime.now(timezone.utc),
-                session_id=session_id,
-                message=f"Executing task {task.task_id}",
-                phase=session.phase.value,
-                task_id=task.task_id,
-                metadata={"description": task.description},
-            )
-        )
 
         try:
             # Get failure count for escalation
@@ -770,6 +759,38 @@ class SessionCoordinator:
             agent_role = self.distributor.route(task, failure_count)
             session.add_log(
                 f"Task routed to {agent_role.role} ({agent_role.model_tier}): {agent_role.reason}"
+            )
+
+            self._emit_event(
+                Event(
+                    event_type=EventType.TASK_STARTED,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message=f"Executing task {task.task_id}",
+                    phase=session.phase.value,
+                    task_id=task.task_id,
+                    metadata={
+                        "description": task.description,
+                        "agent_role": agent_role.role,
+                        "model_tier": agent_role.model_tier,
+                    },
+                )
+            )
+
+            self._emit_event(
+                Event(
+                    event_type=EventType.AGENT_INVOKED,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message=f"Agent {agent_role.role} invoked for task {task.task_id}",
+                    phase=session.phase.value,
+                    task_id=task.task_id,
+                    metadata={
+                        "agent_role": agent_role.role,
+                        "model_tier": agent_role.model_tier,
+                        "task_description": task.description,
+                    },
+                )
             )
 
             # Prepare execution context
@@ -788,6 +809,25 @@ class SessionCoordinator:
                 task, agent_role.role, context
             )
 
+            if agent_result.usage:
+                self._emit_event(
+                    Event(
+                        event_type=EventType.LLM_RESPONSE_RECEIVED,
+                        timestamp=datetime.now(timezone.utc),
+                        session_id=session_id,
+                        message=f"LLM response received for task {task.task_id}",
+                        phase=session.phase.value,
+                        task_id=task.task_id,
+                        metadata={
+                            "agent_role": agent_role.role,
+                            "model": agent_result.outputs.get("model"),
+                            "prompt_tokens": agent_result.usage.prompt_tokens,
+                            "completion_tokens": agent_result.usage.completion_tokens,
+                            "total_tokens": agent_result.usage.total_tokens,
+                        },
+                    )
+                )
+
             if not agent_result.success:
                 # Agent failed to produce result
                 error_msg = agent_result.error_message or "Agent execution failed"
@@ -801,6 +841,23 @@ class SessionCoordinator:
                         message=error_msg,
                         phase=session.phase.value,
                         task_id=task.task_id,
+                        metadata={"agent_role": agent_role.role},
+                    )
+                )
+
+                self._emit_event(
+                    Event(
+                        event_type=EventType.AGENT_COMPLETED,
+                        timestamp=datetime.now(timezone.utc),
+                        session_id=session_id,
+                        message=f"Agent {agent_role.role} failed task {task.task_id}",
+                        phase=session.phase.value,
+                        task_id=task.task_id,
+                        metadata={
+                            "agent_role": agent_role.role,
+                            "model_tier": agent_role.model_tier,
+                            "success": False,
+                        },
                     )
                 )
 
@@ -943,12 +1000,29 @@ class SessionCoordinator:
             session.add_log(f"Task {task.task_id} completed successfully")
             self._emit_event(
                 Event(
+                    event_type=EventType.AGENT_COMPLETED,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message=f"Agent {agent_role.role} completed task {task.task_id}",
+                    phase=session.phase.value,
+                    task_id=task.task_id,
+                    metadata={
+                        "agent_role": agent_role.role,
+                        "model_tier": agent_role.model_tier,
+                        "success": True,
+                        "model": agent_result.outputs.get("model"),
+                    },
+                )
+            )
+            self._emit_event(
+                Event(
                     event_type=EventType.TASK_COMPLETED,
                     timestamp=datetime.now(timezone.utc),
                     session_id=session_id,
                     message=f"Task {task.task_id} completed successfully",
                     phase=session.phase.value,
                     task_id=task.task_id,
+                    metadata={"agent_role": agent_role.role},
                 )
             )
 

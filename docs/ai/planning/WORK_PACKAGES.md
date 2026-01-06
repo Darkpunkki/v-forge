@@ -638,7 +638,10 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/ui/src/ui/App.tsx` (added /control route)
 
 ## WP-0023 — Agent activity dashboard and token visualization
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-06 20:03 (local)
+- Completed: 2026-01-06 20:14 (local)
+- Branch: work
 - **VF Tasks:** VF-171, VF-172
 - **Goal:** Display live agent status grid and real-time token usage charts to monitor execution and control costs.
 - **Dependencies:** WP-0022 ✓ (Control panel foundation)
@@ -647,6 +650,10 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `cd apps/ui && npm run build` - Dashboard components build
   - Visual verification: Agent cards show status, token charts display usage
   - `cd apps/api && pytest tests/test_token_tracking.py -v` - Token tracking tests pass
+- **Verified:**
+  - `cd apps/api && pytest tests/test_token_tracking.py -v` (pass)
+  - `cd apps/ui && npm run build` (pass)
+- **Commits:** d429391
 
 ## WP-0024 — Execution visualization (graph + timeline)
 - **Status:** Queued
