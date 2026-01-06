@@ -51,10 +51,18 @@ REPORTS_BASE = BASE_DIR / "reports"                             # .../tools/visu
 
 
 # --- Parsing rules ---
-CATEGORY_RE = re.compile(r"^###\s+(?:(\d+)\s+)?(.+?)\s*$")
+# Accept ## or ### headings, and allow "14.", "14)", "14 -" etc.
+CATEGORY_RE = re.compile(r"^#{2,3}\s+(?:(\d+)\s*[\.\)\-–—:]?\s+)?(.+?)\s*$")
+
+# Accept "-" or "*" bullets; bold optional; accept — / – / - / : as separator; spaces optional
 TASK_RE = re.compile(
-    r"^\s*-\s*\[(?P<mark>[ xX])\]\s+\*\*VF-(?P<id>\d+)\s+—\s+(?P<title>.+?)\*\*"
+    r"^\s*[-*]\s*\[(?P<mark>[ xX])\]\s+"
+    r"(?:\*\*)?VF-(?P<id>\d+)(?:\*\*)?\s*"
+    r"(?:[—–-]|:)\s*"
+    r"(?P<title>.+?)"
+    r"(?:\*\*)?\s*$"
 )
+
 
 
 @dataclass
