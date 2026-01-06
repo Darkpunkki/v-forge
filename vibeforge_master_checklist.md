@@ -1016,7 +1016,7 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Added token visualization widget plus token metadata events/tests (apps/ui/src/screens/control/widgets/TokenVisualization.tsx; apps/api/tests/test_token_tracking.py).
   - Verified via `pytest tests/test_token_tracking.py -v` and `npm run build`.
 
-- [ ] **VF-173 — Agent relationship graph (interactive DAG visualization)**
+- [x] **VF-173 — Agent relationship graph (interactive DAG visualization)**
   - Interactive force-directed graph showing: Orchestrator → TaskMaster → Distributor → Worker/Fixer/Foreman agents with live task flow.
   - **Features:**
     - D3.js force-directed graph
@@ -1024,8 +1024,10 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Edges: task assignments (animated during execution)
     - Click node → show agent details
   - **Why needed:** Visualize system architecture and task routing
+  - Implemented AgentGraph widget (SVG-based with drag), styling, and ControlPanel integration; edges/statuses derived from session events.
+  - Verified via `cd apps/ui && npm run build` (registry blocked d3, used dependency-free SVG implementation).
 
-- [ ] **VF-174 — Execution flow timeline (Gantt-style with agent swim lanes)**
+- [x] **VF-174 — Execution flow timeline (Gantt-style with agent swim lanes)**
   - Horizontal timeline showing which agent executed which task, when, overlaps, retries, and escalations visually.
   - **Features:**
     - Horizontal swim lanes per agent role
@@ -1034,6 +1036,8 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Zoom/pan controls for long sessions
   - **Data source:** EventLog with task_started/task_completed events
   - **Why needed:** Understand execution patterns and identify bottlenecks
+  - Added ExecutionTimeline widget that maps task start/complete/fail events to per-role swim lanes with duration scaling; integrated into ControlPanel.
+  - Verified via `cd apps/ui && npm run build`.
 
 - [ ] **VF-175 — Gate decision log (block/warn/pass visualization)**
   - Real-time feed of gate evaluations: which gates ran, on which artifacts, decisions made, reasons for blocks/warnings.
