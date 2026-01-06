@@ -306,14 +306,38 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Tests:** `apps/api/tests/test_session_store.py` (19 comprehensive tests)
   - **Verification:** `cd apps/api && pytest tests/test_session_store.py -v` (19 passed), `pytest -v` (219 total passed)
 
-- [ ] **VF-032 — SessionCoordinator: startSession() + phase initialization**
+- [x] **VF-032 — SessionCoordinator: startSession() + phase initialization**
   - Orchestrate workspace/artifact initialization and set the session to QUESTIONNAIRE.
+  - **Implementation:**
+    - Created `orchestration/coordinator/session_coordinator.py` (SessionCoordinator class)
+    - Implemented `start_session()` method with workspace initialization and logging
+    - Dependencies: SessionStore, WorkspaceManager, QuestionnaireEngine, SpecBuilder
+    - Error handling for workspace initialization failures
+  - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorStartSession` (3 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorStartSession -v` (3 passed)
 
-- [ ] **VF-033 — SessionCoordinator: questionnaire step loop (nextQuestion/applyAnswer/finalize)**
+- [x] **VF-033 — SessionCoordinator: questionnaire step loop (nextQuestion/applyAnswer/finalize)**
   - Drive questionnaire progression and finalize IntentProfile when complete.
+  - **Implementation:**
+    - Implemented `get_next_question(session_id)` - retrieves next question from QuestionnaireEngine
+    - Implemented `submit_answer(session_id, question_id, answer)` - validates and stores answers
+    - Implemented `finalize_questionnaire(session_id)` - generates IntentProfile and transitions to BUILD_SPEC phase
+    - Phase validation ensures QUESTIONNAIRE phase before operations
+    - Answer validation via QuestionnaireEngine.validate_answer()
+  - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorQuestionnaire` (8 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorQuestionnaire -v` (8 passed)
 
-- [ ] **VF-034 — SessionCoordinator: buildSpec stage**
+- [x] **VF-034 — SessionCoordinator: buildSpec stage**
   - Convert IntentProfile to BuildSpec (deterministic), including idea seed + policy guardrails.
+  - **Implementation:**
+    - Implemented `generate_build_spec(session_id)` - converts IntentProfile → BuildSpec deterministically
+    - Validates BUILD_SPEC phase before generation
+    - Ensures IntentProfile exists before BuildSpec generation
+    - Persists BuildSpec to artifacts/build_spec.json via ArtifactStore
+    - Transitions session to IDEA phase after BuildSpec generation
+    - Uses SpecBuilder.fromIntent() for deterministic transformation
+  - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorBuildSpec` (5 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorBuildSpec -v` (5 passed)
 
 - [ ] **VF-035 — SessionCoordinator: concept generation stage**
   - Call Orchestrator to generate concept doc and structured concept JSON, then run gates and request clarifications if needed.
