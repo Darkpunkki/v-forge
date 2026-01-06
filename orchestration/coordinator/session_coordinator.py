@@ -9,6 +9,7 @@ This is the brain of the VibeForge factory. It coordinates:
 - Verification and completion
 
 VF-032, VF-033, VF-034 (WP-0018)
+VF-035, VF-036 (WP-0019)
 """
 
 from typing import Any, Optional
@@ -20,6 +21,8 @@ from vibeforge_api.core.spec_builder import SpecBuilder
 from vibeforge_api.core.artifacts import ArtifactStore
 from vibeforge_api.models.types import SessionPhase
 from vibeforge_api.models.responses import QuestionResponse
+from orchestration.orchestrator import Orchestrator
+from orchestration.models import ConceptDoc, TaskGraph
 
 
 class SessionCoordinator:
@@ -35,6 +38,7 @@ class SessionCoordinator:
         workspace_manager: WorkspaceManager,
         questionnaire_engine: QuestionnaireEngine,
         spec_builder: SpecBuilder,
+        orchestrator: Orchestrator,
     ):
         """Initialize SessionCoordinator with dependencies.
 
@@ -43,11 +47,13 @@ class SessionCoordinator:
             workspace_manager: Workspace initialization
             questionnaire_engine: Questionnaire flow driver
             spec_builder: BuildSpec generator
+            orchestrator: High-level concept/plan generator
         """
         self.session_store = session_store
         self.workspace_manager = workspace_manager
         self.questionnaire_engine = questionnaire_engine
         self.spec_builder = spec_builder
+        self.orchestrator = orchestrator
 
     # =========================================================================
     # VF-032: startSession() + phase initialization
@@ -262,6 +268,271 @@ class SessionCoordinator:
         self.session_store.update_session(session)
 
         return build_spec
+
+    # =========================================================================
+    # VF-035: concept generation stage
+    # =========================================================================
+
+    async def generate_concept(self, session_id: str) -> dict[str, Any]:
+        """Generate concept from BuildSpec using Orchestrator.
+
+        This calls the LLM to generate a creative concept based on the
+        constraints in BuildSpec (stack, genre, twists, scope).
+
+        Args:
+            session_id: ID of the session
+
+        Returns:
+            dict: The generated concept (ConceptDoc as dict)
+
+        Raises:
+            ValueError: If session not found, wrong phase, or BuildSpec missing
+            RuntimeError: If concept generation fails
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Validate phase
+        if session.phase != SessionPhase.IDEA:
+            raise ValueError(
+                f"Cannot generate concept: session {session_id} is in phase {session.phase.value}, "
+                f"expected {SessionPhase.IDEA.value}"
+            )
+
+        # Ensure BuildSpec exists
+        if not session.build_spec:
+            raise ValueError(f"BuildSpec missing for session {session_id}")
+
+        try:
+            # Call Orchestrator to generate concept
+            session.add_log("Generating concept from BuildSpec...")
+            concept_doc: ConceptDoc = await self.orchestrator.generateConcept(session.build_spec)
+
+            # Convert ConceptDoc to dict for storage
+            concept = concept_doc.to_dict()
+
+            # Store in session
+            session.concept = concept
+            session.add_log("Concept generated successfully")
+
+            # Persist concept as artifact
+            workspace_path = self.workspace_manager.workspace_root / session_id
+            artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
+            artifact_store.save_artifact("concept.json", concept)
+            session.add_log("Concept persisted to artifacts/concept.json")
+
+            # Transition to PLAN_REVIEW phase
+            session.update_phase(SessionPhase.PLAN_REVIEW)
+            session.add_log(f"Phase transition: IDEA → PLAN_REVIEW")
+
+            # Update session
+            self.session_store.update_session(session)
+
+            return concept
+
+        except Exception as e:
+            # Record error and re-raise
+            session.add_error(
+                task_id="concept_generation",
+                error_message=f"Concept generation failed: {str(e)}",
+            )
+            self.session_store.update_session(session)
+            raise RuntimeError(f"Failed to generate concept: {str(e)}") from e
+
+    # =========================================================================
+    # VF-036: plan proposal + plan approval stage
+    # =========================================================================
+
+    async def generate_plan(self, session_id: str) -> dict[str, Any]:
+        """Generate TaskGraph from BuildSpec and Concept using Orchestrator.
+
+        This calls the LLM to create an execution plan (TaskGraph DAG)
+        based on the concept and constraints.
+
+        Args:
+            session_id: ID of the session
+
+        Returns:
+            dict: The generated TaskGraph (as dict)
+
+        Raises:
+            ValueError: If session not found, wrong phase, or concept missing
+            RuntimeError: If plan generation fails
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Validate phase
+        if session.phase != SessionPhase.PLAN_REVIEW:
+            raise ValueError(
+                f"Cannot generate plan: session {session_id} is in phase {session.phase.value}, "
+                f"expected {SessionPhase.PLAN_REVIEW.value}"
+            )
+
+        # Ensure BuildSpec and Concept exist
+        if not session.build_spec:
+            raise ValueError(f"BuildSpec missing for session {session_id}")
+        if not session.concept:
+            raise ValueError(f"Concept missing for session {session_id}")
+
+        try:
+            # Call Orchestrator to generate TaskGraph
+            session.add_log("Generating TaskGraph from concept...")
+            task_graph: TaskGraph = await self.orchestrator.createTaskGraph(
+                session.build_spec, session.concept
+            )
+
+            # Validate TaskGraph DAG
+            task_graph.validate_dag()
+            session.add_log("TaskGraph validated successfully")
+
+            # Convert TaskGraph to dict for storage
+            task_graph_dict = task_graph.to_dict()
+
+            # Store in session
+            session.task_graph = task_graph_dict
+            session.add_log(f"TaskGraph generated: {len(task_graph.tasks)} tasks")
+
+            # Persist TaskGraph as artifact
+            workspace_path = self.workspace_manager.workspace_root / session_id
+            artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
+            artifact_store.save_artifact("task_graph.json", task_graph_dict)
+            session.add_log("TaskGraph persisted to artifacts/task_graph.json")
+
+            # Remain in PLAN_REVIEW phase (waiting for user approval)
+            session.add_log("Awaiting plan approval from user...")
+
+            # Update session
+            self.session_store.update_session(session)
+
+            return task_graph_dict
+
+        except Exception as e:
+            # Record error and re-raise
+            session.add_error(
+                task_id="plan_generation",
+                error_message=f"Plan generation failed: {str(e)}",
+            )
+            self.session_store.update_session(session)
+            raise RuntimeError(f"Failed to generate plan: {str(e)}") from e
+
+    def get_plan_summary(self, session_id: str) -> dict[str, Any]:
+        """Get a user-friendly summary of the generated plan.
+
+        Formats TaskGraph into a simple structure for UI display.
+
+        Args:
+            session_id: ID of the session
+
+        Returns:
+            dict: Plan summary with task_count, task_list, etc.
+
+        Raises:
+            ValueError: If session not found, wrong phase, or plan missing
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Validate phase
+        if session.phase != SessionPhase.PLAN_REVIEW:
+            raise ValueError(
+                f"Cannot get plan summary: session {session_id} is in phase {session.phase.value}, "
+                f"expected {SessionPhase.PLAN_REVIEW.value}"
+            )
+
+        # Ensure TaskGraph exists
+        if not session.task_graph:
+            raise ValueError(f"TaskGraph missing for session {session_id}")
+
+        # Create TaskGraph object from dict for easier access
+        task_graph = TaskGraph.from_dict(session_id, session.task_graph)
+
+        # Extract summary information
+        summary = {
+            "task_count": len(task_graph.tasks),
+            "task_list": [
+                {"task_id": t.task_id, "description": t.description, "role": t.role}
+                for t in task_graph.tasks
+            ],
+            "verification_steps": list(set(t.verification.get("type", "manual") for t in task_graph.tasks)),
+            "estimated_scope": {
+                "max_files": session.build_spec.get("scopeBudget", {}).get("maxTotalFiles", "unknown"),
+                "max_screens": session.build_spec.get("scopeBudget", {}).get("maxScreens", "unknown"),
+            },
+            "constraints": {
+                "stack": session.build_spec.get("stack", {}).get("preset", "unknown"),
+                "platform": session.build_spec.get("target", {}).get("platform", "unknown"),
+            },
+        }
+
+        return summary
+
+    def approve_plan(self, session_id: str) -> dict[str, str]:
+        """Approve the plan and transition to EXECUTION phase.
+
+        Args:
+            session_id: ID of the session
+
+        Returns:
+            dict: Confirmation message
+
+        Raises:
+            ValueError: If session not found, wrong phase, or plan missing
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Validate phase
+        if session.phase != SessionPhase.PLAN_REVIEW:
+            raise ValueError(
+                f"Cannot approve plan: session {session_id} is in phase {session.phase.value}, "
+                f"expected {SessionPhase.PLAN_REVIEW.value}"
+            )
+
+        # Ensure TaskGraph exists
+        if not session.task_graph:
+            raise ValueError(f"TaskGraph missing for session {session_id}")
+
+        # Transition to EXECUTION phase
+        session.update_phase(SessionPhase.EXECUTION)
+        session.add_log("Plan approved by user")
+        session.add_log(f"Phase transition: PLAN_REVIEW → EXECUTION")
+
+        # Update session
+        self.session_store.update_session(session)
+
+        return {"status": "approved", "message": "Plan approved, ready for execution"}
+
+    def reject_plan(self, session_id: str, reason: str = "User rejected plan") -> dict[str, str]:
+        """Reject the plan and transition back to IDEA phase for regeneration.
+
+        Args:
+            session_id: ID of the session
+            reason: Reason for rejection (for logging)
+
+        Returns:
+            dict: Confirmation message
+
+        Raises:
+            ValueError: If session not found or wrong phase
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Validate phase
+        if session.phase != SessionPhase.PLAN_REVIEW:
+            raise ValueError(
+                f"Cannot reject plan: session {session_id} is in phase {session.phase.value}, "
+                f"expected {SessionPhase.PLAN_REVIEW.value}"
+            )
+
+        # Clear TaskGraph to force regeneration
+        session.task_graph = None
+
+        # Transition back to IDEA phase
+        session.update_phase(SessionPhase.IDEA)
+        session.add_log(f"Plan rejected by user: {reason}")
+        session.add_log(f"Phase transition: PLAN_REVIEW → IDEA (for regeneration)")
+
+        # Update session
+        self.session_store.update_session(session)
+
+        return {"status": "rejected", "message": "Plan rejected, returning to concept stage"}
 
     # =========================================================================
     # Helper methods

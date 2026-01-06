@@ -339,11 +339,31 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorBuildSpec` (5 tests)
   - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorBuildSpec -v` (5 passed)
 
-- [ ] **VF-035 — SessionCoordinator: concept generation stage**
+- [x] **VF-035 — SessionCoordinator: concept generation stage**
   - Call Orchestrator to generate concept doc and structured concept JSON, then run gates and request clarifications if needed.
+  - **Implementation:**
+    - Added `generate_concept(session_id)` method to SessionCoordinator
+    - Calls `await self.orchestrator.generateConcept(build_spec)` to generate ConceptDoc
+    - Validates IDEA phase before concept generation
+    - Persists concept to `artifacts/concept.json` via ArtifactStore
+    - Transitions IDEA → PLAN_REVIEW after successful generation
+    - Error handling stores failures in session.error_history without changing phase
+  - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorConcept` (4 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorConcept -v` (4 passed)
 
-- [ ] **VF-036 — SessionCoordinator: plan proposal + plan approval stage**
+- [x] **VF-036 — SessionCoordinator: plan proposal + plan approval stage**
   - Generate TaskGraph, run plan gates, present plan summary, and wait for explicit approval.
+  - **Implementation:**
+    - Added `generate_plan(session_id)` method - generates TaskGraph from BuildSpec + Concept
+    - Calls `await self.orchestrator.createTaskGraph(build_spec, concept)` to generate TaskGraph
+    - Validates TaskGraph DAG via `task_graph.validate_dag()`
+    - Persists TaskGraph to `artifacts/task_graph.json` via ArtifactStore
+    - Remains in PLAN_REVIEW phase awaiting user approval
+    - Added `get_plan_summary(session_id)` - formats TaskGraph for UI display (task_count, task_list, scope, constraints)
+    - Added `approve_plan(session_id)` - transitions PLAN_REVIEW → EXECUTION
+    - Added `reject_plan(session_id, reason)` - clears TaskGraph and transitions PLAN_REVIEW → IDEA for regeneration
+  - **Tests:** `apps/api/tests/test_session_coordinator.py::TestSessionCoordinatorPlan` (5 tests)
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorPlan -v` (5 passed)
 
 - [ ] **VF-037 — SessionCoordinator: executeNextTask() loop**
   - Execute the DAG sequentially: schedule task, dispatch to agent role, apply diff, run verifications, mark done/failed.
