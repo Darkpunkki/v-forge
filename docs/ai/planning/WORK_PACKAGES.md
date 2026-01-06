@@ -601,15 +601,20 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/test_session_coordinator.py` (added 13 new tests)
 
 ## WP-0021 — Observability foundations (EventLog + structured events)
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-06 11:42 (local)
+- **Completed:** 2026-01-06 11:49 (local)
+- **Branch:** work
 - **VF Tasks:** VF-130, VF-131, VF-142
 - **Goal:** Implement structured event logging and artifact query APIs to enable real-time monitoring, historical analysis, and control UI development.
 - **Dependencies:** None (foundational observability layer)
 - **Plan Doc:** docs/ai/planning/WP-0021_VF-130-131-142_observability_foundations.md
-- **Verify:**
+- **Verified:**
   - `cd apps/api && pytest tests/test_event_log.py -v` - EventLog tests pass
   - `cd apps/api && pytest tests/test_artifact_store.py -v` - ArtifactStore query API tests pass
+  - `cd apps/api && pytest tests/test_session_coordinator.py -k event -v` - Coordinator emits structured events
   - `cd apps/api && pytest -v` - Full test suite passes
+- **Commits:** 192099c
 
 ## WP-0022 — Control panel architecture and routing
 - **Status:** Queued

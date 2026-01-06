@@ -1,18 +1,21 @@
 # WP-0021 — Observability Foundations (EventLog + Structured Events)
 
 ## VF Tasks Included
-- [ ] VF-130 — Formalize ArtifactStore with query APIs
+- [x] VF-130 — Formalize ArtifactStore with query APIs
   - **Files:** `apps/api/vibeforge_api/core/artifacts.py` (add query methods)
   - **Tests:** `apps/api/tests/test_artifact_store.py` (extend with query tests)
-  - **Verify:** `cd apps/api && pytest tests/test_artifact_store.py -v`
-- [ ] VF-131 — Implement EventLog (append-only event stream)
+  - **Verify:** `cd apps/api && pytest tests/test_artifact_store.py -v` (pass)
+  - Added query helpers (list, metadata, delete) plus `SessionArtifactQuery` utilities for session listings.
+- [x] VF-131 — Implement EventLog (append-only event stream)
   - **Files:** `apps/api/vibeforge_api/core/event_log.py` (EventLog, Event dataclasses)
   - **Tests:** `apps/api/tests/test_event_log.py` (15+ tests)
-  - **Verify:** `cd apps/api && pytest tests/test_event_log.py -v`
-- [ ] VF-142 — Upgrade to structured progress events
+  - **Verify:** `cd apps/api && pytest tests/test_event_log.py -v` (pass)
+  - Introduced structured `Event` dataclass, `EventType` enum, and JSONL persistence with cache-aware queries.
+- [x] VF-142 — Upgrade to structured progress events
   - **Files:** `orchestration/coordinator/session_coordinator.py` (emit events instead of logs)
   - **Tests:** `apps/api/tests/test_session_coordinator.py` (verify event emission)
-  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py -k event -v`
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py -k event -v` (pass)
+  - SessionCoordinator now emits workspace, phase transition, task lifecycle, and plan events via EventLog.
 
 ## Goal
 Implement structured observability foundation to enable real-time monitoring, cost tracking, and control UI development. Replace unstructured session.logs with typed events that can be queried, filtered, and streamed to dashboards.
@@ -582,17 +585,17 @@ cd apps/api && pytest -v
 ```
 
 ## Done Means
-- [ ] ArtifactStore has list_artifacts(), artifact_exists(), get_artifact_metadata(), delete_artifact()
-- [ ] SessionArtifactQuery provides list_sessions(), query_sessions_by_date(), get_session_summary()
-- [ ] Event dataclass with EventType enum (30+ event types)
-- [ ] EventLog class with append(), get_events(), get_latest(), count()
-- [ ] Events persisted to JSONL files (workspaces/{session_id}/events.jsonl)
-- [ ] SessionCoordinator emits structured events for all major operations
-- [ ] Helper functions for common event creation (create_phase_transition_event, etc.)
-- [ ] All ArtifactStore query tests pass (8+ tests)
-- [ ] All EventLog tests pass (15+ tests)
-- [ ] All SessionCoordinator event emission tests pass (4+ tests)
-- [ ] Full test suite passes (435+ expected)
+- [x] ArtifactStore has list_artifacts(), artifact_exists(), get_artifact_metadata(), delete_artifact()
+- [x] SessionArtifactQuery provides list_sessions(), query_sessions_by_date(), get_session_summary()
+- [x] Event dataclass with EventType enum (30+ event types)
+- [x] EventLog class with append(), get_events(), get_latest(), count()
+- [x] Events persisted to JSONL files (workspaces/{session_id}/events.jsonl)
+- [x] SessionCoordinator emits structured events for all major operations
+- [x] Helper functions for common event creation (create_phase_transition_event, etc.)
+- [x] All ArtifactStore query tests pass (8+ tests)
+- [x] All EventLog tests pass (15+ tests)
+- [x] All SessionCoordinator event emission tests pass (4+ tests)
+- [x] Full test suite passes (435+ expected)
 
 ## Architecture Notes
 
