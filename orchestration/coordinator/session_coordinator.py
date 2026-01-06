@@ -749,18 +749,25 @@ class SessionCoordinator:
 
             # Run task verification
             if task.verification and task.verification.get("type") != "manual":
-                session.add_log(
-                    f"Running verification: {task.verification.get('type', 'unknown')}"
-                )
-                verifier_suite = VerifierSuite(str(workspace_path / "repo"))
+                verification_type = task.verification.get("type", "unknown")
+                session.add_log(f"Running verification: {verification_type}")
 
-                # Run task-specific verification
-                verification_result = verifier_suite.run_task_verification(
-                    task.verification, session.build_spec.get("stack", {}).get("preset", "UNKNOWN")
+                verifier_suite = VerifierSuite()
+
+                # Run task-specific verification (convert type to list of verifier names)
+                verifier_names = [verification_type] if verification_type != "unknown" else []
+                verification_results = verifier_suite.run_task_verification(
+                    verifier_names, workspace_path, session.build_spec
                 )
 
-                if not verification_result["passed"]:
-                    error_msg = f"Verification failed: {verification_result.get('error', 'Unknown error')}"
+                # Check if all verifications passed
+                all_passed = all(result.success for result in verification_results)
+
+                if not all_passed:
+                    failed_messages = [
+                        result.message for result in verification_results if not result.success
+                    ]
+                    error_msg = f"Verification failed: {'; '.join(failed_messages)}"
                     session.add_log(error_msg)
                     session.add_error(task_id=task.task_id, error_message=error_msg)
 
@@ -857,20 +864,19 @@ class SessionCoordinator:
 
         # Run global verification
         workspace_path = self.workspace_manager.workspace_root / session_id
-        verifier_suite = VerifierSuite(str(workspace_path / "repo"))
+        verifier_suite = VerifierSuite()
 
-        stack_preset = session.build_spec.get("stack", {}).get("preset", "UNKNOWN")
-        verification_results = verifier_suite.run_global_verification(stack_preset, session.build_spec)
+        verification_results = verifier_suite.run_global_verification(workspace_path, session.build_spec)
 
-        # Check if verification passed
-        all_passed = all(result["passed"] for result in verification_results.values())
+        # Check if verification passed (verification_results is list[VerificationResult])
+        all_passed = all(result.success for result in verification_results)
 
         if not all_passed:
             # Global verification failed
             failed_steps = [
-                step for step, result in verification_results.items() if not result["passed"]
+                result.message for result in verification_results if not result.success
             ]
-            error_msg = f"Global verification failed: {', '.join(failed_steps)}"
+            error_msg = f"Global verification failed: {'; '.join(failed_steps)}"
             session.add_log(error_msg)
             session.add_error(task_id="global_verification", error_message=error_msg)
             self.session_store.update_session(session)
@@ -885,13 +891,17 @@ class SessionCoordinator:
         # Request summary from Orchestrator
         session.add_log("Generating final summary from Orchestrator...")
 
-        # Prepare artifacts for summary
+        # Prepare artifacts for summary (convert VerificationResult objects to dicts)
+        from dataclasses import asdict
+
+        verification_results_dict = [asdict(result) for result in verification_results]
+
         artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
         artifacts = {
             "build_spec": session.build_spec,
             "concept": session.concept,
             "task_graph": session.task_graph,
-            "verification_results": verification_results,
+            "verification_results": verification_results_dict,
             "completed_tasks": session.completed_task_ids,
         }
 
@@ -919,7 +929,7 @@ class SessionCoordinator:
                 "status": "complete",
                 "summary": f"Session completed with {len(session.completed_task_ids)} tasks",
                 "files_generated": [],
-                "verification_results": verification_results,
+                "verification_results": verification_results_dict,
                 "how_to_run": ["See build_spec.json for stack-specific run commands"],
                 "limitations": ["Orchestrator summary generation failed"],
             }
