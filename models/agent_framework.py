@@ -27,13 +27,17 @@ class AgentResult:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
-        return {
+        result = {
             "success": self.success,
             "outputs": self.outputs,
             "logs": self.logs,
-            "usage": asdict(self.usage) if self.usage else None,
             "error_message": self.error_message,
         }
+
+        if self.usage:
+            result["usage"] = asdict(self.usage)
+
+        return result
 
 
 class AgentFramework(ABC):
