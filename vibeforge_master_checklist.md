@@ -1091,27 +1091,27 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Why needed:** Control costs, project budgets for production use
 
 
-### 18 MVP/Placeholder Cleanup
+### 30 MVP/Placeholder Cleanup
 
-- [ ] **VF-181 — Audit MVP/placeholder shortcuts and publish cleanup inventory**
+- [ ] **VF-301 — Audit MVP/placeholder shortcuts and publish cleanup inventory**
   - Catalog every MVP/placeholder/stub implementation still in use (e.g., mock demo flow in `apps/api/vibeforge_api/routers/sessions.py`, mock project generator in `apps/api/vibeforge_api/core/mock_generator.py`, stub adapters in `models/agent_framework_stubs.py`, local provider stub in `models/local/provider.py`). Produce a consolidated inventory doc with file paths, line refs, and suggested remediation path for each item.
   - **Status:** Planned
   - **Done when:** `docs/ai/planning/mvp_placeholder_audit.md` (or similar) lists each placeholder with owner, impact, and whether to replace, guard, or defer.
   - **Verify:** Manual review of the audit doc against the cited files; CI/docs build if applicable.
 
-- [ ] **VF-182 — Replace MVP demo shortcut in questionnaire submission (mock generator → real pipeline)**
+- [ ] **VF-302 — Replace MVP demo shortcut in questionnaire submission (mock generator → real pipeline)**
   - Remove the shortcut that generates mock files and jumps to COMPLETE inside `apps/api/vibeforge_api/routers/sessions.py` (submitAnswer handler). Route questionnaire completion into the real BuildSpec → concept → plan flow (or gate behind a feature flag) and retire `mock_generator.generate` as the default path.
   - **Status:** Planned
   - **Done when:** Submitting the final questionnaire answer transitions to PLAN_REVIEW/IDEA with real artifacts instead of calling MockGenerator or auto-setting COMPLETE; tests updated to cover the new flow.
   - **Verify:** `cd apps/api && pytest tests/test_sessions.py -k questionnaire` (plus any new end-to-end test for non-mock flow).
 
-- [ ] **VF-183 — Replace mocked plan/progress responses with TaskGraph/event data**
+- [ ] **VF-303 — Replace mocked plan/progress responses with TaskGraph/event data**
   - Swap the hardcoded plan summary and progress scaffolding in `apps/api/vibeforge_api/routers/sessions.py` with data derived from stored TaskGraph and recent events (no fabricated feature lists or task timelines when not in EXECUTION).
   - **Status:** Planned
   - **Done when:** GET /plan and GET /progress pull from persisted artifacts/event log with sensible empty states; mock data paths removed; coverage added for both endpoints in non-EXECUTION phases.
   - **Verify:** `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"` (extend with new cases for TaskGraph-backed responses).
 
-- [ ] **VF-184 — Define upgrade path for agent/local stubs (LangGraph/CrewAI/AutoGen + LocalProvider)**
+- [ ] **VF-304 — Define upgrade path for agent/local stubs (LangGraph/CrewAI/AutoGen + LocalProvider)**
   - Turn the stub adapters in `models/agent_framework_stubs.py` and the `LocalProvider` stub in `models/local/provider.py` into explicit upgrade tasks: document intended feature flags, minimum viable integrations, and acceptance tests so they can be scheduled without ambiguity.
   - **Status:** Planned
   - **Done when:** A follow-on design/plan doc exists outlining scope, rollout guards, and test hooks for each stubbed provider/adapter; stubs are referenced from the audit with clear next-step VF IDs or WP links.
