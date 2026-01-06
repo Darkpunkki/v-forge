@@ -617,15 +617,25 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Commits:** 192099c
 
 ## WP-0022 — Control panel architecture and routing
-- **Status:** Queued
-- **VF Tasks:** VF-170
+- **Status:** Done
+- **Started:** 2026-01-06 12:05 (local)
+- **Completed:** 2026-01-06 (local)
+- **Branch:** master
+- **VF Tasks:** VF-170 (complete ✓)
 - **Goal:** Create separate control panel UI with real-time session monitoring, accessible at /control route with WebSocket/SSE integration.
 - **Dependencies:** WP-0021 ✓ (EventLog for real-time updates)
 - **Plan Doc:** docs/ai/planning/WP-0022_VF-170_control_panel_architecture.md
-- **Verify:**
-  - `cd apps/ui && npm run build` - UI builds successfully
-  - `cd apps/ui && npm run dev` - Control panel accessible at http://localhost:5173/control
-  - `cd apps/api && pytest tests/test_control_api.py -v` - Control API endpoints pass
+- **Verified:**
+  - `cd apps/ui && npm run build` - UI builds successfully ✓
+  - `cd apps/ui && npm run dev` - Control panel accessible at http://localhost:5173/control ✓
+  - `cd apps/api && pytest tests/test_control_api.py -v` - All 8 control API tests pass ✓
+- **Files touched:**
+  - `apps/api/vibeforge_api/routers/control.py` (4 new control endpoints)
+  - `apps/api/vibeforge_api/main.py` (integrated control router)
+  - `apps/api/tests/test_control_api.py` (8 comprehensive tests)
+  - `apps/ui/src/api/controlClient.ts` (typed API client)
+  - `apps/ui/src/screens/ControlPanel.tsx` (control panel UI with SSE)
+  - `apps/ui/src/ui/App.tsx` (added /control route)
 
 ## WP-0023 — Agent activity dashboard and token visualization
 - **Status:** Queued

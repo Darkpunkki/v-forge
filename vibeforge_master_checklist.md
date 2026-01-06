@@ -985,11 +985,16 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 17 Agent Control & Monitoring UI (Post-MVP)
 
-- [ ] **VF-170 — Control panel architecture (separate admin UI route)**
+- [x] **VF-170 — Control panel architecture (separate admin UI route)**
   - Create separate control panel UI distinct from end-user flow; accessible at /control or /admin route with real-time session monitoring.
   - **Why needed:** Developers need visibility into multi-agent orchestration, token usage, and execution flow
   - **Architecture:** Separate React route with WebSocket/SSE for real-time updates
   - **Dependencies:** VF-131 (EventLog), VF-142 (structured events)
+  - **Completed in WP-0022:**
+    - Backend: Created 4 control API endpoints (/control/sessions, /control/active, /control/sessions/{id}/status, /control/sessions/{id}/events with SSE)
+    - Frontend: Created ControlPanel component at /control route with sidebar and real-time event streaming
+    - Tests: 8 backend tests (test_control_api.py), UI builds successfully
+    - Verification: `pytest tests/test_control_api.py -v`, `npm run build`
 
 - [ ] **VF-171 — Agent activity dashboard (live status grid)**
   - Display all active agents with current status (idle/thinking/executing), current task, model in use, and elapsed time.
