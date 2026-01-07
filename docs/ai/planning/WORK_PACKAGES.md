@@ -727,6 +727,33 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Completed:** 2026-01-07 11:23 (local)
 - **Commits:** 51b05da
 
+## WP-0028 — Workspace git snapshots
+- **Status:** Queued
+- **VF Tasks:** VF-112
+- **Goal:** Add optional git initialization and task snapshot commits to improve rollback and diff review.
+- **Dependencies:** VF-110, VF-111 (WorkspaceManager foundations)
+- **Plan Doc:** docs/ai/planning/WP-0028_VF-112-112_workspace-git-snapshots.md
+- **Verify:**
+  - `pytest`
+
+## WP-0029 — App runner + smoke verification
+- **Status:** Queued
+- **VF Tasks:** VF-123, VF-125, VF-126
+- **Goal:** Enable run instructions, dev server lifecycle management, and a smoke check to confirm apps start successfully.
+- **Dependencies:** WP-0003 ✓ (CommandRunner/Verifiers), WP-0010 ✓ (stack presets)
+- **Plan Doc:** docs/ai/planning/WP-0029_VF-123-126_app-runner-smoke-verification.md
+- **Verify:**
+  - `pytest`
+
+## WP-0030 — Phase transition event logging
+- **Status:** Queued
+- **VF Tasks:** VF-143
+- **Goal:** Record every phase transition in the EventLog with before/after metadata for replayability and debugging.
+- **Dependencies:** WP-0021 ✓ (EventLog)
+- **Plan Doc:** docs/ai/planning/WP-0030_VF-143-143_phase-transition-events.md
+- **Verify:**
+  - `pytest`
+
 ---
 
 ## Notes / Decisions Log
