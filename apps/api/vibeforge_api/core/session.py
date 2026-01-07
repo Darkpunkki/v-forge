@@ -36,6 +36,7 @@ class Session:
         # Clarification state (for gates/agents)
         self.pending_clarification: Optional[dict] = None
         self.clarification_answer: Optional[str] = None
+        self.clarification_context: Optional[dict] = None
 
         # Error history (VF-030: track error details, not just IDs)
         self.error_history: list[dict[str, Any]] = []

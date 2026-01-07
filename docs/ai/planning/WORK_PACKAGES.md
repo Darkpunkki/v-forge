@@ -798,13 +798,19 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - Commits: 50d37fa
 
 ## WP-0033 — Fix loop policy automation
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 13:57 (local)
+- Branch: work
+- **Completed:** 2026-01-07 14:03 (local)
 - **VF Tasks:** VF-155
 - **Goal:** Automate repair-loop policy when verification fails to generate fix attempts or user choices.
 - **Dependencies:** VF-156 ✓, VF-096 ✓ (retry counters + escalation)
 - **Plan Doc:** docs/ai/planning/WP-0033_VF-155-155_fix-loop-policy-automation.md
 - **Verify:**
   - `pytest`
+- **Verified:**
+  - `PYTHONPATH=/workspace/v-forge pytest`
+- **Commits:** fd42981
 
 ---
 

@@ -218,6 +218,32 @@ class TaskMaster:
             self._skip_downstream_tasks(task_id)
             return False
 
+    def forceRetry(self, task_id: str, reset_attempts: bool = True) -> None:
+        """
+        Force a retry after a terminal failure.
+
+        Resets the task to READY and unskips downstream tasks so execution can continue.
+
+        Args:
+            task_id: ID of failed task to retry
+            reset_attempts: Whether to reset attempt counter back to 0
+
+        Raises:
+            ValueError: If task_id is unknown
+        """
+        if task_id not in self.executions:
+            raise ValueError(f"Unknown task_id: {task_id}")
+
+        exec_state = self.executions[task_id]
+        exec_state.status = TaskStatus.READY
+        exec_state.completed_at = None
+        exec_state.error_message = None
+        if reset_attempts:
+            exec_state.attempts = 0
+
+        self._unskip_downstream_tasks(task_id)
+        self._update_ready_tasks()
+
     def get_status(self) -> dict:
         """
         Get overall execution status.
@@ -318,3 +344,30 @@ class TaskMaster:
             if exec_state.status in [TaskStatus.PENDING, TaskStatus.READY]:
                 exec_state.status = TaskStatus.SKIPPED
                 exec_state.completed_at = datetime.utcnow()
+
+    def _unskip_downstream_tasks(self, failed_task_id: str) -> None:
+        """
+        Reset downstream tasks from SKIPPED to PENDING when retrying a failure.
+
+        Args:
+            failed_task_id: ID of task being retried
+        """
+        if not self.task_graph:
+            return
+
+        to_reset = set()
+
+        def mark_dependent(task_id: str):
+            for task in self.task_graph.tasks:
+                if task_id in task.dependencies and task.task_id not in to_reset:
+                    to_reset.add(task.task_id)
+                    mark_dependent(task.task_id)
+
+        mark_dependent(failed_task_id)
+
+        for task_id in to_reset:
+            exec_state = self.executions[task_id]
+            if exec_state.status == TaskStatus.SKIPPED:
+                exec_state.status = TaskStatus.PENDING
+                exec_state.completed_at = None
+                exec_state.error_message = None

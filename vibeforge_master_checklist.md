@@ -943,9 +943,11 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Implementation:** VerifierSuite.run_task_verification() runs task.verification specs
   - **Verify:** `cd apps/api && pytest tests/test_verifiers.py::TestVerifierSuite -v`
 
-- [ ] **VF-155 — Implement automatic "fix loop" policy after verification failure**
+- [x] **VF-155 — Implement automatic "fix loop" policy after verification failure**
   - When verification fails, automatically generate a repair attempt strategy (e.g., create a FIXER task, escalate model, narrow diff limits, or request user choice after N failures).
-  - **Status:** Partial - retry with escalation exists (VF-096), automatic FIXER task generation pending
+  - **Status:** ✅ COMPLETE - Fix-loop clarification prompts after verification retries with force-retry support
+  - **Implementation:** SessionCoordinator queues fix-loop clarifications on verification failure; TaskMaster.forceRetry resets failures and downstream skips
+  - **Verify:** `PYTHONPATH=/workspace/v-forge pytest`
 
 - [x] **VF-156 — Add retry counters + escalation rules per task**
   - Track failure count per task and apply escalation: stronger role/model after repeated failures; hard-stop after max retries with a meaningful error summary.
