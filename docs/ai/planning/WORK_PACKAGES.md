@@ -769,6 +769,33 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Verified:** `PYTHONPATH=/workspace/v-forge pytest`
 - **Commits:** 6d1cd60
 
+## WP-0031 — Observability run bundle export
+- **Status:** Queued
+- **VF Tasks:** VF-132
+- **Goal:** Package a portable run bundle archive with artifacts and summary for sharing and archival.
+- **Dependencies:** None
+- **Plan Doc:** docs/ai/planning/WP-0031_VF-132-132_observability-run-bundle-export.md
+- **Verify:**
+  - `pytest`
+
+## WP-0032 — Execution loop context + clarifications
+- **Status:** Queued
+- **VF Tasks:** VF-151, VF-152
+- **Goal:** Load task-scoped context into agent prompts and support clarification pauses/resume flows.
+- **Dependencies:** VF-027 ✓ (clarification endpoint/UI flow)
+- **Plan Doc:** docs/ai/planning/WP-0032_VF-151-152_execution-context-clarifications.md
+- **Verify:**
+  - `pytest`
+
+## WP-0033 — Fix loop policy automation
+- **Status:** Queued
+- **VF Tasks:** VF-155
+- **Goal:** Automate repair-loop policy when verification fails to generate fix attempts or user choices.
+- **Dependencies:** VF-156 ✓, VF-096 ✓ (retry counters + escalation)
+- **Plan Doc:** docs/ai/planning/WP-0033_VF-155-155_fix-loop-policy-automation.md
+- **Verify:**
+  - `pytest`
+
 ---
 
 ## Notes / Decisions Log
