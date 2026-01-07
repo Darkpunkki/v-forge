@@ -22,7 +22,9 @@ class CommandResult:
 # Command family allowlists - maps family name to allowed command prefixes
 COMMAND_ALLOWLISTS = {
     "NODE_BUILD": ["npm run build", "npm run", "npm ci", "npm install", "npm"],
+    "NODE_DEV": ["npm run dev", "npm run start", "npm start", "vite"],
     "NODE_TEST": ["npm test", "npm run test", "vitest", "jest"],
+    "PYTHON_RUN": ["python main.py", "python -m"],
     "PYTHON_TEST": ["pytest", "python -m pytest", "python -m unittest"],
     "JAVA_BUILD": ["mvn clean", "mvn compile", "mvn package", "gradle build"],
     "JAVA_TEST": ["mvn test", "gradle test"],
@@ -156,3 +158,9 @@ class CommandRunner:
 
 # Global command runner instance
 command_runner = CommandRunner()
+
+
+def is_command_allowed(command: str, allowed_families: list[str]) -> bool:
+    """Check if a command is allowed for the provided families."""
+    runner = CommandRunner()
+    return runner._is_command_allowed(command, allowed_families)

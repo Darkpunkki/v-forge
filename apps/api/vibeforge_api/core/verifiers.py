@@ -3,8 +3,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+import socket
+import time
 from typing import Any, Optional
+from urllib import request, error
 
+from vibeforge_api.core.app_runner import AppRunner
 from vibeforge_api.core.command_runner import CommandRunner, CommandResult
 
 
@@ -283,6 +287,157 @@ class TestVerifier(Verifier):
             return "Tests failed (no specific failure details parsed)"
 
 
+class SmokeVerifier(Verifier):
+    """Verifies that the app can run locally (smoke check)."""
+
+    COMMAND_FAMILIES = {
+        "CLI_PYTHON": ["PYTHON_RUN"],
+    }
+
+    def __init__(
+        self,
+        command_runner: Optional[CommandRunner] = None,
+        app_runner: Optional[AppRunner] = None,
+    ):
+        super().__init__(command_runner=command_runner)
+        self.app_runner = app_runner or AppRunner()
+
+    def verify(
+        self, workspace_path: Path, build_spec: dict[str, Any]
+    ) -> VerificationResult:
+        """Verify that the app can run locally."""
+        preset = build_spec.get("stack", {}).get("preset")
+        if not preset:
+            return VerificationResult(
+                success=False,
+                message="No stack preset defined in BuildSpec",
+                details={"error": "Missing stack.preset in BuildSpec"},
+            )
+
+        if preset == "CLI_PYTHON":
+            return self._verify_cli(workspace_path, build_spec)
+
+        if preset in {"WEB_VITE_REACT_TS", "WEB_NEXTJS_TS"}:
+            return self._verify_web(workspace_path, build_spec)
+
+        return VerificationResult(
+            success=False,
+            message=f"No smoke check defined for preset: {preset}",
+            details={"preset": preset, "error": "Unknown preset"},
+        )
+
+    def _verify_cli(
+        self, workspace_path: Path, build_spec: dict[str, Any]
+    ) -> VerificationResult:
+        preset = build_spec["stack"]["preset"]
+        smoke_routes = build_spec.get("acceptance", {}).get("smokeRoutes", ["--help"])
+        smoke_arg = smoke_routes[0] if smoke_routes else "--help"
+
+        command = f"python main.py {smoke_arg}".strip()
+        repo_path = workspace_path / "repo"
+
+        try:
+            result = self.command_runner.run_command(
+                command,
+                timeout=30,
+                cwd=repo_path,
+                allowed_families=self.COMMAND_FAMILIES.get(preset, []),
+            )
+            if result.returncode == 0:
+                return VerificationResult(
+                    success=True,
+                    message="Smoke check succeeded",
+                    details={"preset": preset, "command": command},
+                    command_results=[result],
+                )
+            return VerificationResult(
+                success=False,
+                message=f"Smoke check failed with exit code {result.returncode}",
+                details={
+                    "preset": preset,
+                    "command": command,
+                    "returncode": result.returncode,
+                    "stderr": result.stderr[:500],
+                },
+                command_results=[result],
+            )
+        except Exception as e:
+            return VerificationResult(
+                success=False,
+                message=f"Smoke verification failed: {str(e)}",
+                details={"preset": preset, "command": command, "error": str(e)},
+            )
+
+    def _verify_web(
+        self, workspace_path: Path, build_spec: dict[str, Any]
+    ) -> VerificationResult:
+        preset = build_spec["stack"]["preset"]
+        smoke_routes = build_spec.get("acceptance", {}).get("smokeRoutes", ["/"])
+        port = _find_open_port()
+
+        try:
+            run_process = self.app_runner.start(
+                workspace_path, build_spec, port=port
+            )
+            success, route = self._wait_for_routes(
+                smoke_routes, port=port, timeout=20
+            )
+            if success:
+                return VerificationResult(
+                    success=True,
+                    message="Smoke check succeeded",
+                    details={
+                        "preset": preset,
+                        "command": run_process.command,
+                        "route": route,
+                        "port": port,
+                    },
+                )
+            return VerificationResult(
+                success=False,
+                message="Smoke check failed to reach app",
+                details={
+                    "preset": preset,
+                    "command": run_process.command,
+                    "routes": smoke_routes,
+                    "port": port,
+                },
+            )
+        except Exception as e:
+            return VerificationResult(
+                success=False,
+                message=f"Smoke verification failed: {str(e)}",
+                details={"preset": preset, "error": str(e)},
+            )
+        finally:
+            self.app_runner.stop()
+
+    def _wait_for_routes(
+        self, routes: list[str], port: int, timeout: int = 20
+    ) -> tuple[bool, Optional[str]]:
+        base_url = f"http://127.0.0.1:{port}"
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            for route in routes:
+                url = base_url + route
+                try:
+                    with request.urlopen(url, timeout=2) as response:
+                        if 200 <= response.status < 500:
+                            return True, route
+                except error.URLError:
+                    continue
+            time.sleep(0.5)
+
+        return False, None
+
+
+def _find_open_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
 class VerifierSuite:
     """Orchestrates multiple verification steps."""
 
@@ -355,6 +510,7 @@ class VerifierSuite:
         verifier_map = {
             "build": BuildVerifier,
             "test": TestVerifier,
+            "smoke": SmokeVerifier,
         }
 
         for name in verifier_names:

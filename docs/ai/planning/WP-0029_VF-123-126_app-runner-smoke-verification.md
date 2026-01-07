@@ -1,7 +1,9 @@
 # WP-0029 — App runner + smoke verification
 
 ## Status
-- Queued
+- Done
+- Verified: `PYTHONPATH=/workspace/v-forge pytest`
+- Completed: 2026-01-07 12:13 (local)
 
 ## Context
 - Chapter(s): 12 Verification + Command Runner + AppRunner
@@ -14,12 +16,18 @@
 - Enable app run instructions, dev server lifecycle management, and a smoke check to confirm apps start successfully.
 
 ## VF Tasks (canonical)
-- [ ] **VF-123 — Implement SmokeVerifier (server starts and/or route responds)**
+- [x] **VF-123 — Implement SmokeVerifier (server starts and/or route responds)**
   - Run a lightweight end-to-end check (start server or hit a route) to confirm the app can run locally.
-- [ ] **VF-125 — Implement AppRunner.getRunInstructions() per stack preset**
+  - Files: `apps/api/vibeforge_api/core/verifiers.py`, `apps/api/tests/test_verifiers.py`
+  - Verify: `PYTHONPATH=/workspace/v-forge pytest`
+- [x] **VF-125 — Implement AppRunner.getRunInstructions() per stack preset**
   - Generate clear run instructions (install/build/dev server) and expose them in the final summary.
-- [ ] **VF-126 — Implement AppRunner.start()/stop() dev server + stream logs**
+  - Files: `apps/api/vibeforge_api/core/app_runner.py`, `apps/api/vibeforge_api/routers/sessions.py`
+  - Verify: `PYTHONPATH=/workspace/v-forge pytest`
+- [x] **VF-126 — Implement AppRunner.start()/stop() dev server + stream logs**
   - Provide a ‘Run’ button that starts the app locally and streams logs back to the UI.
+  - Files: `apps/api/vibeforge_api/core/app_runner.py`, `apps/api/tests/test_app_runner.py`
+  - Verify: `PYTHONPATH=/workspace/v-forge pytest`
 
 ## Plan
 ### Approach

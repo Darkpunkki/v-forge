@@ -7,6 +7,7 @@ import pytest
 
 from vibeforge_api.core.verifiers import (
     BuildVerifier,
+    SmokeVerifier,
     TestVerifier,
     VerifierSuite,
     VerificationResult,
@@ -217,6 +218,59 @@ class TestTestVerifier:
 
         assert "FAILED" in summary
         assert "AssertionError" in summary
+
+
+class TestSmokeVerifier:
+    """Tests for SmokeVerifier."""
+
+    def test_smoke_verifier_cli_success(self, tmp_path):
+        """Test CLI smoke check using help command."""
+        mock_runner = Mock()
+        mock_runner.run_command.return_value = CommandResult(
+            returncode=0,
+            stdout="Usage",
+            stderr="",
+            duration=0.4,
+            timed_out=False,
+            command="python main.py --help",
+        )
+
+        build_spec = {
+            "stack": {"preset": "CLI_PYTHON"},
+            "acceptance": {"smokeRoutes": ["--help"]},
+        }
+        workspace = tmp_path / "session1"
+        (workspace / "repo").mkdir(parents=True)
+
+        verifier = SmokeVerifier(command_runner=mock_runner)
+        result = verifier.verify(workspace, build_spec)
+
+        assert result.success is True
+        assert "smoke check succeeded" in result.message.lower()
+        mock_runner.run_command.assert_called_once()
+        call_args = mock_runner.run_command.call_args
+        assert call_args[0][0] == "python main.py --help"
+
+    def test_smoke_verifier_web_success(self, tmp_path):
+        """Test web smoke check uses AppRunner and waits for routes."""
+        mock_app_runner = MagicMock()
+        mock_app_runner.start.return_value = MagicMock(command="npm run dev", port=5173)
+
+        build_spec = {
+            "stack": {"preset": "WEB_VITE_REACT_TS"},
+            "acceptance": {"smokeRoutes": ["/"]},
+        }
+        workspace = tmp_path / "session1"
+        (workspace / "repo").mkdir(parents=True)
+
+        verifier = SmokeVerifier(command_runner=Mock(), app_runner=mock_app_runner)
+        verifier._wait_for_routes = MagicMock(return_value=(True, "/"))
+
+        result = verifier.verify(workspace, build_spec)
+
+        assert result.success is True
+        mock_app_runner.start.assert_called_once()
+        mock_app_runner.stop.assert_called_once()
 
 
 class TestVerifierSuite:
