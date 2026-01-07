@@ -1039,7 +1039,7 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Added ExecutionTimeline widget that maps task start/complete/fail events to per-role swim lanes with duration scaling; integrated into ControlPanel.
   - Verified via `cd apps/ui && npm run build`.
 
-- [ ] **VF-175 — Gate decision log (block/warn/pass visualization)**
+- [x] **VF-175 — Gate decision log (block/warn/pass visualization)**
   - Real-time feed of gate evaluations: which gates ran, on which artifacts, decisions made, reasons for blocks/warnings.
   - **Features:**
     - Table with columns: timestamp, gate_type, artifact, decision (OK/WARN/BLOCK), reason
@@ -1049,8 +1049,10 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Data source:** EventLog with gate_evaluated events (metadata: gate_type, decision, artifact, reason)
   - **Backend:** emit gate_evaluated from gate pipeline / SessionCoordinator evaluation path
   - **Why needed:** Debug why tasks were blocked, tune gate policies
+  - Added GateLog widget and gate_evaluated event emission in SessionCoordinator.
+  - Verified via `cd apps/ui && npm run build` and `cd apps/api && pytest tests/test_gate_logging.py -v`.
 
-- [ ] **VF-176 — Model router decisions (model selection rationale)**
+- [x] **VF-176 — Model router decisions (model selection rationale)**
   - Display which model was selected for each call, why (role/complexity/retry), and routing rules applied.
   - **Features:**
     - Table: timestamp, role, model_selected, reason, temperature, failure_count
@@ -1059,6 +1061,8 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Data source:** EventLog with model_routed events (metadata: rule matched, failure_count, reason)
   - **Backend:** emit model_routed from distributor/router decisions
   - **Why needed:** Understand cost/quality tradeoffs, tune routing rules
+  - Added ModelRouter widget that merges model_routed with LLM response events for model + cost estimates.
+  - Verified via `cd apps/ui && npm run build`.
 
 - [ ] **VF-177 — Session comparison view (multi-session metrics)**
   - Side-by-side comparison of multiple sessions: token usage, task completion rates, failure patterns, time to completion.

@@ -672,7 +672,10 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - Test with sample session data
 
 ## WP-0025 — Decision transparency (gates + model routing)
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 10:21 (local)
+- Completed: 2026-01-07 10:27 (local)
+- Branch: work
 - **VF Tasks:** VF-175, VF-176
 - **Goal:** Display gate evaluation decisions and model routing rationale to debug blocks and tune policies.
 - **Dependencies:** WP-0022 ✓ (Control panel foundation)
@@ -681,6 +684,10 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `cd apps/ui && npm run build` - Decision log components build
   - Visual verification: Gate decisions table, model routing display
   - `cd apps/api && pytest tests/test_gate_logging.py -v` - Gate logging tests pass
+- **Verified:**
+  - `cd apps/ui && npm run build`
+  - `cd apps/api && pytest tests/test_gate_logging.py -v`
+- **Commits:** 36cc2c2
 
 ## WP-0026 — Analytics (session comparison + event stream)
 - **Status:** Queued
