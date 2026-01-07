@@ -870,7 +870,12 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `pytest`
 
 ## WP-0039 — MVP placeholder audit inventory
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 21:40 (local)
+- Branch: work
+- Verified: `PYTHONPATH=/workspace/v-forge pytest`
+- Completed: 2026-01-07 21:46 (local)
+- Commits: (see PR)
 - **VF Tasks:** VF-301
 - **Goal:** Publish a consolidated inventory of MVP placeholders with remediation guidance for post-MVP cleanup.
 - **Dependencies:** None

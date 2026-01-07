@@ -1173,11 +1173,13 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ### 30 MVP/Placeholder Cleanup
 
-- [ ] **VF-301 — Audit MVP/placeholder shortcuts and publish cleanup inventory**
+- [x] **VF-301 — Audit MVP/placeholder shortcuts and publish cleanup inventory**
   - Catalog every MVP/placeholder/stub implementation still in use (e.g., mock demo flow in `apps/api/vibeforge_api/routers/sessions.py`, mock project generator in `apps/api/vibeforge_api/core/mock_generator.py`, stub adapters in `models/agent_framework_stubs.py`, local provider stub in `models/local/provider.py`). Produce a consolidated inventory doc with file paths, line refs, and suggested remediation path for each item.
-  - **Status:** Planned
+  - **Status:** Done
   - **Done when:** `docs/ai/planning/mvp_placeholder_audit.md` (or similar) lists each placeholder with owner, impact, and whether to replace, guard, or defer.
   - **Verify:** Manual review of the audit doc against the cited files; CI/docs build if applicable.
+  - **Files:** `docs/ai/planning/mvp_placeholder_audit.md`, `docs/ai/planning/WORK_PACKAGES.md`
+  - Verified via `PYTHONPATH=/workspace/v-forge pytest` (plain `pytest` requires PYTHONPATH).
 
 - [ ] **VF-302 — Replace MVP demo shortcut in questionnaire submission (mock generator → real pipeline)**
   - Remove the shortcut that generates mock files and jumps to COMPLETE inside `apps/api/vibeforge_api/routers/sessions.py` (submitAnswer handler). Route questionnaire completion into the real BuildSpec → concept → plan flow (or gate behind a feature flag) and retire `mock_generator.generate` as the default path.
