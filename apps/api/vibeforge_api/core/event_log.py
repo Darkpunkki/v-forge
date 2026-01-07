@@ -65,13 +65,16 @@ class Event:
         )
 
 
-def create_phase_transition_event(session_id: str, old_phase: str, new_phase: str) -> Event:
+def create_phase_transition_event(
+    session_id: str, old_phase: str, new_phase: str, reason: Optional[str] = None
+) -> Event:
     return Event(
         event_type=EventType.PHASE_TRANSITION,
         timestamp=datetime.now(timezone.utc),
         session_id=session_id,
         message=f"Phase transition: {old_phase} → {new_phase}",
-        metadata={"from": old_phase, "to": new_phase},
+        phase=new_phase,
+        metadata={"from": old_phase, "to": new_phase, "reason": reason},
     )
 
 

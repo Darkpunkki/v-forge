@@ -91,6 +91,17 @@ class SessionCoordinator:
             # Observability should not break execution; errors are logged via session logs.
             pass
 
+    def _transition_phase(self, session: Session, new_phase: SessionPhase, reason: str) -> None:
+        """Transition session phase and emit a phase transition event."""
+
+        old_phase = session.phase
+        session.update_phase(new_phase)
+        self._emit_event(
+            create_phase_transition_event(
+                session.session_id, old_phase.value, new_phase.value, reason
+            )
+        )
+
     # =========================================================================
     # VF-032: startSession() + phase initialization
     # =========================================================================
@@ -262,14 +273,10 @@ class SessionCoordinator:
         )
 
         # Transition to BUILD_SPEC phase
-        old_phase = session.phase
-        session.update_phase(SessionPhase.BUILD_SPEC)
-        session.add_log(f"Phase transition: QUESTIONNAIRE → BUILD_SPEC")
-        self._emit_event(
-            create_phase_transition_event(
-                session_id, old_phase.value, SessionPhase.BUILD_SPEC.value
-            )
+        self._transition_phase(
+            session, SessionPhase.BUILD_SPEC, "Questionnaire finalized"
         )
+        session.add_log(f"Phase transition: QUESTIONNAIRE → BUILD_SPEC")
 
         # Update session
         self.session_store.update_session(session)
@@ -331,14 +338,8 @@ class SessionCoordinator:
         session.add_log("BuildSpec persisted to artifacts/build_spec.json")
 
         # Transition to IDEA phase
-        old_phase = session.phase
-        session.update_phase(SessionPhase.IDEA)
+        self._transition_phase(session, SessionPhase.IDEA, "BuildSpec generated")
         session.add_log(f"Phase transition: BUILD_SPEC → IDEA")
-        self._emit_event(
-            create_phase_transition_event(
-                session_id, old_phase.value, SessionPhase.IDEA.value
-            )
-        )
 
         # Update session
         self.session_store.update_session(session)
@@ -406,14 +407,10 @@ class SessionCoordinator:
             session.add_log("Concept persisted to artifacts/concept.json")
 
             # Transition to PLAN_REVIEW phase
-            old_phase = session.phase
-            session.update_phase(SessionPhase.PLAN_REVIEW)
-            session.add_log(f"Phase transition: IDEA → PLAN_REVIEW")
-            self._emit_event(
-                create_phase_transition_event(
-                    session_id, old_phase.value, SessionPhase.PLAN_REVIEW.value
-                )
+            self._transition_phase(
+                session, SessionPhase.PLAN_REVIEW, "Concept generated"
             )
+            session.add_log(f"Phase transition: IDEA → PLAN_REVIEW")
 
             # Update session
             self.session_store.update_session(session)
@@ -591,8 +588,7 @@ class SessionCoordinator:
             raise ValueError(f"TaskGraph missing for session {session_id}")
 
         # Transition to EXECUTION phase
-        old_phase = session.phase
-        session.update_phase(SessionPhase.EXECUTION)
+        self._transition_phase(session, SessionPhase.EXECUTION, "Plan approved")
         session.add_log("Plan approved by user")
         session.add_log(f"Phase transition: PLAN_REVIEW → EXECUTION")
         self._emit_event(
@@ -602,11 +598,6 @@ class SessionCoordinator:
                 session_id=session_id,
                 message="Plan approved by user",
                 phase=session.phase.value,
-            )
-        )
-        self._emit_event(
-            create_phase_transition_event(
-                session_id, old_phase.value, SessionPhase.EXECUTION.value
             )
         )
 
@@ -641,8 +632,7 @@ class SessionCoordinator:
         session.task_graph = None
 
         # Transition back to IDEA phase
-        old_phase = session.phase
-        session.update_phase(SessionPhase.IDEA)
+        self._transition_phase(session, SessionPhase.IDEA, reason)
         session.add_log(f"Plan rejected by user: {reason}")
         session.add_log(f"Phase transition: PLAN_REVIEW → IDEA (for regeneration)")
         self._emit_event(
@@ -652,11 +642,6 @@ class SessionCoordinator:
                 session_id=session_id,
                 message=f"Plan rejected: {reason}",
                 phase=session.phase.value,
-            )
-        )
-        self._emit_event(
-            create_phase_transition_event(
-                session_id, old_phase.value, SessionPhase.IDEA.value
             )
         )
 
@@ -1209,7 +1194,7 @@ class SessionCoordinator:
             session.add_log("RunSummary generated and persisted")
 
             # Transition to COMPLETE
-            session.update_phase(SessionPhase.COMPLETE)
+            self._transition_phase(session, SessionPhase.COMPLETE, "Execution complete")
             session.add_log("Phase transition: EXECUTION → COMPLETE")
 
             self.session_store.update_session(session)
@@ -1232,7 +1217,7 @@ class SessionCoordinator:
             artifact_store.save_artifact("run_summary.json", fallback_summary)
 
             # Transition to COMPLETE anyway
-            session.update_phase(SessionPhase.COMPLETE)
+            self._transition_phase(session, SessionPhase.COMPLETE, "Execution complete")
             session.add_log("Phase transition: EXECUTION → COMPLETE (with fallback summary)")
 
             self.session_store.update_session(session)
@@ -1283,10 +1268,9 @@ class SessionCoordinator:
         session.add_error(task_id="session", error_message=f"Aborted: {reason}")
 
         # Preserve current phase for reference
-        old_phase = session.phase
-
         # Transition to FAILED (using FAILED to indicate aborted state)
-        session.update_phase(SessionPhase.FAILED)
+        old_phase = session.phase
+        self._transition_phase(session, SessionPhase.FAILED, reason)
         session.add_log(f"Phase transition: {old_phase.value} → FAILED (aborted)")
 
         # Update session

@@ -161,7 +161,11 @@ class TestSessionCoordinatorEvents:
         coordinator.finalize_questionnaire(session_id)
 
         events = event_log.get_events(session_id, event_type=EventType.PHASE_TRANSITION)
-        assert any(event.metadata == {"from": "QUESTIONNAIRE", "to": "BUILD_SPEC"} for event in events)
+        assert any(
+            event.metadata
+            == {"from": "QUESTIONNAIRE", "to": "BUILD_SPEC", "reason": "Questionnaire finalized"}
+            for event in events
+        )
 
     @pytest.mark.asyncio
     async def test_generate_plan_emits_task_graph_event(self, tmp_path):

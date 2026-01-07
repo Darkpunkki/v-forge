@@ -884,9 +884,11 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Implementation:** Phase validation in every coordinator method (e.g., `if session.phase != SessionPhase.QUESTIONNAIRE: raise ValueError`)
   - **Verify:** `cd apps/api && pytest tests/test_sessions.py -k wrong_phase -v` (multiple wrong-phase tests)
 
-- [ ] **VF-143 — Persist phase transitions into the event log**
+- [x] **VF-143 — Persist phase transitions into the event log**
   - Record all state changes (oldPhase → newPhase + reason) into the EventLog for debugging and replayability.
   - **Depends on:** VF-131 (EventLog implementation)
+  - **Files:** `orchestration/coordinator/session_coordinator.py`, `apps/api/vibeforge_api/core/event_log.py`, `apps/api/tests/test_event_log.py`, `apps/api/tests/test_session_coordinator.py`
+  - **Verify:** `PYTHONPATH=/workspace/v-forge pytest`
 
 - [x] **VF-144 — Implement "artifact checkpoints" for each stage**
   - Store a stable snapshot artifact at the end of each stage: `IntentProfile`, `BuildSpec`, `Concept`, `TaskGraph`, and final `RunSummary`, so the run can be inspected without re-running.
