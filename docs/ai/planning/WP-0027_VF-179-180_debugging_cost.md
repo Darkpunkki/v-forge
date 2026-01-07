@@ -1,23 +1,25 @@
 # WP-0027 — Deep Debugging (Prompts + Cost Analytics)
 
 ## VF Tasks Included
-- [ ] VF-179 — Agent prompt inspector (view actual prompts sent to LLMs)
+- [x] VF-179 — Agent prompt inspector (view actual prompts sent to LLMs)
   - **Files:**
     - `apps/ui/src/screens/control/widgets/PromptInspector.tsx` (prompt viewer)
     - `apps/ui/src/screens/control/widgets/PromptInspector.css` (styling)
-    - `apps/api/vibeforge_api/routers/control.py` (add endpoint for prompt retrieval)
+    - `apps/api/vibeforge_api/routers/control.py` (prompt retrieval endpoint)
+    - `orchestration/coordinator/session_coordinator.py` (emit LLM request events)
   - **Tests:**
-    - `apps/ui/src/screens/control/widgets/__tests__/PromptInspector.test.tsx` (component tests)
-    - `apps/api/tests/test_control_api.py` (add test for prompt endpoint)
+    - `apps/api/tests/test_control_api.py::TestControlPrompts` (prompt endpoint)
   - **Verify:** Inspector shows full prompts with template variables expanded, syntax highlighting
+  - **Completed:** Added prompt event emission + prompt inspector UI with copy controls and metadata.
 
-- [ ] VF-180 — Cost analytics (token cost breakdown by provider/model)
+- [x] VF-180 — Cost analytics (token cost breakdown by provider/model)
   - **Files:**
     - `apps/ui/src/screens/control/widgets/CostAnalytics.tsx` (cost breakdown)
     - `apps/ui/src/screens/control/widgets/CostAnalytics.css` (styling)
   - **Tests:**
-    - `apps/ui/src/screens/control/widgets/__tests__/CostAnalytics.test.tsx` (component tests)
+    - `apps/api/tests/test_cost_tracking.py` (token metadata persistence)
   - **Verify:** Shows cost breakdown by model, burn rate chart, budget alerts
+  - **Completed:** Cost analytics widget uses LLM response events to compute spend, burn rate, and budgets.
 
 ## Goal
 Enable deep debugging of LLM interactions by inspecting actual prompts sent to models, and provide granular cost analytics to help optimize budget allocation and detect cost anomalies.
@@ -990,20 +992,25 @@ cd apps/ui && npm run dev
 # 5. Test budget alerts (warning at 80%, critical at 100%)
 ```
 
+## Progress Notes
+- 2026-01-07: Emitted LLM request events with prompt metadata, added PromptInspector + CostAnalytics widgets, and wired prompts endpoint + control panel integration.
+  - Verification: `cd apps/api && pytest tests/test_cost_tracking.py -v`, `cd apps/ui && npm run build`
+  - Visual check: Control panel with demo session shows prompt inspector and cost analytics widgets.
+
 ## Done Means
-- [ ] Backend endpoint `/control/sessions/{id}/prompts` returns all prompts
-- [ ] LLM_REQUEST_SENT events include full prompt in metadata
-- [ ] PromptInspector component renders prompt list and viewer
-- [ ] PromptInspector displays syntax-highlighted prompts
-- [ ] PromptInspector filters by agent role
-- [ ] PromptInspector shows system message and user prompt separately
-- [ ] CostAnalytics component calculates cost from token events
-- [ ] CostAnalytics displays budget bar with warning/critical states
-- [ ] CostAnalytics shows pie chart (cost by model)
-- [ ] CostAnalytics shows bar chart (token breakdown)
-- [ ] CostAnalytics shows detailed cost table
-- [ ] Both widgets integrate into ControlPanel layout
-- [ ] All control UI features (WP-0022 through WP-0027) complete
+- [x] Backend endpoint `/control/sessions/{id}/prompts` returns all prompts
+- [x] LLM_REQUEST_SENT events include full prompt in metadata
+- [x] PromptInspector component renders prompt list and viewer
+- [x] PromptInspector displays syntax-highlighted prompts
+- [x] PromptInspector filters by agent role
+- [x] PromptInspector shows system message and user prompt separately
+- [x] CostAnalytics component calculates cost from token events
+- [x] CostAnalytics displays budget bar with warning/critical states
+- [x] CostAnalytics shows pie chart (cost by model)
+- [x] CostAnalytics shows bar chart (token breakdown)
+- [x] CostAnalytics shows detailed cost table
+- [x] Both widgets integrate into ControlPanel layout
+- [x] All control UI features (WP-0022 through WP-0027) complete
 
 ## Architecture Notes
 

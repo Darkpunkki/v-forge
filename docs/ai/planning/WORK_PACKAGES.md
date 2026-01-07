@@ -708,7 +708,7 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Commits:** e4c8c77
 
 ## WP-0027 — Deep debugging (prompt inspector + cost analytics)
-- **Status:** Queued
+- **Status:** Done
 - **VF Tasks:** VF-179, VF-180
 - **Goal:** Provide prompt inspection and comprehensive cost analytics for debugging prompt engineering and controlling production budgets.
 - **Dependencies:** WP-0022 ✓ (Control panel foundation), WP-0021 ✓ (EventLog for prompt capture)
@@ -717,6 +717,15 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `cd apps/ui && npm run build` - Debug components build
   - Visual verification: Prompt inspector shows expanded templates, cost breakdown tables
   - `cd apps/api && pytest tests/test_cost_tracking.py -v` - Cost tracking tests pass
+- **Progress:**
+  - Started: 2026-01-07 11:03 (local)
+  - Branch: work
+- **Verified:**
+  - `cd apps/ui && npm run build`
+  - `cd apps/api && pytest tests/test_cost_tracking.py -v`
+  - Visual verification: Control panel shows prompt inspector + cost analytics widgets.
+- **Completed:** 2026-01-07 11:23 (local)
+- **Commits:** 51b05da
 
 ---
 

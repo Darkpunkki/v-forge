@@ -1087,7 +1087,7 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Added EventStream widget with filters, search, auto-scroll, and export controls.
   - Verified via `cd apps/ui && npm run build`.
 
-- [ ] **VF-179 — Agent prompt inspector (view actual prompts sent to LLMs)**
+- [x] **VF-179 — Agent prompt inspector (view actual prompts sent to LLMs)**
   - Debug view showing exact prompts sent to each agent role, with template variables expanded and context included.
   - **Features:**
     - Select task → view exact prompt sent
@@ -1098,8 +1098,10 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Data source:** EventLog with llm_request_sent events (store prompt + metadata; include redaction + size limits)
   - **Backend:** emit llm_request_sent before LLM calls; optional paging endpoint for large prompts
   - **Why needed:** Debug prompt engineering, reproduce issues
+  - Added LLM request event emission, prompts endpoint, and PromptInspector widget.
+  - Verified via `cd apps/ui && npm run build`.
 
-- [ ] **VF-180 — Cost analytics (token cost breakdown by provider/model)**
+- [x] **VF-180 — Cost analytics (token cost breakdown by provider/model)**
   - Track cost per session, per agent, per model; project estimates based on current burn rate.
   - **Features:**
     - Cost breakdown table: by session, by agent role, by model
@@ -1109,6 +1111,8 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Data source:** LlmResponse.usage + pricing config
   - **Backend:** pricing registry + aggregated cost endpoint (e.g., /control/analytics/costs)
   - **Why needed:** Control costs, project budgets for production use
+  - Added CostAnalytics widget for model spend + burn rate from LLM response events.
+  - Verified via `cd apps/api && pytest tests/test_cost_tracking.py -v`, `cd apps/ui && npm run build`.
 
 - [ ] **VF-181 — Fix control session list contract (phase/updated_at)**
   - Align `/control/sessions` response with Control Panel expectations (phase, updated_at, artifacts) or adapt UI to the actual payload.

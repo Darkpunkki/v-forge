@@ -58,6 +58,17 @@ export interface SessionEvent {
   metadata?: Record<string, any>
 }
 
+export interface SessionPrompt {
+  timestamp: string
+  task_id: string | null
+  agent_role: string | null
+  model: string | null
+  prompt: string
+  system_message: string
+  max_tokens: number | null
+  temperature: number | null
+}
+
 /**
  * API client class
  */
@@ -131,6 +142,17 @@ export async function getSessionStatus(
  */
 export function streamSessionEvents(sessionId: string): EventSource {
   return new EventSource(`${API_BASE}/control/sessions/${sessionId}/events`)
+}
+
+/**
+ * Get prompt data for a session.
+ */
+export async function getSessionPrompts(
+  sessionId: string
+): Promise<{ prompts: SessionPrompt[]; total: number }> {
+  return fetchJson<{ prompts: SessionPrompt[]; total: number }>(
+    `/control/sessions/${sessionId}/prompts`
+  )
 }
 
 // Export error class for error handling

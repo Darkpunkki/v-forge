@@ -24,6 +24,7 @@ class AgentResult:
     logs: list[str]  # Execution logs
     usage: Optional[LlmUsage] = None
     error_message: Optional[str] = None
+    request: Optional[LlmRequest] = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -36,6 +37,9 @@ class AgentResult:
 
         if self.usage:
             result["usage"] = asdict(self.usage)
+
+        if self.request:
+            result["request"] = asdict(self.request)
 
         return result
 
@@ -153,6 +157,7 @@ class DirectLlmAdapter(AgentFramework):
                     f"Role: {role}",
                 ],
                 usage=response.usage,
+                request=request,
             )
         except Exception as e:
             return AgentResult(
@@ -160,6 +165,7 @@ class DirectLlmAdapter(AgentFramework):
                 outputs={},
                 logs=[f"LLM call failed: {str(e)}"],
                 error_message=str(e),
+                request=request,
             )
 
     def _get_role_prompts(self, role: str) -> tuple[str, str]:

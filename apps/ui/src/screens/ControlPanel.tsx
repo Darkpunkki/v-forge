@@ -15,8 +15,10 @@ import ExecutionTimeline from './control/widgets/ExecutionTimeline'
 import EventStream from './control/widgets/EventStream'
 import GateLog from './control/widgets/GateLog'
 import ModelRouter from './control/widgets/ModelRouter'
+import PromptInspector from './control/widgets/PromptInspector'
 import SessionComparison from './control/widgets/SessionComparison'
 import TokenVisualization from './control/widgets/TokenVisualization'
+import CostAnalytics from './control/widgets/CostAnalytics'
 
 export function ControlPanelScreen() {
   const [allSessions, setAllSessions] = useState<SessionListItem[]>([])
@@ -337,6 +339,8 @@ export function ControlPanelScreen() {
                     sessionId={selectedSessionId}
                     onClear={() => setSessionEvents([])}
                   />
+                  <PromptInspector sessionId={selectedSessionId} />
+                  <CostAnalytics events={sessionEvents} />
                 </div>
               </>
             )}
