@@ -862,9 +862,11 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Implemented structured Event dataclass + EventLog JSONL persistence with cache-backed queries.
   - **Verify:** `cd apps/api && pytest tests/test_event_log.py -v`
 
-- [ ] **VF-132 — Add "export run bundle" (zip artifacts + summary) (optional)**
+- [x] **VF-132 — Add "export run bundle" (zip artifacts + summary) (optional)**
   - Package repo snapshot, artifacts, and final summary into a portable bundle for sharing or archival.
   - **Priority:** Post-MVP enhancement
+  - Files: `apps/api/vibeforge_api/core/run_bundle.py`, `apps/api/vibeforge_api/routers/control.py`, `apps/api/tests/test_run_bundle.py`, `apps/api/tests/test_control_api.py`
+  - Verification: `PYTHONPATH=/workspace/v-forge pytest`
 
 - [x] **VF-142 — Upgrade to structured progress events (phase changes, task lifecycle, verification)**
   - Emit structured, typed events for all major steps: phase transitions, task dispatch, diff applied, verification started/completed.

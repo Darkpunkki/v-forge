@@ -5,6 +5,7 @@ Separate from the end-user session flow.
 """
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 import json
@@ -125,6 +126,21 @@ async def get_session_status(session_id: str):
         "created_at": session.created_at.isoformat(),
         "updated_at": session.updated_at.isoformat(),
     }
+
+
+@router.get("/sessions/{session_id}/bundle")
+async def export_run_bundle(session_id: str):
+    """Export a run bundle zip archive for a session."""
+    from vibeforge_api.core.run_bundle import export_run_bundle as build_bundle
+    from vibeforge_api.core.workspace import WorkspaceManager
+
+    workspace_manager = WorkspaceManager()
+    try:
+        bundle_path = build_bundle(session_id, workspace_manager.workspace_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return FileResponse(bundle_path, media_type="application/zip", filename=bundle_path.name)
 
 
 @router.get("/active")
