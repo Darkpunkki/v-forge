@@ -842,7 +842,12 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `pytest`
 
 ## WP-0037 — Control panel session list usability
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 14:56 (local)
+- Branch: work
+- Verified: `PYTHONPATH=/workspace/v-forge pytest`
+- Completed: 2026-01-07 15:08 (local)
+- Commits: e215e16
 - **VF Tasks:** VF-181, VF-182, VF-183, VF-184
 - **Goal:** Make the control panel session list accurate, discoverable, and information-rich for quick monitoring.
 - **Dependencies:** WP-0022 ✓ (Control panel foundation)

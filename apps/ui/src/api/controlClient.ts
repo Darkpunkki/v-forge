@@ -16,9 +16,7 @@ export interface SessionListItem {
   phase: string
   created_at: string
   updated_at: string
-  has_concept?: boolean
-  has_build_spec?: boolean
-  has_task_graph?: boolean
+  artifacts: string[]
 }
 
 export interface SessionsListResponse {
