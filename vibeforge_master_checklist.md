@@ -1064,7 +1064,7 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Added ModelRouter widget that merges model_routed with LLM response events for model + cost estimates.
   - Verified via `cd apps/ui && npm run build`.
 
-- [ ] **VF-177 — Session comparison view (multi-session metrics)**
+- [x] **VF-177 — Session comparison view (multi-session metrics)**
   - Side-by-side comparison of multiple sessions: token usage, task completion rates, failure patterns, time to completion.
   - **Features:**
     - Select 2-4 sessions to compare
@@ -1072,8 +1072,10 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Comparative charts: token usage over time, failure rate by task
   - **Data source:** ArtifactStore query API (VF-130)
   - **Why needed:** A/B test prompt changes, identify regressions
+  - Added SessionComparison widget with session selection, metrics table, and token trend sparklines.
+  - Verified via `cd apps/ui && npm run build`.
 
-- [ ] **VF-178 — Event stream viewer (real-time log with filtering)**
+- [x] **VF-178 — Event stream viewer (real-time log with filtering)**
   - Live event stream with filters: by phase, by agent, by event type (task_started, diff_applied, verification_passed, etc.).
   - **Features:**
     - Auto-scrolling event feed (newest at bottom)
@@ -1082,6 +1084,8 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Export to JSON (optional)
   - **Data source:** EventLog with WebSocket/SSE subscription
   - **Why needed:** Real-time debugging and monitoring
+  - Added EventStream widget with filters, search, auto-scroll, and export controls.
+  - Verified via `cd apps/ui && npm run build`.
 
 - [ ] **VF-179 — Agent prompt inspector (view actual prompts sent to LLMs)**
   - Debug view showing exact prompts sent to each agent role, with template variables expanded and context included.

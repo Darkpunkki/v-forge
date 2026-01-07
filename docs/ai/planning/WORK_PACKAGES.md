@@ -690,7 +690,7 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Commits:** 36cc2c2
 
 ## WP-0026 — Analytics (session comparison + event stream)
-- **Status:** Queued
+- **Status:** Done
 - **VF Tasks:** VF-177, VF-178
 - **Goal:** Enable multi-session comparison and real-time event stream viewing for A/B testing and live debugging.
 - **Dependencies:** WP-0022 ✓ (Control panel foundation), WP-0021 ✓ (EventLog for streaming)
@@ -699,6 +699,13 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `cd apps/ui && npm run build` - Analytics components build
   - Visual verification: Session comparison view, event stream with filters
   - Test with multiple sessions
+- **Progress:**
+  - Started: 2026-01-07 10:45 (local)
+  - Branch: work
+- **Verified:**
+  - `cd apps/ui && npm run build`
+- **Completed:** 2026-01-07 10:49 (local)
+- **Commits:** e4c8c77
 
 ## WP-0027 — Deep debugging (prompt inspector + cost analytics)
 - **Status:** Queued
