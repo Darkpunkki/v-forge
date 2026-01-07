@@ -841,6 +841,33 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Verify:**
   - `pytest`
 
+## WP-0037 — Control panel session list usability
+- **Status:** Queued
+- **VF Tasks:** VF-181, VF-182, VF-183, VF-184
+- **Goal:** Make the control panel session list accurate, discoverable, and information-rich for quick monitoring.
+- **Dependencies:** WP-0022 ✓ (Control panel foundation)
+- **Plan Doc:** docs/ai/planning/WP-0037_VF-181-184_control-panel-session-list.md
+- **Verify:**
+  - `pytest`
+
+## WP-0038 — Agent dashboard UX polish
+- **Status:** Queued
+- **VF Tasks:** VF-185, VF-186
+- **Goal:** Improve agent dashboard clarity with richer context and helpful empty-state guidance.
+- **Dependencies:** WP-0023 ✓ (Agent dashboard and token visualization)
+- **Plan Doc:** docs/ai/planning/WP-0038_VF-185-186_agent-dashboard-ux-polish.md
+- **Verify:**
+  - `pytest`
+
+## WP-0039 — MVP placeholder audit inventory
+- **Status:** Queued
+- **VF Tasks:** VF-301
+- **Goal:** Publish a consolidated inventory of MVP placeholders with remediation guidance for post-MVP cleanup.
+- **Dependencies:** None
+- **Plan Doc:** docs/ai/planning/WP-0039_VF-301-301_mvp-placeholder-audit.md
+- **Verify:**
+  - `pytest`
+
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
