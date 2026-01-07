@@ -2,9 +2,8 @@
 
 import pytest
 from datetime import datetime, timezone
-from pathlib import Path
 import json
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, patch
 
 from vibeforge_api.core.event_log import EventLog, Event, EventType
 from vibeforge_api.core.workspace import WorkspaceManager
@@ -196,11 +195,7 @@ class TestControlEventStream:
 
         # Create session workspace with event log
         session_id = "test-session"
-        session_path = tmp_path / session_id
-        session_path.mkdir()
-
-        event_log_path = session_path / "events.jsonl"
-        event_log = EventLog(str(event_log_path))
+        event_log = EventLog(tmp_path)
 
         # Add test events
         event_log.append(Event(
@@ -249,3 +244,44 @@ class TestControlEventStream:
             assert event1_data["event_type"] == "phase_transition"
             assert event2_data["event_type"] == "task_started"
             assert event2_data["task_id"] == "task-1"
+
+
+class TestControlPrompts:
+    """Tests for /control/sessions/{id}/prompts endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_session_prompts(self, tmp_path):
+        """Test prompt retrieval endpoint."""
+        from vibeforge_api.routers.control import get_session_prompts
+
+        session_id = "test-session"
+        event_log = EventLog(tmp_path)
+        event_log.append(
+            Event(
+                event_type=EventType.LLM_REQUEST_SENT,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message="LLM request",
+                task_id="task-1",
+                metadata={
+                    "agent_role": "worker",
+                    "model": "gpt-4o-mini",
+                    "prompt": "Write a Python function to add two numbers",
+                    "system_message": "You are a helpful coding assistant",
+                    "max_tokens": 1000,
+                    "temperature": 0.7,
+                },
+            )
+        )
+
+        with patch("vibeforge_api.core.workspace.WorkspaceManager") as mock_wm_class:
+            mock_wm = Mock()
+            mock_wm.workspace_root = tmp_path
+            mock_wm_class.return_value = mock_wm
+
+            response = await get_session_prompts(session_id)
+
+        assert response["total"] == 1
+        prompt = response["prompts"][0]
+        assert prompt["model"] == "gpt-4o-mini"
+        assert "add two numbers" in prompt["prompt"]

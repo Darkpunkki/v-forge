@@ -1,0 +1,250 @@
+.cost-analytics {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cost-analytics__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.cost-analytics__header h2 {
+  margin: 0 0 4px;
+}
+
+.cost-analytics__header p {
+  margin: 0;
+  color: #616161;
+  font-size: 14px;
+}
+
+.cost-analytics__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.cost-analytics__summary strong {
+  font-size: 16px;
+  color: #111827;
+}
+
+.cost-analytics__budget {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.cost-analytics__budget.warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.cost-analytics__budget.critical {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.cost-analytics__budget-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #374151;
+}
+
+.cost-analytics__budget-bar {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.cost-analytics__budget-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #6366f1);
+}
+
+.cost-analytics__budget.warning .cost-analytics__budget-fill {
+  background: linear-gradient(90deg, #f59e0b, #f97316);
+}
+
+.cost-analytics__budget.critical .cost-analytics__budget-fill {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.cost-analytics__budget-footer {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  text-align: right;
+}
+
+.cost-analytics__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.cost-analytics__card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cost-analytics__card h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.cost-analytics__pie {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  align-self: center;
+  border: 1px solid #e2e8f0;
+}
+
+.cost-analytics__legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.cost-analytics__legend li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cost-analytics__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.cost-analytics__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cost-analytics__bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cost-analytics__bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #374151;
+}
+
+.cost-analytics__bar {
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+}
+
+.cost-analytics__bar-fill {
+  height: 100%;
+}
+
+.cost-analytics__bar-fill.prompt {
+  background: #6366f1;
+  z-index: 1;
+}
+
+.cost-analytics__bar-fill.completion {
+  background: #10b981;
+  opacity: 0.85;
+  z-index: 2;
+}
+
+.cost-analytics__sparkline {
+  width: 100%;
+  height: 140px;
+}
+
+.cost-analytics__updated {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.cost-analytics__table {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.cost-analytics__table h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.cost-analytics__table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cost-analytics__table th,
+.cost-analytics__table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cost-analytics__table th {
+  color: #64748b;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.cost-analytics__table td:last-child,
+.cost-analytics__table th:last-child {
+  text-align: right;
+}
+
+.cost-analytics__table tfoot td {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.cost-analytics__empty {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+}

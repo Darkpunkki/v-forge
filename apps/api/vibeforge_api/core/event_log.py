@@ -25,6 +25,7 @@ class EventType(str, Enum):
     TASK_FAILED = "task_failed"
     AGENT_INVOKED = "agent_invoked"
     AGENT_COMPLETED = "agent_completed"
+    LLM_REQUEST_SENT = "llm_request_sent"
     LLM_RESPONSE_RECEIVED = "llm_response_received"
     VERIFICATION_STARTED = "verification_started"
     VERIFICATION_COMPLETED = "verification_completed"

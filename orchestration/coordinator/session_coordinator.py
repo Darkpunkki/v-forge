@@ -829,6 +829,34 @@ class SessionCoordinator:
                 task, agent_role.role, context
             )
 
+            if agent_result.request:
+                system_message = ""
+                user_prompt = ""
+                for message in agent_result.request.messages:
+                    if message.role == "system" and not system_message:
+                        system_message = message.content
+                    elif message.role == "user" and not user_prompt:
+                        user_prompt = message.content
+
+                self._emit_event(
+                    Event(
+                        event_type=EventType.LLM_REQUEST_SENT,
+                        timestamp=datetime.now(timezone.utc),
+                        session_id=session_id,
+                        message=f"LLM request sent for task {task.task_id}",
+                        phase=session.phase.value,
+                        task_id=task.task_id,
+                        metadata={
+                            "agent_role": agent_role.role,
+                            "model": agent_result.request.model,
+                            "prompt": user_prompt,
+                            "system_message": system_message,
+                            "max_tokens": agent_result.request.max_tokens,
+                            "temperature": agent_result.request.temperature,
+                        },
+                    )
+                )
+
             if agent_result.usage:
                 self._emit_event(
                     Event(

@@ -43,7 +43,7 @@ async def stream_session_events(session_id: str):
     if not event_log_path.exists():
         raise HTTPException(status_code=404, detail="Event log not found")
 
-    event_log = EventLog(str(event_log_path))
+    event_log = EventLog(workspace_manager.workspace_root)
 
     async def event_generator():
         """Generate SSE events."""
@@ -72,6 +72,39 @@ async def stream_session_events(session_id: str):
                 last_count = len(current_events)
 
     return EventSourceResponse(event_generator())
+
+
+@router.get("/sessions/{session_id}/prompts")
+async def get_session_prompts(session_id: str):
+    """Get prompts sent during a session."""
+    from vibeforge_api.core.event_log import EventLog, EventType
+    from vibeforge_api.core.workspace import WorkspaceManager
+
+    workspace_manager = WorkspaceManager()
+    workspace_path = workspace_manager.workspace_root / session_id
+    event_log_path = workspace_path / "events.jsonl"
+
+    if not event_log_path.exists():
+        raise HTTPException(status_code=404, detail="Event log not found")
+
+    event_log = EventLog(workspace_manager.workspace_root)
+    events = event_log.get_events(session_id, event_type=EventType.LLM_REQUEST_SENT)
+
+    prompts = []
+    for event in events:
+        metadata = event.metadata or {}
+        prompts.append({
+            "timestamp": event.timestamp.isoformat(),
+            "task_id": event.task_id,
+            "agent_role": metadata.get("agent_role"),
+            "model": metadata.get("model"),
+            "prompt": metadata.get("prompt", ""),
+            "system_message": metadata.get("system_message", ""),
+            "max_tokens": metadata.get("max_tokens"),
+            "temperature": metadata.get("temperature"),
+        })
+
+    return {"prompts": prompts, "total": len(prompts)}
 
 
 @router.get("/sessions/{session_id}/status")
