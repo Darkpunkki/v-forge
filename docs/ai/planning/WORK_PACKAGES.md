@@ -814,6 +814,33 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 
 ---
 
+## WP-0034 — State machine transitions + phase rules
+- **Status:** Queued
+- **VF Tasks:** VF-160, VF-161, VF-162
+- **Goal:** Formalize session phase transitions with explicit entry actions and exit criteria to prevent illegal state changes.
+- **Dependencies:** WP-0020 ✓ (SessionCoordinator lifecycle)
+- **Plan Doc:** docs/ai/planning/WP-0034_VF-160-162_state-machine-phase-rules.md
+- **Verify:**
+  - `pytest`
+
+## WP-0035 — Failure recovery + fix loop transitions
+- **Status:** Queued
+- **VF Tasks:** VF-163, VF-164, VF-165
+- **Goal:** Define failed terminal behavior, controlled fix-loop return transitions, and safe abort cleanup flows.
+- **Dependencies:** WP-0034 (state machine rules)
+- **Plan Doc:** docs/ai/planning/WP-0035_VF-163-165_failure-recovery-transitions.md
+- **Verify:**
+  - `pytest`
+
+## WP-0036 — Phase transition tests + session resume
+- **Status:** Queued
+- **VF Tasks:** VF-166, VF-167
+- **Goal:** Add integration coverage for phase transitions and enable resuming sessions from stored artifacts.
+- **Dependencies:** WP-0034, WP-0035
+- **Plan Doc:** docs/ai/planning/WP-0036_VF-166-167_phase-transition-tests-resume.md
+- **Verify:**
+  - `pytest`
+
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
