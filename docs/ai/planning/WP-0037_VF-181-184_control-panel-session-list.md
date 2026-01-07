@@ -1,7 +1,7 @@
 # WP-0037 — Control panel session list usability
 
 ## Status
-- Queued
+- Done
 
 ## Context
 - Chapter(s): 17 Agent Control & Monitoring UI (Post-MVP)
@@ -14,18 +14,26 @@
 - Align control session list data with UI expectations and enrich the list with artifacts and active session details.
 
 ## VF Tasks (canonical)
-- [ ] **VF-181 — Fix control session list contract (phase/updated_at)**
+- [x] **VF-181 — Fix control session list contract (phase/updated_at)**
   - Align `/control/sessions` response with Control Panel expectations (phase, updated_at, artifacts) or adapt UI to the actual payload.
   - **Why needed:** Avoid empty/mismatched session list fields and enable reliable filtering.
-- [ ] **VF-182 — Add navigation link to Control Panel**
+  - Updated `/control/sessions` to include phase, updated_at, and artifacts with stable sorting.
+  - Verified via `PYTHONPATH=/workspace/v-forge pytest`.
+- [x] **VF-182 — Add navigation link to Control Panel**
   - Add a main layout link to `/control` so the admin UI is discoverable without manual URL entry.
   - **Why needed:** Improve access to monitoring UI during orchestration runs.
-- [ ] **VF-183 — Enrich control session list with artifact badges**
+  - Added Control Panel navigation link in the main layout.
+  - Verified via `PYTHONPATH=/workspace/v-forge pytest`.
+- [x] **VF-183 — Enrich control session list with artifact badges**
   - Show artifact badges (concept/build_spec/task_graph) and counts based on the `/control/sessions` artifacts array.
   - **Why needed:** Quick visibility into what each session has produced.
-- [ ] **VF-184 — Show active session details in sidebar list**
+  - Rendered artifact badges with counts for concept/build_spec/task_graph.
+  - Verified via `PYTHONPATH=/workspace/v-forge pytest`.
+- [x] **VF-184 — Show active session details in sidebar list**
   - Display phase + active_task_id in the Active Sessions list (data already returned by `/control/active`).
   - **Why needed:** Faster at-a-glance view of in-flight work.
+  - Added phase, active task, and updated timestamps to active session sidebar entries.
+  - Verified via `PYTHONPATH=/workspace/v-forge pytest`.
 
 ## Plan
 ### Approach
@@ -84,6 +92,10 @@ END_ACTIONABLE_TASK_ARRAY
 
 ## Verify
 - `pytest`
+
+## Outcomes
+- Control session list and active session sidebar now surface phase, timestamps, and artifact badges.
+- Navigation link added to make the Control Panel discoverable.
 
 ## Dependencies
 - WP-0022 ✓ (Control panel foundation)

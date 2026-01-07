@@ -9,6 +9,9 @@ export function Layout() {
             VibeForge
           </Link>
           <span style={{ fontSize: '0.9em', opacity: 0.6 }}>Local UI MVP</span>
+          <Link to="/control" style={{ textDecoration: 'none', color: '#1a237e', fontWeight: 500 }}>
+            Control Panel
+          </Link>
         </nav>
       </header>
 

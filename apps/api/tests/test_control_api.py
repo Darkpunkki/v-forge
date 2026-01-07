@@ -26,12 +26,15 @@ class TestControlSessions:
             mock_wm = Mock()
             mock_wm.workspace_root = tmp_path
             mock_wm_class.return_value = mock_wm
+            with patch("vibeforge_api.core.session.session_store") as mock_store:
+                mock_store.list_sessions.return_value = []
+                mock_store.get_session.return_value = None
 
-            # Call endpoint
-            result = await list_all_sessions()
+                # Call endpoint
+                result = await list_all_sessions()
 
-            assert result["sessions"] == []
-            assert result["total"] == 0
+                assert result["sessions"] == []
+                assert result["total"] == 0
 
     @pytest.mark.asyncio
     async def test_list_all_sessions_with_data(self, tmp_path):
@@ -54,15 +57,22 @@ class TestControlSessions:
             mock_wm = Mock()
             mock_wm.workspace_root = tmp_path
             mock_wm_class.return_value = mock_wm
+            with patch("vibeforge_api.core.session.session_store") as mock_store:
+                mock_store.list_sessions.return_value = []
+                mock_store.get_session.return_value = None
 
-            # Call endpoint
-            result = await list_all_sessions()
+                # Call endpoint
+                result = await list_all_sessions()
 
-            assert result["total"] == 2
-            assert len(result["sessions"]) == 2
-            session_ids = [s["session_id"] for s in result["sessions"]]
-            assert "session-1" in session_ids
-            assert "session-2" in session_ids
+                assert result["total"] == 2
+                assert len(result["sessions"]) == 2
+                session_ids = [s["session_id"] for s in result["sessions"]]
+                assert "session-1" in session_ids
+                assert "session-2" in session_ids
+                for session in result["sessions"]:
+                    assert "phase" in session
+                    assert "updated_at" in session
+                    assert "artifacts" in session
 
 
 class TestControlActive:
@@ -90,25 +100,33 @@ class TestControlActive:
 
         # Create mock sessions
         session1 = Session()
-        session1.id = "active-1"
+        session1.session_id = "active-1"
         session1.update_phase(SessionPhase.EXECUTION)
         session1.active_task_id = "task-1"
 
         session2 = Session()
-        session2.id = "complete-1"
+        session2.session_id = "complete-1"
         session2.update_phase(SessionPhase.COMPLETE)
 
         session3 = Session()
-        session3.id = "failed-1"
+        session3.session_id = "failed-1"
         session3.update_phase(SessionPhase.FAILED)
 
         session4 = Session()
-        session4.id = "active-2"
+        session4.session_id = "active-2"
         session4.update_phase(SessionPhase.PLAN_REVIEW)
+
+        sessions = {
+            "active-1": session1,
+            "complete-1": session2,
+            "failed-1": session3,
+            "active-2": session4,
+        }
 
         # Mock session store
         with patch("vibeforge_api.core.session.session_store") as mock_store:
-            mock_store.list_sessions.return_value = [session1, session2, session3, session4]
+            mock_store.list_sessions.return_value = list(sessions.keys())
+            mock_store.get_session.side_effect = lambda session_id: sessions.get(session_id)
 
             # Call endpoint
             result = await get_active_sessions()
@@ -147,7 +165,7 @@ class TestControlSessionStatus:
 
         # Create mock session
         session = Session()
-        session.id = "test-session"
+        session.session_id = "test-session"
         session.update_phase(SessionPhase.EXECUTION)
         session.active_task_id = "task-123"
         session.completed_task_ids = ["task-1", "task-2"]

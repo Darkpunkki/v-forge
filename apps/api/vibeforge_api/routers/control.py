@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/control", tags=["control"])
 
@@ -19,11 +19,51 @@ async def list_all_sessions():
     """List all sessions with metadata for control panel."""
     from vibeforge_api.core.artifacts import SessionArtifactQuery
     from vibeforge_api.core.workspace import WorkspaceManager
+    from vibeforge_api.core.session import session_store
 
     workspace_manager = WorkspaceManager()
     query = SessionArtifactQuery(workspace_manager.workspace_root)
 
-    sessions = query.query_sessions_by_date()
+    session_ids = set(query.list_sessions())
+    session_ids.update(session_store.list_sessions())
+
+    sessions = []
+    for session_id in session_ids:
+        workspace_path = workspace_manager.workspace_root / session_id
+        session = session_store.get_session(session_id)
+
+        created_at = session.created_at if session else None
+        updated_at = session.updated_at if session else None
+        phase = session.phase.value if session else "UNKNOWN"
+
+        if workspace_path.exists():
+            stats = workspace_path.stat()
+            if not created_at:
+                created_at = datetime.fromtimestamp(stats.st_ctime, tz=timezone.utc)
+            if not updated_at:
+                updated_at = datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc)
+
+        if not created_at:
+            created_at = datetime.now(timezone.utc)
+        if not updated_at:
+            updated_at = created_at
+
+        artifacts = query.get_session_artifacts(session_id)
+
+        sessions.append(
+            {
+                "session_id": session_id,
+                "phase": phase,
+                "created_at": created_at.isoformat(),
+                "updated_at": updated_at.isoformat(),
+                "artifacts": artifacts,
+                "_sort_updated_at": updated_at.timestamp(),
+            }
+        )
+
+    sessions.sort(key=lambda item: item["_sort_updated_at"], reverse=True)
+    for session in sessions:
+        session.pop("_sort_updated_at", None)
 
     return {
         "sessions": sessions,
@@ -152,10 +192,13 @@ async def get_active_sessions():
     all_sessions = session_store.list_sessions()
     active = []
 
-    for session in all_sessions:
+    for session_id in all_sessions:
+        session = session_store.get_session(session_id)
+        if not session:
+            continue
         if session.phase not in {SessionPhase.COMPLETE, SessionPhase.FAILED}:
             active.append({
-                "session_id": session.id,
+                "session_id": session.session_id,
                 "phase": session.phase.value,
                 "active_task_id": session.active_task_id,
                 "updated_at": session.updated_at.isoformat(),

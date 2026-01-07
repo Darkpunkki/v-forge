@@ -30,6 +30,10 @@ export function ControlPanelScreen() {
   const [loadingSession, setLoadingSession] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sseError, setSseError] = useState<string | null>(null)
+  const artifactKeys = ['concept', 'build_spec', 'task_graph']
+
+  const getArtifactCount = (session: SessionListItem, key: string) =>
+    session.artifacts.filter((artifact) => artifact === key).length
 
   // Load all sessions and active sessions on mount
   useEffect(() => {
@@ -170,6 +174,12 @@ export function ControlPanelScreen() {
                   <div style={{ fontSize: '11px', opacity: 0.7 }}>
                     {session.phase}
                   </div>
+                  <div style={{ fontSize: '11px', opacity: 0.7 }}>
+                    Active task: {session.active_task_id || '—'}
+                  </div>
+                  <div style={{ fontSize: '10px', opacity: 0.5 }}>
+                    Updated {new Date(session.updated_at).toLocaleString()}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -200,10 +210,35 @@ export function ControlPanelScreen() {
                     {session.session_id}
                   </div>
                   <div style={{ fontSize: '11px', opacity: 0.7 }}>
-                    {session.phase}
+                    {session.phase || 'Unknown'}
                   </div>
                   <div style={{ fontSize: '10px', opacity: 0.5 }}>
                     {new Date(session.updated_at).toLocaleString()}
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    gap: '6px',
+                    flexWrap: 'wrap',
+                    marginTop: '6px',
+                  }}>
+                    {artifactKeys.map((key) => {
+                      const count = getArtifactCount(session, key)
+                      return (
+                        <span
+                          key={key}
+                          style={{
+                            fontSize: '10px',
+                            padding: '2px 6px',
+                            borderRadius: '999px',
+                            background: count > 0 ? '#e3f2fd' : '#eee',
+                            color: count > 0 ? '#1565c0' : '#666',
+                            border: count > 0 ? '1px solid #90caf9' : '1px solid #ddd',
+                          }}
+                        >
+                          {key} · {count}
+                        </span>
+                      )
+                    })}
                   </div>
                 </li>
               ))}
