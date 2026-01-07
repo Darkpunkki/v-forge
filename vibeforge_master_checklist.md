@@ -838,7 +838,7 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 - [ ] **VF-125 — Implement AppRunner.getRunInstructions() per stack preset**
   - Generate clear run instructions (install/build/dev server) and expose them in the final summary.
 
-- [ ] **VF-126 — Optional: AppRunner.start()/stop() dev server + stream logs**
+- [ ] **VF-126 — Implement AppRunner.start()/stop() dev server + stream logs**
   - Provide a ‘Run’ button that starts the app locally and streams logs back to the UI.
 
 
