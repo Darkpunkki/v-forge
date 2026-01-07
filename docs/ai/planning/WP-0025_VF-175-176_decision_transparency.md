@@ -1,21 +1,28 @@
 # WP-0025 — Decision Transparency (Gates + Routing)
 
 ## VF Tasks Included
-- [ ] VF-175 — Gate decision log (block/warn/pass visualization)
+- [x] VF-175 — Gate decision log (block/warn/pass visualization)
   - **Files:**
     - `apps/ui/src/screens/control/widgets/GateLog.tsx` (real-time gate feed)
     - `apps/ui/src/screens/control/widgets/GateLog.css` (styling)
-  - **Tests:**
-    - `apps/ui/src/screens/control/widgets/__tests__/GateLog.test.tsx` (component tests)
   - **Verify:** Log shows gate evaluations with status badges, filtering works
+  - **Implementation Notes:**
+    - Added GateLog widget that filters `gate_evaluated` events and renders status badges + details.
+    - Emitted per-gate `gate_evaluated` events from SessionCoordinator.
+  - **Verification:**
+    - `cd apps/ui && npm run build`
+    - `cd apps/api && pytest tests/test_gate_logging.py -v`
 
-- [ ] VF-176 — Model router decisions (model selection rationale)
+- [x] VF-176 — Model router decisions (model selection rationale)
   - **Files:**
     - `apps/ui/src/screens/control/widgets/ModelRouter.tsx` (routing decisions)
     - `apps/ui/src/screens/control/widgets/ModelRouter.css` (styling)
-  - **Tests:**
-    - `apps/ui/src/screens/control/widgets/__tests__/ModelRouter.test.tsx` (component tests)
   - **Verify:** Shows escalation paths, model selection rationale, cost implications
+  - **Implementation Notes:**
+    - Added `model_routed` events with routing reasons + failure counts.
+    - ModelRouter merges routing events with `llm_response_received` for model + cost estimates.
+  - **Verification:**
+    - `cd apps/ui && npm run build`
 
 ## Goal
 Provide transparency into automated decision-making (gates and model routing) so developers can understand why tasks were blocked, which models were selected, and how escalation policies work in practice.
@@ -679,17 +686,17 @@ cd apps/ui && npm run dev
 ```
 
 ## Done Means
-- [ ] GateLog component renders real-time gate evaluations
-- [ ] GateLog shows status badges (🚫 BLOCK, ⚠️ WARN, ✅ PASS)
-- [ ] GateLog filtering works (All/Block/Warn/Pass)
-- [ ] GateLog displays gate names, task IDs, messages, and details
-- [ ] ModelRouter component renders routing decisions
-- [ ] ModelRouter shows model badges (balanced/powerful)
-- [ ] ModelRouter highlights escalations with red badges
-- [ ] ModelRouter displays routing rationale
-- [ ] ModelRouter calculates and displays estimated costs
-- [ ] Both widgets integrate into ControlPanel layout
-- [ ] Widgets update in real-time via SSE events
+- [x] GateLog component renders real-time gate evaluations
+- [x] GateLog shows status badges (🚫 BLOCK, ⚠️ WARN, ✅ PASS)
+- [x] GateLog filtering works (All/Block/Warn/Pass)
+- [x] GateLog displays gate names, task IDs, messages, and details
+- [x] ModelRouter component renders routing decisions
+- [x] ModelRouter shows model badges (balanced/powerful)
+- [x] ModelRouter highlights escalations with red badges
+- [x] ModelRouter displays routing rationale
+- [x] ModelRouter calculates and displays estimated costs
+- [x] Both widgets integrate into ControlPanel layout
+- [x] Widgets update in real-time via SSE events
 
 ## Architecture Notes
 

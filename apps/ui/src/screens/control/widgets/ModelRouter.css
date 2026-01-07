@@ -1,0 +1,153 @@
+.model-router {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 420px;
+}
+
+.model-router__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.model-router__header h2 {
+  margin: 0 0 4px;
+}
+
+.model-router__header p {
+  margin: 0;
+  color: #616161;
+  font-size: 14px;
+}
+
+.model-router__stats {
+  display: flex;
+  gap: 12px;
+  background: #f5f7fb;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.model-router__stats div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+.model-router__stats strong {
+  color: #1d4ed8;
+  font-size: 14px;
+}
+
+.model-router__body {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 240px;
+}
+
+.model-router__empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 24px 0;
+}
+
+.model-router__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-router__item {
+  background: #ffffff;
+  border-radius: 10px;
+  border-left: 4px solid #1d4ed8;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.model-router__item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.model-router__badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  background: #e2e8f0;
+  color: #1f2937;
+}
+
+.model-router__badge--fast {
+  background: #c7d2fe;
+  color: #3730a3;
+}
+
+.model-router__badge--balanced {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.model-router__badge--powerful {
+  background: #fde68a;
+  color: #92400e;
+}
+
+.model-router__role {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #111827;
+}
+
+.model-router__escalation {
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.model-router__time {
+  margin-left: auto;
+  color: #9ca3af;
+}
+
+.model-router__item-body {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.model-router__task {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.model-router__cost {
+  font-weight: 600;
+  color: #047857;
+}

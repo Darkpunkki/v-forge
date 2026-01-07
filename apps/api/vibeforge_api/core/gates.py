@@ -58,18 +58,32 @@ class GatePipeline:
         Returns:
             Aggregated GateResult
         """
-        results = []
+        aggregate_result, _ = self.evaluate_with_results(context)
+        return aggregate_result
+
+    def evaluate_with_results(
+        self, context: GateContext
+    ) -> tuple[GateResult, list[tuple[Gate, GateResult]]]:
+        """Run all gates and return aggregate + per-gate results.
+
+        Args:
+            context: GateContext with proposed changes
+
+        Returns:
+            Tuple of (aggregated GateResult, list of (gate, result))
+        """
+        results: list[tuple[Gate, GateResult]] = []
 
         for gate in self.gates:
             result = gate.evaluate(context)
-            results.append(result)
+            results.append((gate, result))
 
             # Stop on first BLOCK if configured
             if self.stop_on_block and result.status == GateResultStatus.BLOCK:
                 break
 
-        # Aggregate results
-        return self._aggregate_results(results)
+        aggregate_result = self._aggregate_results([result for _, result in results])
+        return aggregate_result, results
 
     def _aggregate_results(self, results: list[GateResult]) -> GateResult:
         """Aggregate multiple gate results.

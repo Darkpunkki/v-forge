@@ -12,6 +12,8 @@ import {
 import AgentDashboard from './control/widgets/AgentDashboard'
 import AgentGraph from './control/widgets/AgentGraph'
 import ExecutionTimeline from './control/widgets/ExecutionTimeline'
+import GateLog from './control/widgets/GateLog'
+import ModelRouter from './control/widgets/ModelRouter'
 import TokenVisualization from './control/widgets/TokenVisualization'
 
 export function ControlPanelScreen() {
@@ -322,6 +324,8 @@ export function ControlPanelScreen() {
                   <TokenVisualization events={sessionEvents} />
                   <AgentGraph events={sessionEvents} />
                   <ExecutionTimeline events={sessionEvents} />
+                  <GateLog events={sessionEvents} />
+                  <ModelRouter events={sessionEvents} />
                 </div>
 
                 {/* Event Stream */}

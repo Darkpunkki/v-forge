@@ -763,6 +763,24 @@ class SessionCoordinator:
 
             self._emit_event(
                 Event(
+                    event_type=EventType.MODEL_ROUTED,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message=f"Task routed to {agent_role.role} ({agent_role.model_tier})",
+                    phase=session.phase.value,
+                    task_id=task.task_id,
+                    metadata={
+                        "agent_role": agent_role.role,
+                        "model_tier": agent_role.model_tier,
+                        "routing_reason": agent_role.reason,
+                        "failure_count": failure_count,
+                        "task_description": task.description,
+                    },
+                )
+            )
+
+            self._emit_event(
+                Event(
                     event_type=EventType.TASK_STARTED,
                     timestamp=datetime.now(timezone.utc),
                     session_id=session_id,
@@ -788,6 +806,8 @@ class SessionCoordinator:
                     metadata={
                         "agent_role": agent_role.role,
                         "model_tier": agent_role.model_tier,
+                        "routing_reason": agent_role.reason,
+                        "failure_count": failure_count,
                         "task_description": task.description,
                     },
                 )
@@ -893,7 +913,24 @@ class SessionCoordinator:
             # Create gate pipeline
             gates = GatePipeline([PolicyGate(), DiffAndCommandGate()])
 
-            gate_result = gates.evaluate(gate_context)
+            gate_result, gate_results = gates.evaluate_with_results(gate_context)
+
+            for gate, result in gate_results:
+                self._emit_event(
+                    Event(
+                        event_type=EventType.GATE_EVALUATED,
+                        timestamp=datetime.now(timezone.utc),
+                        session_id=session_id,
+                        message=result.message,
+                        phase=session.phase.value,
+                        task_id=task.task_id,
+                        metadata={
+                            "gate_name": gate.__class__.__name__,
+                            "status": result.status.value,
+                            "details": result.details or {},
+                        },
+                    )
+                )
 
             # Import enum for comparison
             from vibeforge_api.models.types import GateResultStatus

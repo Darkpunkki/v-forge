@@ -28,6 +28,8 @@ class EventType(str, Enum):
     LLM_RESPONSE_RECEIVED = "llm_response_received"
     VERIFICATION_STARTED = "verification_started"
     VERIFICATION_COMPLETED = "verification_completed"
+    MODEL_ROUTED = "model_routed"
+    GATE_EVALUATED = "gate_evaluated"
     INFO = "info"
 
 
@@ -134,4 +136,3 @@ class EventLog:
 
     def count(self, session_id: str) -> int:
         return len(self.get_events(session_id))
-
