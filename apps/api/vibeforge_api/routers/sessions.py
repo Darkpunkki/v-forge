@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from vibeforge_api.core.session import session_store
 from vibeforge_api.core.questionnaire import questionnaire_engine
 from vibeforge_api.core.spec_builder import spec_builder
+from vibeforge_api.core.app_runner import app_runner
 from vibeforge_api.core.workspace import workspace_manager
 from vibeforge_api.core.artifacts import artifact_store
 from vibeforge_api.core.mock_generator import mock_generator
@@ -352,7 +353,7 @@ async def get_result(session_id: str):
     run_instructions = _build_run_instructions(session.build_spec)
 
     # Build summary
-    summary = _build_summary(session)
+    summary = _build_summary(session, run_instructions)
 
     # List artifacts
     artifacts_path = workspace_manager.get_artifacts_path(session_id)
@@ -374,59 +375,10 @@ async def get_result(session_id: str):
 
 def _build_run_instructions(build_spec: dict | None) -> str:
     """Build run instructions based on BuildSpec."""
-    if not build_spec:
-        return "No build specification available."
-
-    preset = build_spec["stack"]["preset"]
-
-    if preset == "WEB_VITE_REACT_TS":
-        return """# Run Instructions
-
-1. Install dependencies:
-   ```
-   npm install
-   ```
-
-2. Start development server:
-   ```
-   npm run dev
-   ```
-
-3. Open http://localhost:5173 in your browser
-
-4. Build for production:
-   ```
-   npm run build
-   ```
-
-5. Run tests:
-   ```
-   npm test
-   ```
-"""
-    elif preset == "CLI_PYTHON":
-        return """# Run Instructions
-
-1. Install dependencies (if any):
-   ```
-   pip install -r requirements.txt
-   ```
-
-2. Run the CLI:
-   ```
-   python main.py --help
-   ```
-
-3. Run tests:
-   ```
-   python -m pytest
-   ```
-"""
-    else:
-        return "See README.md for run instructions."
+    return app_runner.get_run_instructions(build_spec)
 
 
-def _build_summary(session) -> str:
+def _build_summary(session, run_instructions: str) -> str:
     """Build session summary."""
     if not session.build_spec:
         return "Session completed but no BuildSpec was generated."
@@ -444,4 +396,7 @@ Generated a {platform} application with {genre} genre{twist_text}.
 Workspace location: {workspace_manager.get_workspace_path(session.session_id)}
 
 Check the generated files and follow the run instructions to start the application.
+
+Run instructions:
+{run_instructions}
 """

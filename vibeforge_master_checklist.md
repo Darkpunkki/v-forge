@@ -828,8 +828,10 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Maps presets to test commands (npm test, pytest, etc.) and parses failures
   - Verification: `pytest tests/test_verifiers.py::TestTestVerifier -v` (5 tests passed)
 
-- [ ] **VF-123 — Implement SmokeVerifier (server starts and/or route responds)**
+- [x] **VF-123 — Implement SmokeVerifier (server starts and/or route responds)**
   - Run a lightweight end-to-end check (start server or hit a route) to confirm the app can run locally.
+  - Files: `apps/api/vibeforge_api/core/verifiers.py`, `apps/api/tests/test_verifiers.py`
+  - Verification: `PYTHONPATH=/workspace/v-forge pytest`
 
 - [x] **VF-124 — Implement VerifierSuite (per-task + global verification)**
   - Orchestrate verification steps after each task and at the end of the run based on TaskGraph definitions.
@@ -837,11 +839,15 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Runs multiple verifiers, supports stop-on-failure, provides global verification (build + test)
   - Verification: `pytest tests/test_verifiers.py::TestVerifierSuite -v` (6 tests passed)
 
-- [ ] **VF-125 — Implement AppRunner.getRunInstructions() per stack preset**
+- [x] **VF-125 — Implement AppRunner.getRunInstructions() per stack preset**
   - Generate clear run instructions (install/build/dev server) and expose them in the final summary.
+  - Files: `apps/api/vibeforge_api/core/app_runner.py`, `apps/api/vibeforge_api/routers/sessions.py`
+  - Verification: `PYTHONPATH=/workspace/v-forge pytest`
 
-- [ ] **VF-126 — Implement AppRunner.start()/stop() dev server + stream logs**
+- [x] **VF-126 — Implement AppRunner.start()/stop() dev server + stream logs**
   - Provide a ‘Run’ button that starts the app locally and streams logs back to the UI.
+  - Files: `apps/api/vibeforge_api/core/app_runner.py`, `apps/api/tests/test_app_runner.py`
+  - Verification: `PYTHONPATH=/workspace/v-forge pytest`
 
 
 ### 13 Observability (Artifacts + Event log)

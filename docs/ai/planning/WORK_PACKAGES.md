@@ -742,13 +742,18 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Commits:** be2a238
 
 ## WP-0029 — App runner + smoke verification
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 12:09 (local)
+- Completed: 2026-01-07 12:13 (local)
+- Branch: work
 - **VF Tasks:** VF-123, VF-125, VF-126
 - **Goal:** Enable run instructions, dev server lifecycle management, and a smoke check to confirm apps start successfully.
 - **Dependencies:** WP-0003 ✓ (CommandRunner/Verifiers), WP-0010 ✓ (stack presets)
 - **Plan Doc:** docs/ai/planning/WP-0029_VF-123-126_app-runner-smoke-verification.md
 - **Verify:**
   - `pytest`
+- **Verified:** `PYTHONPATH=/workspace/v-forge pytest`
+- **Commits:** b6d4f9f
 
 ## WP-0030 — Phase transition event logging
 - **Status:** Queued
