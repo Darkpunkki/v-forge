@@ -728,13 +728,18 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Commits:** 51b05da
 
 ## WP-0028 — Workspace git snapshots
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 11:45 (local)
+- Completed: 2026-01-07 12:05 (local)
+- Branch: work
 - **VF Tasks:** VF-112
 - **Goal:** Add optional git initialization and task snapshot commits to improve rollback and diff review.
 - **Dependencies:** VF-110, VF-111 (WorkspaceManager foundations)
 - **Plan Doc:** docs/ai/planning/WP-0028_VF-112-112_workspace-git-snapshots.md
 - **Verify:**
   - `pytest`
+- **Verified:** `cd apps/api && pytest`
+- **Commits:** be2a238
 
 ## WP-0029 — App runner + smoke verification
 - **Status:** Queued

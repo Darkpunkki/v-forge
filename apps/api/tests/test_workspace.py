@@ -2,6 +2,7 @@
 
 import pytest
 import shutil
+import subprocess
 from pathlib import Path
 
 from vibeforge_api.core.workspace import WorkspaceManager
@@ -142,3 +143,57 @@ def test_delete_workspace(workspace_manager):
     assert workspace_manager.workspace_exists(session_id)
     workspace_manager.delete_workspace(session_id)
     assert not workspace_manager.workspace_exists(session_id)
+
+
+def test_init_repo_with_git_creates_initial_commit(workspace_manager):
+    """Test VF-112: initRepo can initialize git repo with initial commit."""
+    if shutil.which("git") is None:
+        pytest.skip("git not available in environment")
+
+    session_id = "test-session-011"
+    workspace_path = workspace_manager.init_repo(session_id, enable_git=True)
+
+    repo_path = workspace_path / "repo"
+    assert (repo_path / ".git").exists()
+
+    log = subprocess.run(
+        ["git", "log", "--oneline"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert log
+
+
+def test_commit_snapshot_creates_commit_when_dirty(workspace_manager):
+    """Test VF-112: commit snapshots are created when repo has changes."""
+    if shutil.which("git") is None:
+        pytest.skip("git not available in environment")
+
+    session_id = "test-session-012"
+    workspace_path = workspace_manager.init_repo(session_id, enable_git=True)
+    repo_path = workspace_path / "repo"
+
+    (repo_path / "new_file.txt").write_text("hello")
+    assert workspace_manager.commit_snapshot(session_id, "Add new file")
+
+    commit_count = subprocess.run(
+        ["git", "rev-list", "--count", "HEAD"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert int(commit_count) >= 2
+
+
+def test_commit_snapshot_skips_when_clean(workspace_manager):
+    """Test VF-112: commit snapshots skip when repo is clean."""
+    if shutil.which("git") is None:
+        pytest.skip("git not available in environment")
+
+    session_id = "test-session-013"
+    workspace_manager.init_repo(session_id, enable_git=True)
+
+    assert not workspace_manager.commit_snapshot(session_id, "No changes")
