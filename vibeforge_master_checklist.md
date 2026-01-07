@@ -787,8 +787,10 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - File: `apps/api/vibeforge_api/core/workspace.py` (get_repo_path, get_artifacts_path)
   - Verification: `pytest tests/test_workspace.py::test_init_repo_creates_layout`
 
-- [ ] **VF-112 — Optional: initialize git repo + commit snapshots**
+- [x] **VF-112 — Optional: initialize git repo + commit snapshots**
   - Initialize git and commit after each successful task to enable rollback and clearer diff review.
+  - Files: `apps/api/vibeforge_api/core/workspace.py`, `apps/api/tests/test_workspace.py`
+  - Verify: `cd apps/api && pytest`
 
 - [x] **VF-113 — Implement PatchApplier (unified diff apply)**
   - Apply unified diffs safely and deterministically; return actionable errors when apply fails.
