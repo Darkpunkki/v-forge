@@ -1346,6 +1346,144 @@ class TestSessionCoordinatorExecution:
         assert result["status"] in ["task_failed_retrying", "task_failed_terminal"]
         assert "Gates blocked" in result["error"]
 
+    @pytest.mark.asyncio
+    async def test_execute_next_task_loads_repo_context(self, tmp_path):
+        """Test that task context includes repo-scoped files."""
+        from orchestration.models import Task, TaskGraph
+        from models.agent_framework import AgentResult
+
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(str(tmp_path / "workspaces"))
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orch = AsyncMock()
+        mock_agent = AsyncMock()
+
+        mock_agent.runTask.return_value = AgentResult(
+            success=True, outputs={"diff": "", "files": []}, logs=["Task complete"]
+        )
+
+        coordinator = SessionCoordinator(
+            session_store,
+            workspace_manager,
+            questionnaire_engine,
+            spec_builder,
+            mock_orch,
+            mock_agent,
+        )
+
+        session_id = coordinator.start_session()
+        repo_path = workspace_manager.get_repo_path(session_id)
+        (repo_path / "context.txt").write_text("hello context")
+
+        task = Task(
+            task_id="test_task",
+            description="Test task",
+            role="worker",
+            dependencies=[],
+            inputs={"filesToRead": ["context.txt"], "contextNotes": ["Use repo context"]},
+            expected_outputs=[],
+            constraints={},
+            verification={"type": "manual"},
+        )
+        task_graph = TaskGraph(session_id=session_id, tasks=[task])
+
+        session = session_store.get_session(session_id)
+        session.task_graph = task_graph.to_dict()
+        session.build_spec = {"stack": {"preset": "WEB_VITE_REACT_TS"}}
+        session.concept = {"idea_description": "Test concept"}
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        await coordinator.execute_next_task(session_id)
+
+        _, _, context = mock_agent.runTask.call_args.args
+        repo_context = context["repo_context"]
+        assert repo_context["files"][0]["path"] == "context.txt"
+        assert repo_context["files"][0]["content"] == "hello context"
+        assert repo_context["context_notes"] == ["Use repo context"]
+
+    @pytest.mark.asyncio
+    async def test_execute_next_task_handles_agent_clarification(self, tmp_path):
+        """Test that agent clarification pauses and resumes execution."""
+        from orchestration.models import Task, TaskGraph
+        from models.agent_framework import AgentResult
+        from runtime.task_master import TaskStatus
+
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(str(tmp_path / "workspaces"))
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orch = AsyncMock()
+        mock_agent = AsyncMock()
+
+        mock_agent.runTask.side_effect = [
+            AgentResult(
+                success=True,
+                outputs={},
+                logs=["Need clarification"],
+                needs_clarification=True,
+                clarification={
+                    "question": "Pick an option",
+                    "options": [{"value": "a", "label": "Option A"}],
+                },
+            ),
+            AgentResult(
+                success=True,
+                outputs={"diff": "", "files": []},
+                logs=["Task complete"],
+            ),
+        ]
+
+        coordinator = SessionCoordinator(
+            session_store,
+            workspace_manager,
+            questionnaire_engine,
+            spec_builder,
+            mock_orch,
+            mock_agent,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+
+        task = Task(
+            task_id="test_task",
+            description="Test task",
+            role="worker",
+            dependencies=[],
+            inputs={},
+            expected_outputs=[],
+            constraints={},
+            verification={"type": "manual"},
+        )
+        task_graph = TaskGraph(session_id=session_id, tasks=[task])
+
+        session.task_graph = task_graph.to_dict()
+        session.build_spec = {"stack": {"preset": "WEB_VITE_REACT_TS"}}
+        session.concept = {"idea_description": "Test concept"}
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        first_result = await coordinator.execute_next_task(session_id)
+
+        assert first_result["status"] == "needs_clarification"
+        session = session_store.get_session(session_id)
+        assert session.pending_clarification["question"] == "Pick an option"
+
+        task_master = coordinator._task_masters[session_id]
+        assert task_master.executions["test_task"].status == TaskStatus.READY
+
+        session.pending_clarification = None
+        session.clarification_answer = "a"
+        session_store.update_session(session)
+
+        second_result = await coordinator.execute_next_task(session_id)
+
+        assert second_result["status"] == "task_complete"
+        _, _, context = mock_agent.runTask.call_args.args
+        assert context["clarification_answer"] == "a"
+
 
 # =============================================================================
 # VF-038: finalize_session() tests

@@ -25,6 +25,8 @@ class AgentResult:
     usage: Optional[LlmUsage] = None
     error_message: Optional[str] = None
     request: Optional[LlmRequest] = None
+    needs_clarification: bool = False
+    clarification: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -33,6 +35,8 @@ class AgentResult:
             "outputs": self.outputs,
             "logs": self.logs,
             "error_message": self.error_message,
+            "needs_clarification": self.needs_clarification,
+            "clarification": self.clarification,
         }
 
         if self.usage:
