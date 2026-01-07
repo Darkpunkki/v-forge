@@ -1046,7 +1046,8 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Color coding: green (OK), yellow (WARN), red (BLOCK)
     - Filter by gate type, decision
     - Click row → show full gate context
-  - **Data source:** EventLog with gate_evaluated events
+  - **Data source:** EventLog with gate_evaluated events (metadata: gate_type, decision, artifact, reason)
+  - **Backend:** emit gate_evaluated from gate pipeline / SessionCoordinator evaluation path
   - **Why needed:** Debug why tasks were blocked, tune gate policies
 
 - [ ] **VF-176 — Model router decisions (model selection rationale)**
@@ -1055,7 +1056,8 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Table: timestamp, role, model_selected, reason, temperature, failure_count
     - Highlight escalations (worker → powerful → fixer)
     - Show routing rule matched
-  - **Data source:** EventLog with model_routed events
+  - **Data source:** EventLog with model_routed events (metadata: rule matched, failure_count, reason)
+  - **Backend:** emit model_routed from distributor/router decisions
   - **Why needed:** Understand cost/quality tradeoffs, tune routing rules
 
 - [ ] **VF-177 — Session comparison view (multi-session metrics)**
@@ -1073,7 +1075,7 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Auto-scrolling event feed (newest at bottom)
     - Filters: phase, agent_role, event_type, severity
     - Search by keyword
-    - Export to JSON
+    - Export to JSON (optional)
   - **Data source:** EventLog with WebSocket/SSE subscription
   - **Why needed:** Real-time debugging and monitoring
 
@@ -1085,7 +1087,8 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Show template used + variables expanded
     - Copy prompt button
     - View model response alongside
-  - **Data source:** EventLog with llm_request_sent events (store prompt + metadata)
+  - **Data source:** EventLog with llm_request_sent events (store prompt + metadata; include redaction + size limits)
+  - **Backend:** emit llm_request_sent before LLM calls; optional paging endpoint for large prompts
   - **Why needed:** Debug prompt engineering, reproduce issues
 
 - [ ] **VF-180 — Cost analytics (token cost breakdown by provider/model)**
@@ -1096,7 +1099,32 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Burn rate projection: "at current rate, session will cost $X"
     - Budget alerts: "80% of budget used"
   - **Data source:** LlmResponse.usage + pricing config
+  - **Backend:** pricing registry + aggregated cost endpoint (e.g., /control/analytics/costs)
   - **Why needed:** Control costs, project budgets for production use
+
+- [ ] **VF-181 — Fix control session list contract (phase/updated_at)**
+  - Align `/control/sessions` response with Control Panel expectations (phase, updated_at, artifacts) or adapt UI to the actual payload.
+  - **Why needed:** Avoid empty/mismatched session list fields and enable reliable filtering.
+
+- [ ] **VF-182 — Add navigation link to Control Panel**
+  - Add a main layout link to `/control` so the admin UI is discoverable without manual URL entry.
+  - **Why needed:** Improve access to monitoring UI during orchestration runs.
+
+- [ ] **VF-183 — Enrich control session list with artifact badges**
+  - Show artifact badges (concept/build_spec/task_graph) and counts based on the `/control/sessions` artifacts array.
+  - **Why needed:** Quick visibility into what each session has produced.
+
+- [ ] **VF-184 — Show active session details in sidebar list**
+  - Display phase + active_task_id in the Active Sessions list (data already returned by `/control/active`).
+  - **Why needed:** Faster at-a-glance view of in-flight work.
+
+- [ ] **VF-185 — Enhance agent cards with model tier + task description**
+  - Display `model_tier` and `task_description` from event metadata in Agent Activity cards.
+  - **Why needed:** Clarify routing decisions and task context per agent.
+
+- [ ] **VF-186 — Control Panel empty-event guidance**
+  - When the event stream is empty, show a helper callout explaining how to generate EventLog events (orchestration run steps/links).
+  - **Why needed:** Reduce confusion when widgets remain idle for MVP sessions.
 
 
 ### 30 MVP/Placeholder Cleanup
