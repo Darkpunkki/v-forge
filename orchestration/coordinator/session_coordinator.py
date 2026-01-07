@@ -655,6 +655,76 @@ class SessionCoordinator:
     # VF-037: executeNextTask() loop
     # =========================================================================
 
+    def _queue_fix_loop_clarification(
+        self, session: Session, task_id: str, error_message: str, failure_kind: str
+    ) -> dict[str, Any]:
+        """Create a clarification prompt for fix-loop decisions after failures."""
+        clarification = {
+            "question": (
+                "Verification failed multiple times. Choose how to proceed with the fix loop."
+            ),
+            "options": [
+                {"value": "retry_with_fixer", "label": "Retry with fixer"},
+                {"value": "abort_task", "label": "Stop and review failure"},
+            ],
+            "context": {
+                "task_id": task_id,
+                "failure_kind": failure_kind,
+                "error_message": error_message,
+            },
+            "task_id": task_id,
+            "type": "fix_loop",
+        }
+        session.pending_clarification = clarification
+        session.clarification_answer = None
+        session.clarification_context = {
+            "type": "fix_loop",
+            "task_id": task_id,
+            "failure_kind": failure_kind,
+            "error_message": error_message,
+        }
+        session.add_log(f"Fix loop clarification required for task {task_id}")
+        self.session_store.update_session(session)
+        return {
+            "status": "needs_clarification",
+            "task_id": task_id,
+            "clarification": clarification,
+        }
+
+    def _apply_fix_loop_response(
+        self, session: Session, task_master: TaskMaster
+    ) -> Optional[dict[str, Any]]:
+        """Apply a fix-loop clarification answer if present."""
+        if not session.clarification_answer or not session.clarification_context:
+            return None
+
+        if session.clarification_context.get("type") != "fix_loop":
+            return None
+
+        task_id = session.clarification_context.get("task_id")
+        error_message = session.clarification_context.get("error_message", "")
+        answer = session.clarification_answer
+
+        session.pending_clarification = None
+        session.clarification_answer = None
+        session.clarification_context = None
+
+        if answer == "retry_with_fixer" and task_id:
+            task_master.forceRetry(task_id, reset_attempts=True)
+            session.add_log(f"User requested fix loop retry for task {task_id}")
+            self.session_store.update_session(session)
+            return None
+
+        session.add_log(
+            f"Fix loop stopped for task {task_id or 'unknown'}: {answer or 'no answer'}"
+        )
+        self.session_store.update_session(session)
+        return {
+            "status": "task_failed_terminal",
+            "task_id": task_id,
+            "error": error_message or "Task failed after verification retries",
+        }
+
     async def execute_next_task(self, session_id: str) -> dict[str, Any]:
         """Execute the next ready task from the TaskGraph.
 
@@ -718,6 +788,10 @@ class SessionCoordinator:
             )
 
         task_master = self._task_masters[session_id]
+
+        fix_loop_response = self._apply_fix_loop_response(session, task_master)
+        if fix_loop_response:
+            return fix_loop_response
 
         # Schedule next ready task
         task = task_master.scheduleNext()
@@ -828,6 +902,10 @@ class SessionCoordinator:
                 "concept": session.concept,
                 "repo_context": repo_context,
             }
+            exec_state = task_master.executions.get(task.task_id)
+            if exec_state and exec_state.error_message:
+                context["previous_error"] = exec_state.error_message
+                context["failure_count"] = max(exec_state.attempts - 1, 0)
             if session.clarification_answer:
                 context["clarification_answer"] = session.clarification_answer
 
@@ -1092,14 +1170,15 @@ class SessionCoordinator:
                             "status": "task_failed_retrying",
                             "task_id": task.task_id,
                             "error": error_msg,
-                            "verification": verification_result,
+                            "verification": verification_results,
                         }
                     else:
-                        return {
-                            "status": "task_failed_terminal",
-                            "task_id": task.task_id,
-                            "error": error_msg,
-                        }
+                        return self._queue_fix_loop_clarification(
+                            session,
+                            task.task_id,
+                            error_msg,
+                            "verification",
+                        )
 
                 session.add_log("Verification passed")
 

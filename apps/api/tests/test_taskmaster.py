@@ -346,6 +346,38 @@ class TestTaskMasterMarkFailed:
 
         assert master.executions["task_001"].completed_at is not None
 
+    def test_force_retry_resets_task_and_downstream(self):
+        """Test that forceRetry resets FAILED task and unskips downstream tasks."""
+        tasks = [
+            Task("task_001", "Root", "worker", [], {}, ["out"], {"type": "build"}, {}),
+            Task(
+                "task_002",
+                "Dependent",
+                "worker",
+                ["task_001"],
+                {},
+                ["out"],
+                {"type": "build"},
+                {},
+            ),
+        ]
+        graph = TaskGraph("test-session", tasks)
+        master = TaskMaster(max_retries=1)
+        master.enqueue(graph)
+
+        master.scheduleNext()
+        master.markFailed("task_001", "Failure")
+
+        assert master.executions["task_001"].status == TaskStatus.FAILED
+        assert master.executions["task_002"].status == TaskStatus.SKIPPED
+
+        master.forceRetry("task_001", reset_attempts=True)
+
+        assert master.executions["task_001"].status == TaskStatus.READY
+        assert master.executions["task_001"].attempts == 0
+        assert master.executions["task_001"].error_message is None
+        assert master.executions["task_002"].status == TaskStatus.PENDING
+
     def test_mark_failed_raises_for_unknown_task(self):
         """Test that markFailed raises ValueError for unknown task_id."""
         tasks = [

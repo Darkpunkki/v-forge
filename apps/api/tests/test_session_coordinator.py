@@ -1289,6 +1289,70 @@ class TestSessionCoordinatorExecution:
         assert "Agent failed" in result["error"]
 
     @pytest.mark.asyncio
+    async def test_execute_next_task_verification_failure_triggers_fix_loop(
+        self, tmp_path, monkeypatch
+    ):
+        """Test that repeated verification failures request fix-loop clarification."""
+        from orchestration.models import Task, TaskGraph
+        from models.agent_framework import AgentResult
+        from vibeforge_api.core.verifiers import VerificationResult, VerifierSuite
+
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(str(tmp_path / "workspaces"))
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orch = AsyncMock()
+        mock_agent = AsyncMock()
+
+        mock_agent.runTask.return_value = AgentResult(
+            success=True, outputs={"diff": "", "commands": []}, logs=["Task complete"]
+        )
+
+        def fake_run_task_verification(self, verifier_names, workspace_path, build_spec):
+            return [VerificationResult(success=False, message="Tests failed")]
+
+        monkeypatch.setattr(
+            VerifierSuite, "run_task_verification", fake_run_task_verification
+        )
+
+        coordinator = SessionCoordinator(
+            session_store,
+            workspace_manager,
+            questionnaire_engine,
+            spec_builder,
+            mock_orch,
+            mock_agent,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+
+        task = Task(
+            task_id="test_task",
+            description="Test task",
+            role="worker",
+            dependencies=[],
+            inputs={},
+            expected_outputs=[],
+            constraints={},
+            verification={"type": "test"},
+        )
+        task_graph = TaskGraph(session_id=session_id, tasks=[task])
+
+        session.task_graph = task_graph.to_dict()
+        session.build_spec = {"stack": {"preset": "WEB_VITE_REACT_TS"}}
+        session.concept = {"idea_description": "Test concept"}
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        first_result = await coordinator.execute_next_task(session_id)
+        second_result = await coordinator.execute_next_task(session_id)
+
+        assert first_result["status"] == "task_failed_retrying"
+        assert second_result["status"] == "needs_clarification"
+        assert second_result["clarification"]["type"] == "fix_loop"
+
+    @pytest.mark.asyncio
     async def test_execute_next_task_handles_gate_block(self, tmp_path):
         """Test that gate blocks prevent task execution."""
         from orchestration.models import Task, TaskGraph
