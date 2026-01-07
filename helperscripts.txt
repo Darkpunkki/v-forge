@@ -1,2 +1,6 @@
 visualization:
     python tools/visualizations/vf_progress.py
+
+run tests:
+    cd .\apps\api\
+    pytest -v
