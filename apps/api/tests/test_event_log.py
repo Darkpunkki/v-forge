@@ -41,7 +41,8 @@ def test_event_filtering_and_latest(tmp_path):
 
     filtered = log.get_events("s2", event_type=EventType.PHASE_TRANSITION)
     assert len(filtered) == 1
-    assert filtered[0].metadata == {"from": "A", "to": "B"}
+    assert filtered[0].metadata == {"from": "A", "to": "B", "reason": None}
+    assert filtered[0].phase == "B"
 
     latest = log.get_latest("s2", limit=1)
     assert latest[0].event_type == EventType.PHASE_TRANSITION

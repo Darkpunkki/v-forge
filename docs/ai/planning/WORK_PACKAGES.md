@@ -756,13 +756,18 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Commits:** b6d4f9f
 
 ## WP-0030 — Phase transition event logging
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 12:20 (local)
+- Completed: 2026-01-07 12:38 (local)
+- Branch: work
 - **VF Tasks:** VF-143
 - **Goal:** Record every phase transition in the EventLog with before/after metadata for replayability and debugging.
 - **Dependencies:** WP-0021 ✓ (EventLog)
 - **Plan Doc:** docs/ai/planning/WP-0030_VF-143-143_phase-transition-events.md
 - **Verify:**
   - `pytest`
+- **Verified:** `PYTHONPATH=/workspace/v-forge pytest`
+- **Commits:** 6d1cd60
 
 ---
 

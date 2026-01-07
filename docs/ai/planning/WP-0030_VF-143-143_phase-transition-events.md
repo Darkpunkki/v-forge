@@ -1,7 +1,9 @@
 # WP-0030 — Phase transition event logging
 
 ## Status
-- Queued
+- Done
+  - Verified: `PYTHONPATH=/workspace/v-forge pytest`
+  - Completed: 2026-01-07 12:35 (local)
 
 ## Context
 - Chapter(s): 14 Workflow Orchestration: Happy Path (Sequence)
@@ -14,9 +16,11 @@
 - Record every phase transition in the EventLog with before/after metadata for replayability and debugging.
 
 ## VF Tasks (canonical)
-- [ ] **VF-143 — Persist phase transitions into the event log**
+- [x] **VF-143 — Persist phase transitions into the event log**
   - Record all state changes (oldPhase → newPhase + reason) into the EventLog for debugging and replayability.
   - **Depends on:** VF-131 (EventLog implementation)
+  - Files: `orchestration/coordinator/session_coordinator.py`, `apps/api/vibeforge_api/core/event_log.py`, `apps/api/tests/test_event_log.py`, `apps/api/tests/test_session_coordinator.py`
+  - Verify: `PYTHONPATH=/workspace/v-forge pytest`
 
 ## Plan
 ### Approach
