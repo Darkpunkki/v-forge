@@ -66,6 +66,8 @@ class TestAgentResult:
             "outputs": {"result": "success"},
             "logs": ["Log entry"],
             "error_message": None,
+            "needs_clarification": False,
+            "clarification": None,
         }
 
 

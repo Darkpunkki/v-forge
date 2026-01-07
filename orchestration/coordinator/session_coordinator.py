@@ -34,6 +34,7 @@ from vibeforge_api.models.types import SessionPhase
 from vibeforge_api.models.responses import QuestionResponse
 from orchestration.orchestrator import Orchestrator
 from orchestration.models import ConceptDoc, TaskGraph, RunSummary
+from orchestration.context_loader import RepoContextLoader, DEFAULT_CONTEXT_BUDGET_BYTES
 from runtime.task_master import TaskMaster
 from runtime.distributor import Distributor
 from models.agent_framework import AgentFramework, AgentResult
@@ -685,6 +686,12 @@ class SessionCoordinator:
                 f"expected {SessionPhase.EXECUTION.value}"
             )
 
+        if session.pending_clarification and not session.clarification_answer:
+            return {
+                "status": "needs_clarification",
+                "clarification": session.pending_clarification,
+            }
+
         # Ensure agent framework is configured
         if not self.agent_framework:
             raise ValueError("AgentFramework not configured for task execution")
@@ -800,13 +807,29 @@ class SessionCoordinator:
 
             # Prepare execution context
             workspace_path = self.workspace_manager.workspace_root / session_id
+            files_to_read = task.inputs.get("filesToRead", []) if task.inputs else []
+            context_notes = task.inputs.get("contextNotes", []) if task.inputs else []
+            context_budget = DEFAULT_CONTEXT_BUDGET_BYTES
+            if session.build_spec:
+                context_budget = session.build_spec.get(
+                    "contextBudget", DEFAULT_CONTEXT_BUDGET_BYTES
+                )
+            repo_context = RepoContextLoader.select_files(
+                workspace_path / "repo",
+                files_to_read,
+                max_bytes=context_budget,
+                context_notes=context_notes,
+            )
             context = {
                 "session_id": session_id,
                 "workspace_path": str(workspace_path / "repo"),
                 "artifacts_path": str(workspace_path / "artifacts"),
                 "build_spec": session.build_spec,
                 "concept": session.concept,
+                "repo_context": repo_context,
             }
+            if session.clarification_answer:
+                context["clarification_answer"] = session.clarification_answer
 
             # Execute task via agent
             session.add_log(f"Calling agent to execute task...")
@@ -896,6 +919,8 @@ class SessionCoordinator:
 
                 # Mark failed (retry or terminal failure)
                 should_retry = task_master.markFailed(task.task_id, error_msg)
+                if not should_retry:
+                    session.clarification_answer = None
                 self.session_store.update_session(session)
 
                 if should_retry:
@@ -911,6 +936,35 @@ class SessionCoordinator:
                         "task_id": task.task_id,
                         "error": error_msg,
                     }
+
+            if agent_result.needs_clarification:
+                clarification = agent_result.clarification or {}
+                question = clarification.get(
+                    "question", "Additional input required to proceed."
+                )
+                options = clarification.get(
+                    "options",
+                    [
+                        {"value": "proceed", "label": "Proceed"},
+                        {"value": "modify", "label": "Modify request"},
+                        {"value": "cancel", "label": "Cancel task"},
+                    ],
+                )
+                session.pending_clarification = {
+                    "question": question,
+                    "options": options,
+                    "context": clarification.get("context"),
+                    "task_id": task.task_id,
+                }
+                session.clarification_answer = None
+                session.add_log(f"Task {task.task_id} requires clarification")
+                task_master.markNeedsClarification(task.task_id)
+                self.session_store.update_session(session)
+                return {
+                    "status": "needs_clarification",
+                    "task_id": task.task_id,
+                    "clarification": session.pending_clarification,
+                }
 
             # Agent succeeded - validate and apply outputs
             session.add_log(f"Agent produced result: {len(agent_result.outputs)} outputs")
@@ -955,6 +1009,8 @@ class SessionCoordinator:
                 session.add_error(task_id=task.task_id, error_message=error_msg)
 
                 should_retry = task_master.markFailed(task.task_id, error_msg)
+                if not should_retry:
+                    session.clarification_answer = None
                 self.session_store.update_session(session)
 
                 if should_retry:
@@ -985,6 +1041,8 @@ class SessionCoordinator:
                     session.add_error(task_id=task.task_id, error_message=error_msg)
 
                     should_retry = task_master.markFailed(task.task_id, error_msg)
+                    if not should_retry:
+                        session.clarification_answer = None
                     self.session_store.update_session(session)
 
                     if should_retry:
@@ -1025,6 +1083,8 @@ class SessionCoordinator:
                     session.add_error(task_id=task.task_id, error_message=error_msg)
 
                     should_retry = task_master.markFailed(task.task_id, error_msg)
+                    if not should_retry:
+                        session.clarification_answer = None
                     self.session_store.update_session(session)
 
                     if should_retry:
@@ -1047,6 +1107,7 @@ class SessionCoordinator:
             task_master.markDone(task.task_id, result=agent_result.to_dict())
             session.completed_task_ids.append(task.task_id)
             session.active_task_id = None
+            session.clarification_answer = None
             session.add_log(f"Task {task.task_id} completed successfully")
             self._emit_event(
                 Event(

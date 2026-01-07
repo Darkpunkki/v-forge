@@ -784,13 +784,18 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - Commits: 04e28c3
 
 ## WP-0032 — Execution loop context + clarifications
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 13:03 (local)
+- Branch: work
 - **VF Tasks:** VF-151, VF-152
 - **Goal:** Load task-scoped context into agent prompts and support clarification pauses/resume flows.
 - **Dependencies:** VF-027 ✓ (clarification endpoint/UI flow)
 - **Plan Doc:** docs/ai/planning/WP-0032_VF-151-152_execution-context-clarifications.md
 - **Verify:**
   - `pytest`
+- **Verified:** `PYTHONPATH=/workspace/v-forge pytest`
+- Completed: 2026-01-07 13:24 (local)
+- Commits: 50d37fa
 
 ## WP-0033 — Fix loop policy automation
 - **Status:** Queued

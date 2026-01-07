@@ -160,6 +160,27 @@ class TaskMaster:
         # Update ready tasks (downstream dependencies may now be satisfied)
         self._update_ready_tasks()
 
+    def markNeedsClarification(self, task_id: str) -> None:
+        """
+        Mark task as awaiting clarification without counting as a failure.
+
+        Resets task to READY so it can be re-run after clarification is provided.
+
+        Args:
+            task_id: ID of task awaiting clarification
+
+        Raises:
+            ValueError: If task_id is unknown
+        """
+        if task_id not in self.executions:
+            raise ValueError(f"Unknown task_id: {task_id}")
+
+        exec_state = self.executions[task_id]
+        exec_state.status = TaskStatus.READY
+        exec_state.started_at = None
+        if exec_state.attempts > 0:
+            exec_state.attempts -= 1
+
     def markFailed(self, task_id: str, error_message: str) -> bool:
         """
         VF-094: Mark task as failed and handle retries.

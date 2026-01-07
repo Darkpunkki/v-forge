@@ -919,13 +919,17 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Implementation:** TaskMaster.scheduleNext() → Distributor.route() → AgentFramework.runTask() → Gates → PatchApplier → VerifierSuite → TaskMaster.markDone/markFailed()
   - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestSessionCoordinatorExecution -v` (6 tests)
 
-- [ ] **VF-151 — Implement RepoContextLoader (task-scoped context selection)**
+- [x] **VF-151 — Implement RepoContextLoader (task-scoped context selection)**
   - Load a bounded set of relevant files into the agent prompt based on the task's declared inputs (files-to-read), plus optionally small "supporting context" (project structure, conventions).
   - **Priority:** Post-MVP enhancement - agents currently receive full context
+  - **Implementation:** RepoContextLoader + task-scoped context injection in SessionCoordinator.
+  - **Verify:** `PYTHONPATH=/workspace/v-forge pytest`
 
-- [ ] **VF-152 — Implement AgentResult handling for "needs clarification"**
+- [x] **VF-152 — Implement AgentResult handling for "needs clarification"**
   - Support the agent returning multiple-choice questions; pause execution, expose questions to UI, accept user choices, then resume with the clarification answers injected into the next agent call.
   - **Status:** Partial - UI flow exists (VF-027), agent integration pending
+  - **Implementation:** AgentResult clarification fields + SessionCoordinator pause/resume.
+  - **Verify:** `PYTHONPATH=/workspace/v-forge pytest`
 
 - [x] **VF-153 — Implement Diff gate + Apply gate with structured failure reasons**
   - When a diff is blocked (policy/size/paths) or fails to apply, produce a structured failure report that can be routed to FIXER or surfaced to UI.
