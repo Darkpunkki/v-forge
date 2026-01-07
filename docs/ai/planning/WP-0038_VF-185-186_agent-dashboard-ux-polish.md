@@ -1,7 +1,8 @@
 # WP-0038 — Agent dashboard UX polish
 
 ## Status
-- Queued
+- Done
+- Verified: `PYTHONPATH=/workspace/v-forge pytest`
 
 ## Context
 - Chapter(s): 17 Agent Control & Monitoring UI (Post-MVP)
@@ -14,12 +15,16 @@
 - Enhance agent cards with richer context and provide clear empty-state guidance for the control panel event stream.
 
 ## VF Tasks (canonical)
-- [ ] **VF-185 — Enhance agent cards with model tier + task description**
+- [x] **VF-185 — Enhance agent cards with model tier + task description**
   - Display `model_tier` and `task_description` from event metadata in Agent Activity cards.
   - **Why needed:** Clarify routing decisions and task context per agent.
-- [ ] **VF-186 — Control Panel empty-event guidance**
+  - **Files:** `apps/ui/src/screens/control/widgets/AgentDashboard.tsx`
+  - **Verify:** `PYTHONPATH=/workspace/v-forge pytest`
+- [x] **VF-186 — Control Panel empty-event guidance**
   - When the event stream is empty, show a helper callout explaining how to generate EventLog events (orchestration run steps/links).
   - **Why needed:** Reduce confusion when widgets remain idle for MVP sessions.
+  - **Files:** `apps/ui/src/screens/control/widgets/EventStream.tsx`, `apps/ui/src/screens/control/widgets/EventStream.css`
+  - **Verify:** `PYTHONPATH=/workspace/v-forge pytest`
 
 ## Plan
 ### Approach

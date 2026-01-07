@@ -7,6 +7,8 @@ type AgentStatus = {
   status: 'idle' | 'thinking' | 'executing' | 'error'
   currentTask?: string
   model?: string
+  modelTier?: string
+  taskDescription?: string
   lastUpdated?: string
 }
 
@@ -43,6 +45,14 @@ export default function AgentDashboard({ events }: { events: SessionEvent[] }) {
         status.model = event.metadata.model as string
       }
 
+      if (event.metadata?.model_tier) {
+        status.modelTier = event.metadata.model_tier as string
+      }
+
+      if (event.metadata?.task_description) {
+        status.taskDescription = event.metadata.task_description as string
+      }
+
       switch (event.event_type) {
         case 'agent_invoked':
           status.status = 'thinking'
@@ -55,6 +65,7 @@ export default function AgentDashboard({ events }: { events: SessionEvent[] }) {
         case 'task_completed':
           status.status = 'idle'
           status.currentTask = undefined
+          status.taskDescription = undefined
           break
         case 'task_failed':
           status.status = 'error'
@@ -62,6 +73,7 @@ export default function AgentDashboard({ events }: { events: SessionEvent[] }) {
         case 'agent_completed':
           status.status = event.metadata?.success === False ? 'error' : 'idle'
           status.currentTask = undefined
+          status.taskDescription = undefined
           break
         default:
           break
@@ -146,7 +158,13 @@ export default function AgentDashboard({ events }: { events: SessionEvent[] }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'grid',
+                gap: '12px',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              }}
+            >
               <div>
                 <div style={{ fontSize: '12px', opacity: 0.7 }}>Current task</div>
                 <div style={{ fontWeight: 600 }}>{agent.currentTask || '—'}</div>
@@ -154,6 +172,17 @@ export default function AgentDashboard({ events }: { events: SessionEvent[] }) {
               <div>
                 <div style={{ fontSize: '12px', opacity: 0.7 }}>Model</div>
                 <div style={{ fontWeight: 600 }}>{agent.model || '—'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', opacity: 0.7 }}>Model tier</div>
+                <div style={{ fontWeight: 600 }}>{agent.modelTier || '—'}</div>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '12px', opacity: 0.7 }}>Task description</div>
+              <div style={{ fontWeight: 600, color: '#374151' }}>
+                {agent.taskDescription || '—'}
               </div>
             </div>
 

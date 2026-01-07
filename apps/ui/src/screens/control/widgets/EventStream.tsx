@@ -121,6 +121,8 @@ export default function EventStream({ events, sessionId, onClear }: EventStreamP
     URL.revokeObjectURL(url)
   }
 
+  const showEmptyGuidance = sessionId !== null && events.length === 0
+
   return (
     <section className="event-stream">
       <header className="event-stream__header">
@@ -187,6 +189,19 @@ export default function EventStream({ events, sessionId, onClear }: EventStreamP
         <div className="event-stream__empty">Select a session to view events.</div>
       ) : (
         <div className="event-stream__body" ref={logRef}>
+          {showEmptyGuidance && (
+            <div className="event-stream__callout">
+              <strong>No EventLog activity yet.</strong>
+              <p>
+                Start an orchestration run for this session to emit events. Each task transition
+                (agent invoked, task started/completed) will appear here in real time.
+              </p>
+              <ul>
+                <li>Kick off the session run from the orchestration UI or CLI.</li>
+                <li>Confirm the session is active and advancing through tasks.</li>
+              </ul>
+            </div>
+          )}
           {filteredEvents.length === 0 ? (
             <div className="event-stream__empty">
               {events.length === 0 ? 'Waiting for events...' : 'No events match the current filters.'}
