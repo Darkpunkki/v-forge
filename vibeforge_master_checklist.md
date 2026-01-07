@@ -1156,13 +1156,19 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - Added phase, active task, and updated timestamps to active session entries.
   - Verified via `PYTHONPATH=/workspace/v-forge pytest`.
 
-- [ ] **VF-185 — Enhance agent cards with model tier + task description**
+- [x] **VF-185 — Enhance agent cards with model tier + task description**
   - Display `model_tier` and `task_description` from event metadata in Agent Activity cards.
   - **Why needed:** Clarify routing decisions and task context per agent.
+  - Added model tier + task description fields to Agent Activity cards.
+  - **Files:** `apps/ui/src/screens/control/widgets/AgentDashboard.tsx`
+  - Verified via `PYTHONPATH=/workspace/v-forge pytest`.
 
-- [ ] **VF-186 — Control Panel empty-event guidance**
+- [x] **VF-186 — Control Panel empty-event guidance**
   - When the event stream is empty, show a helper callout explaining how to generate EventLog events (orchestration run steps/links).
   - **Why needed:** Reduce confusion when widgets remain idle for MVP sessions.
+  - Added EventLog guidance callout for empty event streams.
+  - **Files:** `apps/ui/src/screens/control/widgets/EventStream.tsx`, `apps/ui/src/screens/control/widgets/EventStream.css`
+  - Verified via `PYTHONPATH=/workspace/v-forge pytest`.
 
 
 ### 30 MVP/Placeholder Cleanup

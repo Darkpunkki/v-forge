@@ -78,6 +78,25 @@
   flex: 1;
 }
 
+.event-stream__callout {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.event-stream__callout p {
+  margin: 8px 0;
+}
+
+.event-stream__callout ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
 .event-stream__empty {
   text-align: center;
   color: #9ca3af;

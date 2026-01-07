@@ -856,7 +856,12 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `pytest`
 
 ## WP-0038 — Agent dashboard UX polish
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 21:33 (local)
+- Branch: work
+- Verified: `PYTHONPATH=/workspace/v-forge pytest`
+- Completed: 2026-01-07 21:36 (local)
+- Commits: (see PR)
 - **VF Tasks:** VF-185, VF-186
 - **Goal:** Improve agent dashboard clarity with richer context and helpful empty-state guidance.
 - **Dependencies:** WP-0023 ✓ (Agent dashboard and token visualization)
