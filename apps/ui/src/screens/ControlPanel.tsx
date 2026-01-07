@@ -12,8 +12,10 @@ import {
 import AgentDashboard from './control/widgets/AgentDashboard'
 import AgentGraph from './control/widgets/AgentGraph'
 import ExecutionTimeline from './control/widgets/ExecutionTimeline'
+import EventStream from './control/widgets/EventStream'
 import GateLog from './control/widgets/GateLog'
 import ModelRouter from './control/widgets/ModelRouter'
+import SessionComparison from './control/widgets/SessionComparison'
 import TokenVisualization from './control/widgets/TokenVisualization'
 
 export function ControlPanelScreen() {
@@ -326,57 +328,16 @@ export function ControlPanelScreen() {
                   <ExecutionTimeline events={sessionEvents} />
                   <GateLog events={sessionEvents} />
                   <ModelRouter events={sessionEvents} />
+                  <SessionComparison
+                    sessions={allSessions}
+                    selectedSessionId={selectedSessionId}
+                  />
+                  <EventStream
+                    events={sessionEvents}
+                    sessionId={selectedSessionId}
+                    onClear={() => setSessionEvents([])}
+                  />
                 </div>
-
-                {/* Event Stream */}
-                <section>
-                  <h2>Event Stream</h2>
-                  {sessionEvents.length === 0 ? (
-                    <p style={{ opacity: 0.6 }}>No events yet (listening for real-time updates...)</p>
-                  ) : (
-                    <div style={{
-                      background: '#fafafa',
-                      border: '1px solid #ddd',
-                      borderRadius: '8px',
-                      maxHeight: '500px',
-                      overflowY: 'auto',
-                    }}>
-                      {sessionEvents.map((event, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: '12px 16px',
-                            borderBottom: idx < sessionEvents.length - 1 ? '1px solid #eee' : 'none',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{
-                              fontSize: '11px',
-                              fontWeight: 'bold',
-                              textTransform: 'uppercase',
-                              color: '#1976d2',
-                            }}>
-                              {event.event_type.replace(/_/g, ' ')}
-                            </span>
-                            <span style={{ fontSize: '11px', opacity: 0.6 }}>
-                              {new Date(event.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '14px', marginBottom: '4px' }}>
-                            {event.message}
-                          </div>
-                          {(event.phase || event.task_id) && (
-                            <div style={{ fontSize: '12px', opacity: 0.7 }}>
-                              {event.phase && <span>Phase: {event.phase}</span>}
-                              {event.phase && event.task_id && <span> | </span>}
-                              {event.task_id && <span>Task: {event.task_id}</span>}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
               </>
             )}
           </>
