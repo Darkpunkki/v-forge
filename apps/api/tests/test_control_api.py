@@ -1,9 +1,11 @@
 """Tests for control panel API endpoints."""
 
-import pytest
-from datetime import datetime, timezone
 import json
+from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import Mock, patch
+
+import pytest
 
 from vibeforge_api.core.event_log import EventLog, Event, EventType
 from vibeforge_api.core.workspace import WorkspaceManager
@@ -285,3 +287,45 @@ class TestControlPrompts:
         prompt = response["prompts"][0]
         assert prompt["model"] == "gpt-4o-mini"
         assert "add two numbers" in prompt["prompt"]
+
+
+class TestControlRunBundle:
+    """Tests for /control/sessions/{id}/bundle endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_export_run_bundle_not_found(self, tmp_path):
+        """Ensure missing sessions return 404."""
+        from fastapi import HTTPException
+        from vibeforge_api.routers.control import export_run_bundle
+
+        with patch("vibeforge_api.core.workspace.WorkspaceManager") as mock_wm_class:
+            mock_wm = Mock()
+            mock_wm.workspace_root = tmp_path
+            mock_wm_class.return_value = mock_wm
+
+            with pytest.raises(HTTPException) as exc_info:
+                await export_run_bundle("missing-session")
+
+            assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_export_run_bundle_success(self, tmp_path):
+        """Ensure bundle export returns a zip response."""
+        from vibeforge_api.routers.control import export_run_bundle
+
+        session_id = "session-1"
+        workspace_path = tmp_path / session_id
+        (workspace_path / "repo").mkdir(parents=True)
+        (workspace_path / "artifacts").mkdir()
+        (workspace_path / "repo" / "README.md").write_text("# Demo\n")
+        (workspace_path / "artifacts" / "run_summary.json").write_text("{}")
+
+        with patch("vibeforge_api.core.workspace.WorkspaceManager") as mock_wm_class:
+            mock_wm = Mock()
+            mock_wm.workspace_root = tmp_path
+            mock_wm_class.return_value = mock_wm
+
+            response = await export_run_bundle(session_id)
+
+        assert response.media_type == "application/zip"
+        assert Path(response.path).exists()

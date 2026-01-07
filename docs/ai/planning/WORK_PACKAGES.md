@@ -770,13 +770,18 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Commits:** 6d1cd60
 
 ## WP-0031 — Observability run bundle export
-- **Status:** Queued
+- **Status:** Done
+- Started: 2026-01-07 12:45 (local)
+- Branch: work
 - **VF Tasks:** VF-132
 - **Goal:** Package a portable run bundle archive with artifacts and summary for sharing and archival.
 - **Dependencies:** None
 - **Plan Doc:** docs/ai/planning/WP-0031_VF-132-132_observability-run-bundle-export.md
 - **Verify:**
   - `pytest`
+- **Verified:** `PYTHONPATH=/workspace/v-forge pytest`
+- Completed: 2026-01-07 12:52 (local)
+- Commits: 04e28c3
 
 ## WP-0032 — Execution loop context + clarifications
 - **Status:** Queued
