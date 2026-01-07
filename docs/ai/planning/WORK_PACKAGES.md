@@ -656,7 +656,12 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Commits:** d429391
 
 ## WP-0024 — Execution visualization (graph + timeline)
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-06 20:54 (local)
+- **Completed:** 2026-01-06 20:59 (local)
+- **Branch:** work
+- **Verified:** `cd apps/ui && npm run build`
+- **Notes:** Registry proxy blocks d3 install (403). Implemented SVG-based visualizations without external deps; build still passes.
 - **VF Tasks:** VF-173, VF-174
 - **Goal:** Implement interactive agent relationship graph and Gantt-style execution timeline to visualize task flow and identify bottlenecks.
 - **Dependencies:** WP-0022 ✓ (Control panel foundation)

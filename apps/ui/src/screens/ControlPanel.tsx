@@ -10,6 +10,8 @@ import {
   type SessionEvent,
 } from '../api/controlClient'
 import AgentDashboard from './control/widgets/AgentDashboard'
+import AgentGraph from './control/widgets/AgentGraph'
+import ExecutionTimeline from './control/widgets/ExecutionTimeline'
 import TokenVisualization from './control/widgets/TokenVisualization'
 
 export function ControlPanelScreen() {
@@ -309,9 +311,17 @@ export function ControlPanelScreen() {
                   </section>
                 )}
 
-                <div style={{ display: 'grid', gap: '24px' }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+                    gap: '16px',
+                  }}
+                >
                   <AgentDashboard events={sessionEvents} />
                   <TokenVisualization events={sessionEvents} />
+                  <AgentGraph events={sessionEvents} />
+                  <ExecutionTimeline events={sessionEvents} />
                 </div>
 
                 {/* Event Stream */}
