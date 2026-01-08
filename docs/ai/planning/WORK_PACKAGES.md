@@ -883,6 +883,33 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Verify:**
   - `pytest`
 
+## WP-0040 — Questionnaire submission real pipeline
+- **Status:** Queued
+- **VF Tasks:** VF-302
+- **Goal:** Route questionnaire completion through the real BuildSpec → concept → plan flow instead of the mock generator shortcut.
+- **Dependencies:** WP-0018 ✓, WP-0019 ✓, WP-0020 ✓
+- **Plan Doc:** docs/ai/planning/WP-0040_VF-302-302_questionnaire-real-pipeline.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_sessions.py -k questionnaire`
+
+## WP-0041 — TaskGraph-backed plan/progress endpoints
+- **Status:** Queued
+- **VF Tasks:** VF-303
+- **Goal:** Replace mocked plan and progress responses with TaskGraph artifacts and event data with clear empty states.
+- **Dependencies:** WP-0016 ✓, WP-0019 ✓, WP-0021 ✓
+- **Plan Doc:** docs/ai/planning/WP-0041_VF-303-303_taskgraph-plan-progress.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"`
+
+## WP-0042 — Agent/local stub upgrade path plan
+- **Status:** Queued
+- **VF Tasks:** VF-304
+- **Goal:** Define a documented upgrade path for agent framework stubs and LocalProvider integrations with clear acceptance tests.
+- **Dependencies:** WP-0039 ✓
+- **Plan Doc:** docs/ai/planning/WP-0042_VF-304-304_stub-upgrade-path.md
+- **Verify:**
+  - `pytest`
+
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
