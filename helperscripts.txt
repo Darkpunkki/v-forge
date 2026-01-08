@@ -4,3 +4,7 @@ visualization:
 run tests:
     cd .\apps\api\
     pytest -v
+
+todooo:
+    silleen et input idea.md luodaan jonkun queryn kautta
+    esim "5 featurea" päätyy promptiin "the user wants to implement in total [n_of_features] in total. They are [eka] [toka] jne
