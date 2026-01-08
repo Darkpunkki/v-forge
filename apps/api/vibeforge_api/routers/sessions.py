@@ -1,5 +1,7 @@
 """Session API endpoints."""
 
+import json
+
 from fastapi import APIRouter, HTTPException, status
 
 from vibeforge_api.core.session import session_store
@@ -7,6 +9,8 @@ from vibeforge_api.core.questionnaire import questionnaire_engine
 from vibeforge_api.core.spec_builder import spec_builder
 from vibeforge_api.core.app_runner import app_runner
 from vibeforge_api.core.workspace import workspace_manager
+from vibeforge_api.core.artifacts import artifact_store
+from vibeforge_api.core.event_log import EventLog, EventType
 from vibeforge_api.core.llm_provider import get_llm_client
 from vibeforge_api.models.types import SessionPhase
 from vibeforge_api.models.requests import (
@@ -26,6 +30,7 @@ from vibeforge_api.models.responses import (
 )
 from orchestration.coordinator import SessionCoordinator
 from orchestration.orchestrator import Orchestrator
+from orchestration.models import TaskGraph
 
 router = APIRouter()
 
@@ -146,15 +151,9 @@ async def get_plan_summary(session_id: str):
             detail=f"Cannot get plan in phase {session.phase}. Must be in PLAN_REVIEW phase.",
         )
 
-    # MVP: Return mock plan summary
-    # In full implementation, this would come from task_graph
-    return PlanSummaryResponse(
-        features=["User authentication", "Dashboard view", "Data visualization"],
-        task_count=5,
-        verification_steps=["Build project", "Run tests", "Start dev server"],
-        estimated_scope="moderate",
-        constraints=["Max 7 screens", "Web platform only", "No external API calls"],
-    )
+    task_graph = _load_task_graph(session_id)
+
+    return _build_plan_summary(session, task_graph)
 
 
 # VF-025: POST /sessions/{id}/plan/decision (approve/reject)
@@ -201,24 +200,14 @@ async def get_progress(session_id: str):
             detail=f"Session {session_id} not found",
         )
 
-    # Build task progress lists (MVP: mock data for non-EXECUTION phases)
-    completed_tasks = [
-        TaskProgress(task_id=tid, title=f"Task {tid}", status="completed")
-        for tid in session.completed_task_ids
-    ]
-
-    failed_tasks = [
-        TaskProgress(task_id=tid, title=f"Task {tid}", status="failed")
-        for tid in session.failed_task_ids
-    ]
-
-    active_task = None
-    if session.active_task_id:
-        active_task = TaskProgress(
-            task_id=session.active_task_id,
-            title=f"Task {session.active_task_id}",
-            status="in_progress",
-        )
+    event_log = EventLog(workspace_manager.workspace_root)
+    events = event_log.get_events(session_id)
+    task_graph = _load_task_graph(session_id)
+    task_titles = _build_task_title_map(session_id, task_graph)
+    active_task, completed_tasks, failed_tasks = _build_task_progress(
+        events, task_titles
+    )
+    logs = _build_event_logs(events)
 
     return ProgressResponse(
         session_id=session.session_id,
@@ -226,7 +215,7 @@ async def get_progress(session_id: str):
         active_task=active_task,
         completed_tasks=completed_tasks,
         failed_tasks=failed_tasks,
-        logs=session.logs[-50:],  # Return last 50 log entries
+        logs=logs,
     )
 
 
@@ -391,3 +380,131 @@ Check the generated files and follow the run instructions to start the applicati
 Run instructions:
 {run_instructions}
 """
+
+
+def _load_task_graph(session_id: str) -> dict | None:
+    content = artifact_store.get_artifact(session_id, "task_graph.json")
+    if not content:
+        return None
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to parse task graph artifact.",
+        ) from exc
+
+
+def _build_plan_summary(session, task_graph: dict | None) -> PlanSummaryResponse:
+    if not task_graph:
+        return PlanSummaryResponse(
+            features=[],
+            task_count=0,
+            verification_steps=[],
+            estimated_scope="pending",
+            constraints=["Plan not generated yet."],
+        )
+
+    graph = TaskGraph.from_dict(session.session_id, task_graph)
+    features = [task.description for task in graph.tasks]
+    verification_steps = sorted(
+        {
+            task.verification.get("type", "manual")
+            for task in graph.tasks
+            if task.verification
+        }
+    )
+
+    return PlanSummaryResponse(
+        features=features,
+        task_count=len(graph.tasks),
+        verification_steps=verification_steps,
+        estimated_scope=_format_scope(session.build_spec),
+        constraints=_format_constraints(session.build_spec),
+    )
+
+
+def _format_scope(build_spec: dict | None) -> str:
+    if not build_spec:
+        return "unknown"
+    scope = build_spec.get("scopeBudget", {})
+    max_files = scope.get("maxTotalFiles")
+    max_screens = scope.get("maxScreens")
+    parts = []
+    if max_files is not None:
+        parts.append(f"max files {max_files}")
+    if max_screens is not None:
+        parts.append(f"max screens {max_screens}")
+    return ", ".join(parts) if parts else "unknown"
+
+
+def _format_constraints(build_spec: dict | None) -> list[str]:
+    if not build_spec:
+        return []
+    constraints: list[str] = []
+    stack_preset = build_spec.get("stack", {}).get("preset")
+    if stack_preset:
+        constraints.append(f"Stack preset: {stack_preset}")
+    platform = build_spec.get("target", {}).get("platform")
+    if platform:
+        constraints.append(f"Platform: {platform}")
+    return constraints
+
+
+def _build_task_title_map(session_id: str, task_graph: dict | None) -> dict[str, str]:
+    if not task_graph:
+        return {}
+    graph = TaskGraph.from_dict(session_id, task_graph)
+    return {task.task_id: task.description for task in graph.tasks}
+
+
+def _build_task_progress(
+    events: list, task_titles: dict[str, str]
+) -> tuple[TaskProgress | None, list[TaskProgress], list[TaskProgress]]:
+    completed_order: list[str] = []
+    failed_order: list[str] = []
+    active_task_id: str | None = None
+    completed_ids: set[str] = set()
+    failed_ids: set[str] = set()
+
+    for event in events:
+        if event.event_type == EventType.TASK_STARTED and event.task_id:
+            active_task_id = event.task_id
+        elif event.event_type == EventType.TASK_COMPLETED and event.task_id:
+            if event.task_id not in completed_ids:
+                completed_order.append(event.task_id)
+                completed_ids.add(event.task_id)
+            if active_task_id == event.task_id:
+                active_task_id = None
+        elif event.event_type == EventType.TASK_FAILED and event.task_id:
+            if event.task_id not in failed_ids:
+                failed_order.append(event.task_id)
+                failed_ids.add(event.task_id)
+            if active_task_id == event.task_id:
+                active_task_id = None
+
+    def _make_task_progress(task_id: str, status: str) -> TaskProgress:
+        title = task_titles.get(task_id, f"Task {task_id}")
+        return TaskProgress(task_id=task_id, title=title, status=status)
+
+    active_task = (
+        _make_task_progress(active_task_id, "in_progress")
+        if active_task_id
+        else None
+    )
+
+    completed_tasks = [
+        _make_task_progress(task_id, "completed") for task_id in completed_order
+    ]
+    failed_tasks = [_make_task_progress(task_id, "failed") for task_id in failed_order]
+
+    return active_task, completed_tasks, failed_tasks
+
+
+def _build_event_logs(events: list) -> list[str]:
+    if not events:
+        return ["No events recorded yet."]
+    return [
+        f"[{event.timestamp.isoformat()}] {event.event_type.value}: {event.message}"
+        for event in events[-50:]
+    ]
