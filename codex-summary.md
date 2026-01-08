@@ -11,6 +11,11 @@ Updated AI phase documentation to align with VibeForge's current FastAPI-based L
 - Clarified testing objectives and scenarios covering session lifecycle, workspace safety, and planned UI/E2E coverage.
 - Updated architecture index to point to diagrams, schemas, configs, and AI phase docs for VF-linked changes.
 
+## Project Status Log — 2026-01-07
+- **End-to-end goal:** move the UI flow from questionnaire answers → deterministic BuildSpec → concept + TaskGraph generation → agent execution, while the control panel monitors live events and agent interactions end to end.
+- **Current readiness:** the session coordinator pipeline covers BuildSpec, concept, and plan generation, but the API still needs to route questionnaire completion through it and surface real plan/progress artifacts for the control UI.
+- **Control UI direction:** the control endpoint UI is positioned to become the live operations console once questionnaire submission, plan review, and execution events are fully wired into EventLog streams and TaskGraph artifacts.
+
 ## Control Panel Audit — 2026-01-07
 ### 1) Current State: What works today
 - **Control Panel route + layout (VF-170)**

@@ -462,11 +462,17 @@ class SessionCoordinator:
         if not session.concept:
             raise ValueError(f"Concept missing for session {session_id}")
 
+        concept_doc = (
+            ConceptDoc.from_dict(session_id, session.concept)
+            if isinstance(session.concept, dict)
+            else session.concept
+        )
+
         try:
             # Call Orchestrator to generate TaskGraph
             session.add_log("Generating TaskGraph from concept...")
             task_graph: TaskGraph = await self.orchestrator.createTaskGraph(
-                session.build_spec, session.concept
+                session.build_spec, concept_doc
             )
 
             # Validate TaskGraph DAG

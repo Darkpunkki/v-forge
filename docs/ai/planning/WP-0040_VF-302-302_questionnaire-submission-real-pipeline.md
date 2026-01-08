@@ -1,7 +1,7 @@
 # WP-0040 — Questionnaire submission real pipeline
 
 ## Status
-- Queued
+- Done
 
 ## Context
 - Chapter(s): 30 MVP/Placeholder Cleanup
@@ -14,11 +14,13 @@
 - Route questionnaire completion into the real BuildSpec → concept → plan flow instead of the mock generator shortcut.
 
 ## VF Tasks (canonical)
-- [ ] **VF-302 — Replace MVP demo shortcut in questionnaire submission (mock generator → real pipeline)**
+- [x] **VF-302 — Replace MVP demo shortcut in questionnaire submission (mock generator → real pipeline)**
   - Remove the shortcut that generates mock files and jumps to COMPLETE inside `apps/api/vibeforge_api/routers/sessions.py` (submitAnswer handler). Route questionnaire completion into the real BuildSpec → concept → plan flow (or gate behind a feature flag) and retire `mock_generator.generate` as the default path.
-  - **Status:** Planned
+  - **Status:** Done
   - **Done when:** Submitting the final questionnaire answer transitions to PLAN_REVIEW/IDEA with real artifacts instead of calling MockGenerator or auto-setting COMPLETE; tests updated to cover the new flow.
   - **Verify:** `cd apps/api && pytest tests/test_sessions.py -k questionnaire` (plus any new end-to-end test for non-mock flow).
+  - **Files:** `apps/api/vibeforge_api/routers/sessions.py`, `apps/api/vibeforge_api/core/llm_provider.py`, `orchestration/coordinator/session_coordinator.py`, `apps/api/tests/test_sessions.py`
+  - **Verified:** `cd apps/api && pytest tests/test_sessions.py -k questionnaire`
 
 ## Plan
 ### Approach
