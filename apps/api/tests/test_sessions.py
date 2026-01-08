@@ -94,9 +94,9 @@ def test_questionnaire_flow_completion():
         response = client.post(f"/sessions/{session_id}/answers", json=q)
         assert response.status_code == 200
 
-    # After last question, phase should advance to COMPLETE (MVP demo mode)
+    # After last question, phase should advance to PLAN_REVIEW (real pipeline)
     final_response = response.json()
-    assert final_response["next_phase"] == "COMPLETE"
+    assert final_response["next_phase"] == "PLAN_REVIEW"
     assert final_response["is_complete"] is True
 
 

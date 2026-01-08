@@ -7,8 +7,7 @@ from vibeforge_api.core.questionnaire import questionnaire_engine
 from vibeforge_api.core.spec_builder import spec_builder
 from vibeforge_api.core.app_runner import app_runner
 from vibeforge_api.core.workspace import workspace_manager
-from vibeforge_api.core.artifacts import artifact_store
-from vibeforge_api.core.mock_generator import mock_generator
+from vibeforge_api.core.llm_provider import get_llm_client
 from vibeforge_api.models.types import SessionPhase
 from vibeforge_api.models.requests import (
     SubmitAnswerRequest,
@@ -25,19 +24,32 @@ from vibeforge_api.models.responses import (
     ClarificationResponse,
     ClarificationOption,
 )
+from orchestration.coordinator import SessionCoordinator
+from orchestration.orchestrator import Orchestrator
 
 router = APIRouter()
+
+llm_client = get_llm_client()
+orchestrator = Orchestrator(llm_client)
+session_coordinator = SessionCoordinator(
+    session_store,
+    workspace_manager,
+    questionnaire_engine,
+    spec_builder,
+    orchestrator,
+)
 
 
 # VF-021: POST /sessions (startSession)
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def start_session():
     """Create a new session and initialize workspace."""
-    session = session_store.create_session()
+    session_id = session_coordinator.start_session()
+    session = session_store.get_session(session_id)
     session.add_log("Session created")
 
     return SessionResponse(
-        session_id=session.session_id,
+        session_id=session_id,
         phase=session.phase,
     )
 
@@ -59,7 +71,7 @@ async def get_next_question(session_id: str):
             detail=f"Cannot get question in phase {session.phase}. Must be in QUESTIONNAIRE phase.",
         )
 
-    question = questionnaire_engine.get_next_question(session.current_question_index)
+    question = session_coordinator.get_next_question(session_id)
     if not question:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -86,50 +98,29 @@ async def submit_answer(session_id: str, request: SubmitAnswerRequest):
             detail=f"Cannot submit answer in phase {session.phase}. Must be in QUESTIONNAIRE phase.",
         )
 
-    # Validate answer
-    if not questionnaire_engine.validate_answer(request.question_id, request.answer):
+    try:
+        session_coordinator.submit_answer(session_id, request.question_id, request.answer)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid answer for question {request.question_id}",
-        )
-
-    # Store answer
-    session.add_answer(request.question_id, request.answer)
-    session.current_question_index += 1
+            detail=str(exc),
+        ) from exc
 
     # Check if questionnaire is complete
+    session = session_store.get_session(session_id)
     if questionnaire_engine.is_questionnaire_complete(session.current_question_index):
-        # Initialize workspace first (needed for artifacts)
-        workspace_manager.init_repo(session.session_id)
-        session.add_log("Workspace initialized")
+        try:
+            session_coordinator.finalize_questionnaire(session_id)
+            session_coordinator.generate_build_spec(session_id)
+            await session_coordinator.generate_concept(session_id)
+            await session_coordinator.generate_plan(session_id)
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc),
+            ) from exc
 
-        # Generate IntentProfile
-        intent_profile = questionnaire_engine.finalize(session.session_id, session.answers)
-        session.intent_profile = intent_profile
-        session.add_log("IntentProfile generated")
-
-        # Store IntentProfile artifact
-        artifact_store.save_artifact(session.session_id, "intent_profile.json", intent_profile)
-
-        # Generate BuildSpec
-        build_spec = spec_builder.fromIntent(intent_profile)
-        session.build_spec = build_spec
-        session.add_log("BuildSpec generated")
-
-        # Store BuildSpec artifact
-        artifact_store.save_artifact(session.session_id, "build_spec.json", build_spec)
-
-        # Generate mock files (MVP demo)
-        workspace_path = workspace_manager.get_workspace_path(session.session_id)
-        generated_files = mock_generator.generate(session.session_id, build_spec, workspace_path)
-        session.add_log(f"Generated {len(generated_files)} demo files")
-
-        # Transition to IDEA phase (concept generation would happen next)
-        # For MVP demo, skip directly to COMPLETE with mock generation
-        session.update_phase(SessionPhase.COMPLETE)
-        session.add_log("Session complete (MVP demo mode)")
-
-    session_store.update_session(session)
+    session = session_store.get_session(session_id)
 
     return {
         "status": "accepted",

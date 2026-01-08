@@ -884,13 +884,18 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `pytest`
 
 ## WP-0040 — Questionnaire submission real pipeline
-- **Status:** Queued
+- **Status:** Done
 - **VF Tasks:** VF-302
 - **Goal:** Route questionnaire completion through the real BuildSpec → concept → plan flow instead of the mock generator shortcut.
 - **Dependencies:** WP-0018 ✓, WP-0019 ✓, WP-0020 ✓
 - **Plan Doc:** docs/ai/planning/WP-0040_VF-302-302_questionnaire-submission-real-pipeline.md
 - **Verify:**
   - `cd apps/api && pytest tests/test_sessions.py -k questionnaire`
+- Started: 2026-01-07 22:10 (local)
+- Branch: work
+- Verified: `cd apps/api && pytest tests/test_sessions.py -k questionnaire`
+- Completed: 2026-01-07 22:25 (local)
+- Commits: ac3ee8a
 
 ## WP-0041 — TaskGraph-backed plan/progress endpoints
 - **Status:** Queued
