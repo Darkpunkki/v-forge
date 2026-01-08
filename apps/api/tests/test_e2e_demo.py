@@ -76,7 +76,7 @@ def test_e2e_questionnaire_to_result(client, tmp_path, monkeypatch):
     result = response.json()
     assert result["status"] == "accepted"
     assert result["is_complete"] is True
-    assert result["next_phase"] == "COMPLETE"
+    assert result["next_phase"] == "PLAN_REVIEW"
 
     # Step 8: Verify IntentProfile was created
     artifacts_path = tmp_path / session_id / "artifacts"
@@ -109,28 +109,29 @@ def test_e2e_questionnaire_to_result(client, tmp_path, monkeypatch):
     # Step 10: Verify workspace and files were created
     repo_path = tmp_path / session_id / "repo"
     assert repo_path.exists()
-    assert (repo_path / "package.json").exists()
-    assert (repo_path / "index.html").exists()
-    assert (repo_path / "src" / "main.tsx").exists()
-    assert (repo_path / "src" / "App.tsx").exists()
     assert (repo_path / "README.md").exists()
 
-    # Step 11: Get result endpoint
-    response = client.get(f"/sessions/{session_id}/result")
-    assert response.status_code == 200
-    result = response.json()
+    # Step 11: Verify concept and task graph artifacts were created
+    concept_path = artifacts_path / "concept.json"
+    task_graph_path = artifacts_path / "task_graph.json"
+    assert concept_path.exists()
+    assert task_graph_path.exists()
 
-    assert result["session_id"] == session_id
-    assert result["status"] == "success"
-    assert str(tmp_path / session_id) in result["workspace_path"]
-    assert len(result["generated_files"]) > 0
-    assert "package.json" in result["generated_files"]
-    assert "README.md" in result["generated_files"]
-    assert "npm install" in result["run_instructions"]
-    assert "npm run dev" in result["run_instructions"]
-    assert "Session completed successfully" in result["summary"]
-    assert "intent_profile" in result["artifacts"]
-    assert "build_spec" in result["artifacts"]
+    with open(concept_path) as f:
+        concept = json.load(f)
+
+    assert concept["idea_description"]
+    assert concept["features"]
+    assert concept["tech_stack"]
+
+    # Step 12: Get plan summary endpoint
+    response = client.get(f"/sessions/{session_id}/plan")
+    assert response.status_code == 200
+    plan_summary = response.json()
+
+    assert plan_summary["task_count"] > 0
+    assert plan_summary["features"]
+    assert "Stack preset" in " ".join(plan_summary["constraints"])
 
 
 def test_e2e_cli_platform(client, tmp_path, monkeypatch):
@@ -156,22 +157,26 @@ def test_e2e_cli_platform(client, tmp_path, monkeypatch):
         json={"question_id": "q3_complexity", "answer": "simple"},
     )
 
-    assert response.json()["next_phase"] == "COMPLETE"
+    assert response.json()["next_phase"] == "PLAN_REVIEW"
 
-    # Verify CLI files were generated
-    repo_path = tmp_path / session_id / "repo"
-    assert (repo_path / "main.py").exists()
-    assert (repo_path / "requirements.txt").exists()
-    assert (repo_path / "README.md").exists()
+    # Verify BuildSpec target platform was set for CLI
+    artifacts_path = tmp_path / session_id / "artifacts"
+    build_spec_path = artifacts_path / "build_spec.json"
+    assert build_spec_path.exists()
 
-    # Get result
-    response = client.get(f"/sessions/{session_id}/result")
+    with open(build_spec_path) as f:
+        build_spec = json.load(f)
+
+    assert build_spec["target"]["platform"] == "CLI_APP"
+    assert build_spec["stack"]["preset"] == "CLI_PYTHON"
+
+    # Get plan summary
+    response = client.get(f"/sessions/{session_id}/plan")
     assert response.status_code == 200
-    result = response.json()
+    plan_summary = response.json()
 
-    assert "main.py" in result["generated_files"]
-    assert "python main.py" in result["run_instructions"]
-    assert result["status"] == "success"
+    assert plan_summary["task_count"] > 0
+    assert plan_summary["features"]
 
 
 def test_result_endpoint_wrong_phase(client):

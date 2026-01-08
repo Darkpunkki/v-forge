@@ -279,6 +279,12 @@ class SessionCoordinator:
         )
         session.add_log(f"Phase transition: QUESTIONNAIRE → BUILD_SPEC")
 
+        # Persist IntentProfile as artifact
+        workspace_path = self.workspace_manager.workspace_root / session_id
+        artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
+        artifact_store.save_artifact("intent_profile.json", intent_profile)
+        session.add_log("IntentProfile persisted to artifacts/intent_profile.json")
+
         # Update session
         self.session_store.update_session(session)
 
