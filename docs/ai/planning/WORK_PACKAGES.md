@@ -888,7 +888,7 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **VF Tasks:** VF-302
 - **Goal:** Route questionnaire completion through the real BuildSpec → concept → plan flow instead of the mock generator shortcut.
 - **Dependencies:** WP-0018 ✓, WP-0019 ✓, WP-0020 ✓
-- **Plan Doc:** docs/ai/planning/WP-0040_VF-302-302_questionnaire-real-pipeline.md
+- **Plan Doc:** docs/ai/planning/WP-0040_VF-302-302_questionnaire-submission-real-pipeline.md
 - **Verify:**
   - `cd apps/api && pytest tests/test_sessions.py -k questionnaire`
 
@@ -897,7 +897,7 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **VF Tasks:** VF-303
 - **Goal:** Replace mocked plan and progress responses with TaskGraph artifacts and event data with clear empty states.
 - **Dependencies:** WP-0016 ✓, WP-0019 ✓, WP-0021 ✓
-- **Plan Doc:** docs/ai/planning/WP-0041_VF-303-303_taskgraph-plan-progress.md
+- **Plan Doc:** docs/ai/planning/WP-0041_VF-303-303_taskgraph-plan-progress-endpoints.md
 - **Verify:**
   - `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"`
 
@@ -906,7 +906,7 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **VF Tasks:** VF-304
 - **Goal:** Define a documented upgrade path for agent framework stubs and LocalProvider integrations with clear acceptance tests.
 - **Dependencies:** WP-0039 ✓
-- **Plan Doc:** docs/ai/planning/WP-0042_VF-304-304_stub-upgrade-path.md
+- **Plan Doc:** docs/ai/planning/WP-0042_VF-304-304_agent-local-stub-upgrade-path.md
 - **Verify:**
   - `pytest`
 

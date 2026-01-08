@@ -73,6 +73,7 @@ END_ACTIONABLE_TASK_ARRAY
 - VF-162: Transitions fail cleanly when criteria are unmet.
 
 ## Verify
+- Add tests
 - `pytest`
 
 ## Dependencies

@@ -58,6 +58,7 @@ END_ACTIONABLE_TASK_ARRAY
 - VF-167: Resume limitations are explicit and validated by tests or documentation.
 
 ## Verify
+- Add tests
 - `pytest`
 
 ## Dependencies
