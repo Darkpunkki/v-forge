@@ -1,10 +1,17 @@
 """Tests for session endpoints."""
 
+from datetime import datetime, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 
 from vibeforge_api.main import app
 from vibeforge_api.core.session import session_store
+from vibeforge_api.core.artifacts import artifact_store
+from vibeforge_api.core.event_log import Event, EventLog, EventType
+from vibeforge_api.core.workspace import workspace_manager
+from vibeforge_api.models.types import SessionPhase
+from orchestration.models import Task, TaskGraph
 
 client = TestClient(app)
 
@@ -134,6 +141,144 @@ def test_get_progress():
     assert data["session_id"] == session_id
     assert data["phase"] == "QUESTIONNAIRE"
     assert "logs" in data
+
+
+def test_get_plan_summary_from_task_graph():
+    """Plan summary should reflect TaskGraph artifacts."""
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    session = session_store.get_session(session_id)
+    session.update_phase(SessionPhase.PLAN_REVIEW)
+    session.build_spec = {
+        "scopeBudget": {"maxTotalFiles": 12, "maxScreens": 5},
+        "stack": {"preset": "WEB_VITE_REACT_TS"},
+        "target": {"platform": "WEB_APP"},
+    }
+    session_store.update_session(session)
+
+    task_graph = TaskGraph(
+        session_id=session_id,
+        tasks=[
+            Task(
+                task_id="task_001",
+                description="Set up project scaffold",
+                role="worker",
+                dependencies=[],
+                inputs={},
+                expected_outputs=[],
+                verification={"type": "build"},
+                constraints={},
+            ),
+            Task(
+                task_id="task_002",
+                description="Add UI layout",
+                role="worker",
+                dependencies=["task_001"],
+                inputs={},
+                expected_outputs=[],
+                verification={"type": "test"},
+                constraints={},
+            ),
+        ],
+    )
+    artifact_store.save_artifact(session_id, "task_graph.json", task_graph.to_dict())
+
+    response = client.get(f"/sessions/{session_id}/plan")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["task_count"] == 2
+    assert "Set up project scaffold" in data["features"]
+    assert "build" in data["verification_steps"]
+    assert "max files 12" in data["estimated_scope"]
+    assert "Stack preset: WEB_VITE_REACT_TS" in data["constraints"]
+
+
+def test_get_plan_summary_empty_state():
+    """Plan summary should return empty state when no TaskGraph exists."""
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    session = session_store.get_session(session_id)
+    session.update_phase(SessionPhase.PLAN_REVIEW)
+    session_store.update_session(session)
+
+    response = client.get(f"/sessions/{session_id}/plan")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["task_count"] == 0
+    assert data["features"] == []
+    assert "Plan not generated yet." in data["constraints"]
+
+
+def test_get_progress_from_events():
+    """Progress should reflect TaskGraph events."""
+    create_response = client.post("/sessions")
+    session_id = create_response.json()["session_id"]
+
+    task_graph = TaskGraph(
+        session_id=session_id,
+        tasks=[
+            Task(
+                task_id="task_001",
+                description="Bootstrap repo",
+                role="worker",
+                dependencies=[],
+                inputs={},
+                expected_outputs=[],
+                verification={"type": "build"},
+                constraints={},
+            ),
+            Task(
+                task_id="task_002",
+                description="Wire API",
+                role="worker",
+                dependencies=["task_001"],
+                inputs={},
+                expected_outputs=[],
+                verification={"type": "test"},
+                constraints={},
+            ),
+        ],
+    )
+    artifact_store.save_artifact(session_id, "task_graph.json", task_graph.to_dict())
+
+    event_log = EventLog(workspace_manager.workspace_root)
+    now = datetime.now(timezone.utc)
+    event_log.append(
+        Event(
+            event_type=EventType.TASK_STARTED,
+            timestamp=now,
+            session_id=session_id,
+            message="Task started",
+            task_id="task_001",
+        )
+    )
+    event_log.append(
+        Event(
+            event_type=EventType.TASK_COMPLETED,
+            timestamp=now,
+            session_id=session_id,
+            message="Task completed",
+            task_id="task_001",
+        )
+    )
+    event_log.append(
+        Event(
+            event_type=EventType.TASK_STARTED,
+            timestamp=now,
+            session_id=session_id,
+            message="Task started",
+            task_id="task_002",
+        )
+    )
+
+    response = client.get(f"/sessions/{session_id}/progress")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["active_task"]["task_id"] == "task_002"
+    assert len(data["completed_tasks"]) == 1
+    assert data["completed_tasks"][0]["task_id"] == "task_001"
 
 
 def test_session_not_found():

@@ -1189,11 +1189,13 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Files:** `apps/api/vibeforge_api/routers/sessions.py`, `apps/api/vibeforge_api/core/llm_provider.py`, `orchestration/coordinator/session_coordinator.py`, `apps/api/tests/test_sessions.py`
   - Verified via `cd apps/api && pytest tests/test_sessions.py -k questionnaire`.
 
-- [ ] **VF-303 — Replace mocked plan/progress responses with TaskGraph/event data**
+- [x] **VF-303 — Replace mocked plan/progress responses with TaskGraph/event data**
   - Swap the hardcoded plan summary and progress scaffolding in `apps/api/vibeforge_api/routers/sessions.py` with data derived from stored TaskGraph and recent events (no fabricated feature lists or task timelines when not in EXECUTION).
   - **Status:** Planned
   - **Done when:** GET /plan and GET /progress pull from persisted artifacts/event log with sensible empty states; mock data paths removed; coverage added for both endpoints in non-EXECUTION phases.
   - **Verify:** `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"` (extend with new cases for TaskGraph-backed responses).
+  - **Files:** `apps/api/vibeforge_api/routers/sessions.py`, `apps/api/tests/test_sessions.py`
+  - Verified via `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"`.
 
 - [ ] **VF-304 — Define upgrade path for agent/local stubs (LangGraph/CrewAI/AutoGen + LocalProvider)**
   - Turn the stub adapters in `models/agent_framework_stubs.py` and the `LocalProvider` stub in `models/local/provider.py` into explicit upgrade tasks: document intended feature flags, minimum viable integrations, and acceptance tests so they can be scheduled without ambiguity.

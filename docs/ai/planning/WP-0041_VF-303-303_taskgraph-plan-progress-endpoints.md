@@ -1,7 +1,9 @@
 # WP-0041 — TaskGraph-backed plan/progress endpoints
 
 ## Status
-- Queued
+- Done
+  - Completed: 2026-01-08 11:37 (local)
+  - Verified: `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"`
 
 ## Context
 - Chapter(s): 30 MVP/Placeholder Cleanup
@@ -14,11 +16,15 @@
 - Replace mocked plan and progress responses with TaskGraph and event-derived data plus clear empty states.
 
 ## VF Tasks (canonical)
-- [ ] **VF-303 — Replace mocked plan/progress responses with TaskGraph/event data**
+- [x] **VF-303 — Replace mocked plan/progress responses with TaskGraph/event data**
   - Swap the hardcoded plan summary and progress scaffolding in `apps/api/vibeforge_api/routers/sessions.py` with data derived from stored TaskGraph and recent events (no fabricated feature lists or task timelines when not in EXECUTION).
   - **Status:** Planned
   - **Done when:** GET /plan and GET /progress pull from persisted artifacts/event log with sensible empty states; mock data paths removed; coverage added for both endpoints in non-EXECUTION phases.
   - **Verify:** `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"` (extend with new cases for TaskGraph-backed responses).
+  - **Updates:**
+    - `apps/api/vibeforge_api/routers/sessions.py` now builds plan/progress from TaskGraph artifacts and EventLog data with empty-state messaging.
+    - `apps/api/tests/test_sessions.py` adds plan/progress coverage for TaskGraph-backed responses.
+    - Verified with `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"`.
 
 ## Plan
 ### Approach

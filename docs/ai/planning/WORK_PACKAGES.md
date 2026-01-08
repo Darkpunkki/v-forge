@@ -898,13 +898,18 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - Commits: ac3ee8a
 
 ## WP-0041 — TaskGraph-backed plan/progress endpoints
-- **Status:** Queued
+- **Status:** Done
 - **VF Tasks:** VF-303
 - **Goal:** Replace mocked plan and progress responses with TaskGraph artifacts and event data with clear empty states.
 - **Dependencies:** WP-0016 ✓, WP-0019 ✓, WP-0021 ✓
 - **Plan Doc:** docs/ai/planning/WP-0041_VF-303-303_taskgraph-plan-progress-endpoints.md
 - **Verify:**
   - `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"`
+- Started: 2026-01-08 11:33 (local)
+- Branch: work
+- Verified: `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"`
+- Completed: 2026-01-08 11:37 (local)
+- Commits: 3f97ff3
 
 ## WP-0042 — Agent/local stub upgrade path plan
 - **Status:** Queued
