@@ -72,6 +72,7 @@ END_ACTIONABLE_TASK_ARRAY
 - VF-165: Abort transitions are validated by the state machine.
 
 ## Verify
+- Add tests
 - `pytest`
 
 ## Dependencies
