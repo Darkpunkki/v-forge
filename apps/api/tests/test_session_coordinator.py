@@ -205,8 +205,20 @@ class TestSessionCoordinatorEvents:
 
         session_id = coordinator.start_session()
         session = session_store.get_session(session_id)
-        session.build_spec = {"stack": {}}
-        session.concept = {"idea": "demo"}
+        session.build_spec = {
+            "sessionId": session_id,
+            "stack": {"preset": "WEB_VITE_REACT_TS"},
+            "target": {"platform": "WEB_APP"},
+            "ideaSeed": {"complexity": "simple"},
+        }
+        session.concept = {
+            "idea_description": "Demo app concept.",
+            "features": ["Feature A"],
+            "tech_stack": {"framework": "FastAPI"},
+            "file_structure": {"README.md": "Project overview"},
+            "verification_steps": ["pytest"],
+            "constraints": ["Keep scope small."],
+        }
         session.phase = SessionPhase.PLAN_REVIEW
         session_store.update_session(session)
 
