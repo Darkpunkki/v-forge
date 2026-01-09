@@ -1,5 +1,6 @@
 """Data models and types for VibeForge API."""
 
+from models.base import LlmClient, LlmMessage, LlmRequest, LlmResponse, LlmUsage
 from vibeforge_api.models.types import (
     SessionPhase,
     AgentRole,
@@ -25,6 +26,11 @@ __all__ = [
     "AgentRole",
     "GateResult",
     "ErrorResponse",
+    "LlmClient",
+    "LlmMessage",
+    "LlmRequest",
+    "LlmResponse",
+    "LlmUsage",
     "SubmitAnswerRequest",
     "PlanDecisionRequest",
     "ClarificationAnswerRequest",

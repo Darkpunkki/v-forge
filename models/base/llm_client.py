@@ -1,7 +1,7 @@
 """LLM client interface and base types for model abstraction layer."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 
@@ -22,16 +22,16 @@ class LlmRequest:
     temperature: float = 0.7
     max_tokens: Optional[int] = None
     stop_sequences: Optional[list[str]] = None
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class LlmUsage:
     """Token usage information."""
 
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
 
 
 @dataclass
@@ -42,7 +42,7 @@ class LlmResponse:
     model: str
     finish_reason: str  # "stop", "length", "error"
     usage: Optional[LlmUsage] = None
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class LlmClient(ABC):
