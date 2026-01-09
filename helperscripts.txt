@@ -5,6 +5,39 @@ run tests:
     cd .\apps\api\
     pytest -v
 
+run app:
+    Backend (FastAPI)
+
+    cd apps/api
+
+    # Create/activate virtual environment (Windows)
+    python -m venv .venv
+    .venv\Scripts\activate
+
+    # Install dependencies
+    pip install -r requirements.txt
+
+    # Create .env with your OpenAI key
+    echo OPENAI_API_KEY=your_key_here > .env
+
+    # Start the server
+    uvicorn vibeforge_api.main:app --reload --port 8000
+
+    API will be at http://localhost:8000 with docs at http://localhost:8000/docs
+
+    UI (React + Vite)
+
+    cd apps/ui
+
+    # Install dependencies
+    npm install
+
+    # Start dev server
+    npm run dev
+
+    UI will typically run on http://localhost:5173
+    
+
 todooo:
     silleen et input idea.md luodaan jonkun queryn kautta
     esim "5 featurea" päätyy promptiin "the user wants to implement in total [n_of_features] in total. They are [eka] [toka] jne

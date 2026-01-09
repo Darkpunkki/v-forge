@@ -6,7 +6,8 @@ import json
 import os
 from typing import Any, Optional
 
-from models.base import LlmClient, LlmRequest, LlmResponse, LlmUsage
+from ..models import LlmClient, LlmRequest, LlmResponse, LlmUsage
+
 from models.openai import OpenAiProvider
 
 
