@@ -765,6 +765,21 @@ class SessionCoordinator:
         """
         session = self._get_session_or_raise(session_id)
 
+        if session.phase == SessionPhase.CLARIFICATION:
+            if session.pending_clarification and not session.clarification_answer:
+                return {
+                    "status": "needs_clarification",
+                    "clarification": session.pending_clarification,
+                }
+            if session.clarification_answer:
+                self._transition_phase(
+                    session,
+                    SessionPhase.EXECUTION,
+                    "Clarification provided; resuming execution",
+                )
+                session.add_log("Phase transition: CLARIFICATION → EXECUTION")
+                self.session_store.update_session(session)
+
         # Validate phase
         if session.phase != SessionPhase.EXECUTION:
             raise ValueError(
