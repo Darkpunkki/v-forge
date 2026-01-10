@@ -41,3 +41,17 @@ run app:
 todooo:
     silleen et input idea.md luodaan jonkun queryn kautta
     esim "5 featurea" päätyy promptiin "the user wants to implement in total [n_of_features] in total. They are [eka] [toka] jne
+
+    okei nyt siis workflow on tämmönen:
+    - Muodosta idea.md
+    - Idea.md -> Idea normalizer => idea_normalized.md
+    - idea_normalized + (config, ei vielä olemassa) -> concept summarizer => concept_summary.md
+    - idea_normalized + concept_summary.md -> epic extractor => epics.md
+    - concept_summary + epics.md + idea_normalized -> epic validator => (patched epics.md, validation report)
+    - epics.md + concept_summary + idea_normalized + (config, ei vielä olemassa) -> feature extractor => features.md
+    - concept_summary + features.md + idea_normalized -> feature validator => (patched features, validation report)
+    - features.md + concept_summary + idea_normalized -> task builder => tasks.md
+    - tasks.md + concept_summary + idea_normalized -> task validator => (patched tasks tms)
+    - into-WPs
+    - work-WP
+
