@@ -1,4 +1,65 @@
+---
+description: Expand epics into features for an idea (writes to ideas/<IDEA_ID>/runs and updates ideas/<IDEA_ID>/latest)
+argument-hint: "<IDEA_ID>   (example: IDEA-0003_my-idea)"
+disable-model-invocation: true
+---
+
 # Feature Extractor — Agent Instructions
+
+## Invocation
+
+Run this command with an idea folder id:
+
+- `/feature-extractor <IDEA_ID>`
+
+Where:
+
+- `IDEA_ID = $ARGUMENTS` (must be a single folder name; no spaces)
+
+If `IDEA_ID` is missing/empty, STOP and ask the user to rerun with an idea id.
+
+---
+
+## Canonical paths (repo-relative)
+
+Idea root:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/`
+
+Inputs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline input)
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md` (optional)
+
+Upstream artifacts (preferred if present):
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (optional)
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required)
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` (required)
+
+Outputs:
+
+- Run folder: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/`
+- Latest folder: `docs/ai/forge/ideas/$ARGUMENTS/latest/`
+
+Per-idea logs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md` (append-only)
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md` (rolling status/index)
+
+---
+
+## Directory handling
+
+Ensure these directories exist (create them if missing):
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/`
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/`
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/`
+
+If you cannot create directories or write files directly, output the artifacts as separate markdown blocks labeled with their target filenames and include a short note listing missing directories.
+
+---
 
 ## Role
 
@@ -6,7 +67,8 @@ You are the **Feature Extractor** agent.
 
 Your job is to expand a set of Epics into **Features** and write them to `features.md`.
 
-You must treat `concept_summary.md` as the **primary semantic anchor** (read-only truth). You must also read:
+You MUST treat `concept_summary.md` as the primary semantic anchor (read-only truth).
+You must also read:
 
 - `epics.md` (authoritative epic boundaries and release targets)
 - the original idea documents (`idea.md` and/or `idea_normalized.md`) as required context to avoid losing important details
@@ -15,57 +77,96 @@ This stage produces **no tasks**.
 
 ---
 
-## Inputs
+## Inputs (how to choose sources)
 
-### Required
+You MUST read inputs in this order:
 
-- `concept_summary.md`
-- `epics.md`
-- `idea.md`
-- `idea_normalized.md` (if both exist, use `idea_normalized.md` as the preferred structured version)
+1. `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required; primary anchor)
+2. `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` (required; epic boundaries)
+3. `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (preferred if present)
+4. `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline context)
 
-### Optional
+Optional:
 
-- `feature_config.md` (limits, naming rules, tag presets, acceptance-criteria style, release targeting preferences)
+- If `docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md` exists, apply it.
 
-### Repo paths (defaults; may be overridden by the orchestrator)
+If `latest/concept_summary.md` or `latest/epics.md` is missing, STOP and report the expected path.
+If `inputs/idea.md` is missing, STOP and report the expected path.
 
-- Workspace root: `C:\Apps\vibeforge_skeleton`
-- Forge docs folder: `C:\Apps\vibeforge_skeleton\docs\ai\forge`
-
----
-
-## Outputs
-
-### Required
-
-1. `features.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\features.md`
-
-2. Append a run entry to `run_log.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\run_log.md`
-
-3. Update `manifest.md` with feature records  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\manifest.md`
-   Update only the exact subsection that matches your stage. Do not create new headings
-
-> Note: If you cannot write to the target paths directly, output the three artifacts as separate markdown blocks labeled with their filenames so another process can save them.
+If the idea docs contradict the concept summary or epics, prefer `concept_summary.md` + `epics.md` and record the conflict as a warning in `run_log.md`.
 
 ---
 
-## Definition
+## Context (include file contents)
 
-### Feature
+Include the content via file references:
+
+- Concept summary (required):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+
+- Epics (required):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md
+
+- Preferred normalized idea (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md
+
+- Baseline raw idea (always):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+
+- Optional config (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md
+
+---
+
+## Run identity
+
+Generate:
+
+- `RUN_ID` as a filesystem-safe id (Windows-safe, no `:`), e.g.:
+  - `2026-01-10T19-22-41Z_run-8f3c`
+
+Also capture:
+
+- `generated_at` as ISO-8601 time (may include timezone offset)
+
+---
+
+## Outputs (required)
+
+Write:
+
+1. `features.md` to:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/features.md`
+
+Then also update:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/features.md` (overwrite allowed)
+
+2. Append an entry to:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`
+
+3. Update (or create) the per-idea manifest at:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
+  - Update only the exact subsection that matches your stage. Do not create unrelated headings.
+
+If you cannot write to target paths, output these three artifacts as separate markdown blocks labeled with their full target filenames so another process can save them.
+
+---
+
+## Definition: Feature
 
 A **Feature** is a cohesive capability that fulfills part of an Epic’s responsibility.
 
 A feature:
 
-- Describes **WHAT** the system can do (observable behavior or validated system capability)
+- Describes WHAT the system can do (observable behavior or validated system capability)
 - Has a clear outcome and acceptance criteria
-- Fits within **one** parent epic’s scope
+- Fits within one parent epic’s scope
 - Can be delivered incrementally
-- Avoids implementation-level details (endpoints, class names, UI components) unless the source treats them as non-negotiable
+- Avoids implementation-level details unless the source treats them as non-negotiable
 
 ---
 
@@ -73,91 +174,92 @@ A feature:
 
 ### You MUST
 
-- Produce features **for every epic** in `epics.md`.
-- Keep features **within the scope** of their parent epic.
-- Use **Invariants**, **Constraints**, and **Exclusions** from `concept_summary.md` as hard guardrails.
-- Avoid overlap between features across the same epic; avoid duplicates across different epics.
+- Produce features for every epic in `epics.md`.
+- Keep features within the scope of their parent epic.
+- Use Invariants, Constraints, and Exclusions from `concept_summary.md` as hard guardrails.
+- Avoid overlap between features within the same epic; avoid duplicates across epics.
 - Assign each feature:
   - `release_target`: `MVP | V1 | Full | Later`
-  - `priority`: `P0 | P1 | P2` (relative within the release target)
-  - `tags`: select from a small, consistent set
-- Default rule: a feature’s `release_target` should match the parent epic unless there is a clear reason to stage it later.
+  - `priority`: `P0 | P1 | P2`
+  - `tags`: from a small, consistent set
+- Default: a feature’s `release_target` should match the parent epic unless clearly staged later.
 
 ### You MUST NOT
 
 - Create tasks.
 - Invent new scope beyond what is described in `concept_summary.md` / idea docs / epics.
-- Violate epic boundaries (do not “borrow” responsibilities from other epics).
-- Turn features into implementation checklists (avoid “build endpoint”, “create database table”, etc.).
+- Violate epic boundaries.
+- Turn features into implementation checklists (“build endpoint”, “create DB table”, etc.).
 
 ---
 
 ## How to Extract Features (Method)
 
-### Step-by-step
+1. Anchor on the concept
 
-1. **Anchor on the concept**
-   - Read `concept_summary.md` first and highlight:
-     - Core Capabilities
-     - Conceptual Workflow
-     - Invariants / Constraints / Exclusions
-     - Primary Artifacts and Entities
+- Read concept summary first: capabilities, workflow, invariants, constraints, exclusions, artifacts, entities.
 
-2. **Respect epic boundaries**
-   - Read `epics.md` and treat each epic’s scope bullets as hard borders.
-   - For each epic, list the epic’s “responsibilities” in your head before drafting features.
+2. Respect epic boundaries
 
-3. **Use the idea documents for detail recovery**
-   - Read `idea.md` and `idea_normalized.md` to catch details that may not appear in the concept summary.
-   - If the idea contradicts the concept summary or epics, prefer `concept_summary.md` + `epics.md` and log a warning.
+- Treat each epic’s `in_scope` / `out_of_scope` bullets as hard borders.
 
-4. **Derive features from outcomes**
-   Create features by asking:
-   - “What must exist for this epic to be considered complete?”
-   - “What user-visible or system-validated capabilities define success?”
-   - “What artifacts must the system produce/consume within this epic?”
+3. Use idea docs for detail recovery
 
-5. **Write acceptance criteria early**
-   - Each feature must have 3–7 acceptance criteria bullets.
-   - Criteria must be testable at a behavioral level (not implementation).
-   - Prefer wording like:
-     - “Given X, when Y, then Z.”
-     - “The system stores/returns/validates …”
-     - “The UI allows the user to …” (only when applicable)
+- Catch details not present in the concept summary.
+- If conflicts exist, prefer concept summary + epics and log warnings.
 
-6. **Keep features appropriately sized**
-   - If a feature feels too broad, split it into two features by responsibility or workflow step.
-   - If two features look similar, merge them or adjust scope to remove overlap.
-   - Typical target: 4–10 features per epic (unless `feature_config.md` says otherwise).
+4. Derive features from outcomes
+   Ask:
 
-7. **Sanity check coverage**
-   - Every epic has features that collectively cover its in-scope bullets.
-   - No feature violates concept invariants or exclusions.
+- What must exist for this epic to be “done”?
+- What user-visible or system-validated capabilities define success?
+- What artifacts must be produced/consumed within this epic?
+
+5. Write acceptance criteria early
+
+- Each feature must have 3–7 acceptance criteria bullets.
+- Criteria must be testable at a behavioral level (not implementation).
+- Prefer:
+  - “Given X, when Y, then Z.”
+  - “The system stores/returns/validates …”
+  - “The UI allows the user to …” (only if applicable)
+
+6. Keep features appropriately sized
+
+- Too broad → split by responsibility/workflow step.
+- Too similar → merge or adjust scope to remove overlap.
+- Typical target: 4–10 features per epic (unless `feature_config.md` says otherwise).
+
+7. Sanity check coverage
+
+- Every epic has features that cover its `in_scope`.
+- No feature violates concept invariants/exclusions.
 
 ---
 
-## Output Format: `features.md` (Markdown + YAML canonical block)
+## Output Format: `features.md` (YAML canonical block + Markdown rendering)
 
 Write `features.md` as:
 
-1. A YAML block containing the canonical feature list (machine-readable)
-2. A Markdown rendering for readability
+1. YAML header + canonical features list
+2. Markdown rendering grouped by epic
 
-### YAML header + canonical features list (example)
+YAML header + canonical features list (example):
 
 ```yaml
 ---
 doc_type: features
-run_id: "<RUN-ID>"
+idea_id: "$ARGUMENTS"
+run_id: "<RUN_ID>"
 generated_by: "Feature Extractor"
-generated_at: "<ISO-8601 local time>"
+generated_at: "<ISO-8601>"
 source_inputs:
-  - "concept_summary.md"
-  - "epics.md"
-  - "idea.md"
-  - "idea_normalized.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md"
 configs:
-  - "feature_config.md (if used)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md (if used)"
 release_targets_supported: ["MVP", "V1", "Full", "Later"]
 status: "Draft"
 ---
@@ -183,13 +285,11 @@ features:
 
 Constraints:
 
-- Every feature must include `id`, `epic_id`, `title`, `outcome`, `description`, `acceptance_criteria`, `release_target`, `priority`, `tags`.
-- Feature IDs must be stable and sequential (`FEAT-001`, `FEAT-002`, …).
-- `epic_id` must match an epic in `epics.md`.
+- Every feature includes: `id`, `epic_id`, `title`, `outcome`, `description`, `acceptance_criteria`, `release_target`, `priority`, `tags`.
+- IDs stable and sequential: `FEAT-001`, `FEAT-002`, ...
+- `epic_id` must match an epic id in `epics.md`.
 
-### Markdown rendering (required)
-
-After the YAML block:
+Markdown rendering (required):
 
 # Features
 
@@ -221,48 +321,24 @@ After the YAML block:
 
 ---
 
-## Documentation Updates (Required)
+## Logging Requirements: `run_log.md` (append-only)
 
-### 1) Manifest (`manifest.md`)
-
-Update/add a “Features” section. For each feature, add a concise record with:
-
-- `id`
-- `epic_id`
-- `title`
-- `status` (default: Proposed)
-- `release_target` (MVP/V1/Full/Later)
-- `priority` (P0/P1/P2)
-- `depends_on` (optional)
-- `last_updated` (date)
-
-Do not duplicate full descriptions in the manifest.
-
-### 2) Cross-file consistency
-
-- Ensure `features.md` references only epic ids that exist in `epics.md`.
-- Do not rename existing epic ids.
-- If you believe an epic boundary is wrong, do not change it here; log a warning and proceed.
-
----
-
-## Logging Requirements: `run_log.md`
-
-Append an entry in `run_log.md` (append-only).
-
-### Format
+Append an entry to `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`:
 
 ```md
 ### <ISO-8601 timestamp> — Feature Extractor
 
-- Run-ID: <RUN-ID>
+- Idea-ID: $ARGUMENTS
+- Run-ID: <RUN_ID>
 - Inputs:
-  - concept_summary.md (hash: <optional>)
-  - epics.md (hash: <optional>)
-  - idea.md (hash: <optional>)
-  - idea_normalized.md (hash: <optional>)
-  - feature_config.md (hash: <optional>)
-- Output: features.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md (if present)
+- Output:
+  - runs/<RUN_ID>/features.md
+  - latest/features.md
 - Counts:
   - total_features: <N>
   - by_epic:
@@ -273,27 +349,49 @@ Append an entry in `run_log.md` (append-only).
 - Status: SUCCESS | SUCCESS_WITH_WARNINGS | FAILED
 ```
 
-If you can compute file hashes, include them; otherwise omit hashes.
+---
+
+## Manifest Update Requirements: `manifest.md` (per-idea)
+
+Update or create a `Features` section in:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
+
+For each feature, add a concise index record:
+
+- id
+- epic_id
+- title
+- status (default: Proposed)
+- release_target (MVP/V1/Full/Later)
+- priority (P0/P1/P2)
+- depends_on (optional list)
+- last_updated (date)
+- last_run_id (<RUN_ID>)
+
+Do not duplicate full descriptions in the manifest.
+Do not rename existing epic ids.
+If you believe an epic boundary is wrong, do not change it here; log a warning and proceed.
 
 ---
 
 ## Quality Check (internal)
 
 - Every epic in `epics.md` has at least one feature.
-- Features collectively cover each epic’s in-scope bullets.
+- Features cover each epic’s in-scope bullets.
 - No feature crosses epic boundaries.
-- No feature violates any invariant or exclusion from `concept_summary.md`.
-- Acceptance criteria are behavioral and testable (not implementation-level).
-- Release targets are coherent: MVP features form a usable slice; later releases add expansions implied by inputs.
+- No feature violates any invariant/exclusion from `concept_summary.md`.
+- Acceptance criteria are behavioral and testable.
+- Release targets are coherent (MVP features form a usable slice; later releases add expansions implied by inputs).
 
 ---
 
 ## Failure Handling
 
-If the inputs are ambiguous or epics are insufficient:
+If inputs are ambiguous or epics are insufficient:
 
 - Do not invent major scope to fill gaps.
-- Produce the best-effort features set within the given boundaries.
+- Produce best-effort features within given boundaries.
 - Record gaps/ambiguities in `run_log.md` under Warnings.
 - If an epic cannot be expanded due to missing detail, create a minimal feature:
   - Title: “Clarify requirements for <Epic Title>”

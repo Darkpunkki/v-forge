@@ -1,4 +1,68 @@
+---
+description: Validate features.md for an idea against concept_summary.md and epics.md (writes report to ideas/<IDEA_ID>/runs and updates ideas/<IDEA_ID>/latest; optional patch if allowed)
+argument-hint: "<IDEA_ID>   (example: IDEA-0003_my-idea)"
+disable-model-invocation: true
+---
+
 # Feature Validator — Agent Instructions
+
+## Invocation
+
+Run this command with an idea folder id:
+
+- `/validate-features <IDEA_ID>`
+
+Where:
+
+- `IDEA_ID = $ARGUMENTS` (must be a single folder name; no spaces)
+
+If `IDEA_ID` is missing/empty, STOP and ask the user to rerun with an idea id.
+
+---
+
+## Canonical paths (repo-relative)
+
+Idea root:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/`
+
+Inputs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline input)
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md` (optional)
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md` (optional)
+- Prior report (optional): `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/feature_validation_report.md`
+
+Upstream artifacts (required unless noted):
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required; anchor)
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` (required; boundaries)
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/features.md` (required; subject)
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (optional; preferred structured context)
+
+Outputs:
+
+- Run folder: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/validators/`
+- Latest folder: `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/`
+
+Per-idea logs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md` (append-only)
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md` (rolling status/index)
+
+---
+
+## Directory handling
+
+Ensure these directories exist (create them if missing):
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/`
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/`
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/validators/`
+
+If you cannot create directories or write files directly, output artifacts as separate markdown blocks labeled with their target filenames and include a short note listing missing directories.
+
+---
 
 ## Role
 
@@ -10,79 +74,125 @@ Your job is to validate `features.md` against:
 - `epics.md` (epic boundaries and release targets)
 - `idea.md` and `idea_normalized.md` (supporting context)
 
-You produce a **validation report** and, optionally, a **patched features file** (only if explicitly allowed by configuration).
+You produce:
 
-This stage does **not** create new scope. It detects and repairs structure issues such as missing coverage, cross-epic leakage, duplicates, weak acceptance criteria, and inconsistent metadata.
+- a validation report
+- optionally a patched features file (only if explicitly allowed)
+
+This stage does NOT create new scope. It detects and repairs structure issues such as missing coverage, cross-epic leakage, duplicates, weak acceptance criteria, and inconsistent metadata.
 
 ---
 
-## Inputs
+## Inputs (how to choose sources)
 
-### Required
+You MUST read inputs in this order:
 
-- `concept_summary.md`
-- `epics.md`
-- `features.md`
-- `idea.md`
-- `idea_normalized.md` (if present; preferred structured context)
+1. `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required; anchor)
+2. `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` (required; epic boundaries)
+3. `docs/ai/forge/ideas/$ARGUMENTS/latest/features.md` (required; subject)
+4. `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (preferred if present)
+5. `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline context)
 
-### Optional
+Optional:
 
-- `feature_config.md` (limits, naming rules, tag presets, acceptance-criteria style)
-- `validator_config.md` (validator behavior flags; e.g., allow_patch, strictness)
-- Prior `feature_validation_report.md` (if iterative runs exist)
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md`
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md`
+- prior report at `latest/validators/feature_validation_report.md` (if present)
 
-### Repo paths (defaults; may be overridden by the orchestrator)
+If required files are missing, STOP and report expected paths.
 
-- Workspace root: `C:\Apps\vibeforge_skeleton`
-- Forge docs folder: `C:\Apps\vibeforge_skeleton\docs\ai\forge`
+---
+
+## Context (include file contents)
+
+Include content via file references:
+
+- Concept summary (required):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+
+- Epics (required):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md
+
+- Features (required):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/features.md
+
+- Preferred normalized idea (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md
+
+- Baseline raw idea (always):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+
+- Optional configs (only if they exist):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md
+
+- Prior report (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/validators/feature_validation_report.md
+
+---
+
+## Run identity
+
+Generate:
+
+- `RUN_ID` as a filesystem-safe id (Windows-safe, no `:`), e.g.:
+  - `2026-01-10T19-22-41Z_run-8f3c`
+
+Also capture:
+
+- `generated_at` as ISO-8601 time (may include timezone offset)
 
 ---
 
 ## Outputs
 
-### Required
+### Required outputs
 
-1. `feature_validation_report.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\feature_validation_report.md`
+1. Validation report:
 
-2. Append a run entry to `run_log.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\run_log.md`
+- Write to: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/validators/feature_validation_report.md`
+- Also update: `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/feature_validation_report.md` (overwrite allowed)
 
-3. Update `manifest.md` with validation metadata  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\manifest.md`
-   Update only the exact subsection that matches your stage. Do not create new headings
+2. Append a run entry to:
 
-### Optional
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`
 
-4. `features.patched.md` (only if patching is allowed)  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\features.patched.md`
+3. Update `docs/ai/forge/ideas/$ARGUMENTS/manifest.md` with validation metadata
 
-> Note: If you cannot write to the target paths directly, output artifacts as separate markdown blocks labeled with filenames so another process can save them.
+- Update only the exact subsection that matches your stage. Do not create unrelated headings.
+
+### Optional output (only if patching is allowed)
+
+4. Patched features file:
+
+- Write to: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/validators/features.patched.md`
+- Also update: `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/features.patched.md` (overwrite allowed)
+
+If patching is not allowed, do NOT output `features.patched.md`. Instead include a “Proposed Patch” section inside the report.
 
 ---
 
 ## Definitions
 
-### Coverage Gap (Epic-level)
+Coverage Gap (Epic-level):
 
-An epic’s in-scope responsibilities (from `epics.md`) are not sufficiently represented by features assigned to that epic.
+- An epic’s in-scope responsibilities are not sufficiently represented by features assigned to that epic.
 
-### Cross-Epic Leakage
+Cross-Epic Leakage:
 
-A feature assigned to EPIC-A contains responsibilities that belong to EPIC-B (violates epic boundaries).
+- A feature assigned to EPIC-A contains responsibilities that belong to EPIC-B.
 
-### Duplicate Feature
+Duplicate Feature:
 
-Two features are effectively the same (similar title/outcome/acceptance criteria), either within one epic or across epics.
+- Two features are effectively the same (similar title/outcome/acceptance criteria), within or across epics.
 
-### Weak Acceptance Criteria
+Weak Acceptance Criteria:
 
-Feature acceptance criteria are non-testable, vague, or implementation-checklist style (e.g., “Add UI”, “Implement backend”).
+- Non-testable, vague, or implementation-checklist style criteria.
 
-### Metadata Defect
+Metadata Defect:
 
-Missing or inconsistent fields: id sequence, epic_id references, release_target, priority, tags, dependencies.
+- Missing/inconsistent fields: id sequence, epic_id references, release_target, priority, tags, dependencies.
 
 ---
 
@@ -92,11 +202,11 @@ Missing or inconsistent fields: id sequence, epic_id references, release_target,
 
 - Validate features against `concept_summary.md` and `epics.md`.
 - Verify the feature set is:
-  - **Complete per epic** (covers each epic’s in-scope bullets)
-  - **Boundary-correct** (features stay within their epic)
-  - **Non-duplicative** (minimal overlap)
-  - **Consistent** (metadata and IDs)
-  - **Aligned** (does not violate invariants/exclusions)
+  - Complete per epic (covers epic in-scope bullets)
+  - Boundary-correct (features stay within their epic)
+  - Non-duplicative (minimal overlap)
+  - Consistent (metadata and IDs)
+  - Aligned (does not violate invariants/exclusions)
 - Produce actionable findings with concrete recommended fixes.
 - Prefer minimal changes that preserve the author’s intent.
 
@@ -104,94 +214,100 @@ Missing or inconsistent fields: id sequence, epic_id references, release_target,
 
 - Introduce new product scope beyond concept/idea.
 - Rewrite epics or concept summary.
-- Convert features into tasks (tasks belong to Task Builder stage).
-- Guess missing requirements; record uncertainties instead.
+- Convert features into tasks.
+- Guess missing requirements; record uncertainties.
 
 ---
 
 ## How to Validate (Method)
 
-### Step-by-step
+1. Parse anchors (do not output scratch)
 
-1. **Parse anchors**
-   - From `concept_summary.md`: capabilities, workflow, invariants, exclusions, artifacts.
-   - From `epics.md`: epic boundaries, in_scope/out_of_scope, release targets.
+- From `concept_summary.md`: capabilities, workflow, invariants, exclusions, artifacts.
+- From `epics.md`: boundaries, in_scope/out_of_scope, release targets.
 
-2. **Parse features.md canonical YAML**
-   - Ensure YAML exists and is parseable.
-   - Ensure each feature has required fields.
-   - Ensure each `epic_id` exists in `epics.md`.
+2. Parse features.md canonical YAML
 
-3. **Epic coverage check**
+- YAML exists and is parseable.
+- Each feature has required fields.
+- Each `epic_id` exists in `epics.md`.
+
+3. Epic coverage check
    For each epic:
-   - Map epic in_scope bullets to features under that epic.
-   - Flag missing responsibility areas as gaps.
-   - Flag features that don’t map to any epic in_scope bullet as suspicious (possible leakage or noise).
 
-4. **Boundary check (leakage)**
-   - Compare feature descriptions against epic boundaries.
-   - If a feature touches another epic’s scope, propose moving it or splitting it.
+- Map epic in_scope bullets → features under that epic.
+- Flag missing areas as gaps.
+- Flag features that do not map to any epic in_scope bullet as suspicious (leakage/noise).
 
-5. **Acceptance criteria quality**
-   - Ensure each feature has 3–7 criteria (unless feature_config says otherwise).
-   - Criteria should be behavioral/testable.
-   - Flag criteria that are:
-     - purely implementation-level
-     - ambiguous (“works”, “nice UI”, “fast”)
-     - missing constraints from the concept
+4. Boundary check (leakage)
 
-6. **Invariant/exclusion check**
-   - If any feature contradicts concept invariants/exclusions, mark as Critical.
+- Compare feature descriptions/scope against epic boundaries.
+- If a feature touches another epic’s scope, propose moving or splitting.
 
-7. **Release sanity**
-   - Default feature release target should match epic release target unless a reason exists.
-   - MVP should form a coherent usable slice (as implied by epics/concept).
+5. Acceptance criteria quality
 
-8. **Patching decision**
-   - Only produce `features.patched.md` if patching is allowed.
-   - Otherwise, include “Proposed Patch” with explicit edits.
+- 3–7 criteria per feature (unless feature_config says otherwise).
+- Criteria must be behavioral/testable.
+- Flag:
+  - implementation-only checklists
+  - ambiguous words (“works”, “nice UI”, “fast”) without measurable constraints
+  - missing concept constraints where relevant
+
+6. Invariant/exclusion check
+
+- Any contradiction → Critical.
+
+7. Release sanity
+
+- Default: feature release target matches epic release target unless reason exists.
+- MVP set forms usable slice.
+
+8. Patching decision
+
+- Only produce `features.patched.md` if allow_patch is explicitly enabled.
 
 ---
 
-## Patching Policy (Important)
+## Patching Policy
 
-Patching is controlled by configuration:
+Controlled by `validator_config.md`:
 
-- If `validator_config.md` contains `allow_patch: true`, you may generate `features.patched.md`.
-- If patching is not explicitly allowed, do **not** alter features; only propose fixes in the report.
+- If it contains `allow_patch: true`, you MAY generate `features.patched.md`.
+- Otherwise, do NOT patch; include explicit edits in “Proposed Patch”.
 
 Even when patching is allowed:
 
-- Preserve feature IDs (do not renumber unless required to fix sequence defects).
-- Prefer minimal edits (move/adjust bullets and metadata; avoid rewriting descriptions unless necessary).
-- Do not add new features unless needed to fix a **coverage gap**; if you must add, mark it clearly and keep it minimal.
+- Preserve feature IDs (do not renumber unless fixing sequence defects).
+- Prefer minimal edits (move/adjust scope and metadata).
+- Do not add new features unless needed to fix a clear coverage gap; if added, keep minimal and mark clearly.
 
 ---
 
 ## Output Format: feature_validation_report.md (Markdown + YAML header)
 
-### YAML header (example)
+YAML header (example):
 
 ```yaml
 ---
 doc_type: feature_validation_report
-run_id: "<RUN-ID>"
+idea_id: "$ARGUMENTS"
+run_id: "<RUN_ID>"
 generated_by: "Feature Validator"
-generated_at: "<ISO-8601 local time>"
+generated_at: "<ISO-8601>"
 source_inputs:
-  - "concept_summary.md"
-  - "epics.md"
-  - "features.md"
-  - "idea.md"
-  - "idea_normalized.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/features.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md"
 configs:
-  - "validator_config.md (if used)"
-  - "feature_config.md (if used)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md (if used)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/feature_config.md (if used)"
 status: "Draft"
 ---
 ```
 
-### Required sections
+Required sections:
 
 # Feature Validation Report
 
@@ -227,7 +343,7 @@ For each issue:
 - Assigned epic: EPIC-...
 - Suspected correct epic: EPIC-...
 - Evidence: <short explanation>
-- Recommended fix: <move / split / adjust scope bullets>
+- Recommended fix: <explicit edit>
 
 ## Duplicate & Overlap Issues
 
@@ -271,33 +387,36 @@ Provide explicit edits:
 
 ---
 
-## Optional Output: features.patched.md
+## Optional Output: features.patched.md (only if allowed)
 
-If patching is allowed, output `features.patched.md` as a full replacement file:
+If produced:
 
-- Preserve original format (YAML block + Markdown rendering)
-- Apply only minimal changes identified in the report
+- Preserve original format (YAML + Markdown rendering)
+- Apply only minimal changes identified in report
 
 ---
 
-## Logging Requirements: run_log.md
+## Logging Requirements: run_log.md (append-only)
 
-Append an entry:
+Append an entry to `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`:
 
 ```md
 ### <ISO-8601 timestamp> — Feature Validator
 
-- Run-ID: <RUN-ID>
+- Idea-ID: $ARGUMENTS
+- Run-ID: <RUN_ID>
 - Inputs:
-  - concept_summary.md (hash: <optional>)
-  - epics.md (hash: <optional>)
-  - features.md (hash: <optional>)
-  - idea.md (hash: <optional>)
-  - idea_normalized.md (hash: <optional>)
-  - validator_config.md (hash: <optional>)
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/features.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md (if present)
 - Outputs:
-  - feature_validation_report.md
-  - features.patched.md (only if produced)
+  - runs/<RUN_ID>/validators/feature_validation_report.md
+  - latest/validators/feature_validation_report.md
+  - runs/<RUN_ID>/validators/features.patched.md (only if produced)
+  - latest/validators/features.patched.md (only if produced)
 - Verdict: PASS | PASS_WITH_WARNINGS | FAIL
 - Critical issues: <n>
 - Warnings: <n>
@@ -306,29 +425,24 @@ Append an entry:
 
 ---
 
-## Documentation Updates (Required)
+## Manifest Updates (per-idea)
 
-### Manifest (manifest.md)
+Update or create a `Validation` section in:
 
-Update or create a “Validation” section entry for this run:
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
+
+Add an entry for this run:
 
 - validator: Feature Validator
-- run_id
-- verdict
-- report_file: feature_validation_report.md
-- patched_file: features.patched.md (if produced)
-- last_updated
+- run_id: <RUN_ID>
+- verdict: PASS|WARN|FAIL
+- report_file: latest/validators/feature_validation_report.md
+- patched_file: latest/validators/features.patched.md (if produced)
+- last_updated: <YYYY-MM-DD>
 
-Optionally set `validation_status` on feature records if the manifest stores per-item validation metadata.
+Optional:
 
----
-
-## Quality Check (internal)
-
-- Findings are concrete and actionable.
-- No new scope is introduced beyond fixing gaps that clearly exist in epics/concept.
-- Recommendations preserve epic boundaries and concept invariants/exclusions.
-- If patching is performed, changes match the report and remain minimal.
+- If the manifest stores per-feature records, you may set `validation_status: PASS|WARN|FAIL` per feature.
 
 ---
 
@@ -337,8 +451,10 @@ Optionally set `validation_status` on feature records if the manifest stores per
 If `features.md` YAML is malformed:
 
 - Verdict = FAIL
-- Explain the parse issue in Required-Field Checks.
-- Provide a minimal corrected YAML skeleton in Proposed Patch (do not invent feature content).
-  If `epics.md` is missing or inconsistent:
+- Explain parse issue
+- Provide a minimal corrected YAML skeleton in Proposed Patch (do not invent feature content)
+
+If `epics.md` is missing or inconsistent:
+
 - Validate what you can (IDs, invariants, duplicates).
 - Record missing epic anchor context as Critical or Warnings depending on severity.

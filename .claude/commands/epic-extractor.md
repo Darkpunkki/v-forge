@@ -1,4 +1,64 @@
+---
+description: Extract 6–12 epics for an idea using concept_summary.md as the semantic anchor (writes to ideas/<IDEA_ID>/runs and updates ideas/<IDEA_ID>/latest)
+argument-hint: "<IDEA_ID>   (example: IDEA-0003_my-idea)"
+disable-model-invocation: true
+---
+
 # Epic Extractor — Agent Instructions
+
+## Invocation
+
+Run this command with an idea folder id:
+
+- `/epic-extractor <IDEA_ID>`
+
+Where:
+
+- `IDEA_ID = $ARGUMENTS` (must be a single folder name; no spaces)
+
+If `IDEA_ID` is missing/empty, STOP and ask the user to rerun with an idea id.
+
+---
+
+## Canonical paths (repo-relative)
+
+Idea root:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/`
+
+Inputs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline input)
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/epic_config.md` (optional)
+
+Upstream artifacts (preferred if present):
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (optional)
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required)
+
+Outputs:
+
+- Run folder: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/`
+- Latest folder: `docs/ai/forge/ideas/$ARGUMENTS/latest/`
+
+Per-idea logs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md` (append-only)
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md` (rolling status/index)
+
+---
+
+## Directory handling
+
+Ensure these directories exist (create them if missing):
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/`
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/`
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/`
+
+If you cannot create directories or write files directly, output the artifacts as separate markdown blocks labeled with their target filenames and include a short note listing missing directories.
+
+---
 
 ## Role
 
@@ -6,52 +66,89 @@ You are the **Epic Extractor** agent.
 
 Your job is to generate a high-level backlog skeleton consisting of **Epics only** and write it to `epics.md`.
 
-You must treat `concept_summary.md` as the **primary semantic anchor** (read-only truth). You must also read the original idea document (`idea.md` and/or `idea_normalized.md`) as required context to avoid losing important details.
+You MUST treat `concept_summary.md` as the **primary semantic anchor** (read-only truth).
+You must also read the original idea document (`idea.md` and/or `idea_normalized.md`) as required context to avoid losing important details.
 
-This stage produces **no features** and **no tasks**. These will be produced at a later stage based on the epics created by this command.
-
----
-
-## Inputs
-
-### Required
-
-- `concept_summary.md`
-- `idea.md`
-- `idea_normalized.md` (if both exist, use `idea_normalized.md` as the preferred structured version)
-
-### Optional
-
-- `epic_config.md` (limits, naming rules, tag presets, release targeting preferences)
-
-### Repo paths (defaults; may be overridden by the orchestrator)
-
-- Workspace root: `C:\Apps\vibeforge_skeleton`
-- Forge docs folder: `C:\Apps\vibeforge_skeleton\docs\ai\forge`
+This stage produces **no features** and **no tasks**.
 
 ---
 
-## Outputs
+## Inputs (how to choose sources)
 
-### Required
+You MUST read inputs in this order:
 
-1. `epics.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\epics.md`
+1. `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required; primary anchor)
+2. `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (preferred if present)
+3. `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline context)
 
-2. Append a run entry to `run_log.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\run_log.md`
+Optional:
 
-3. Update `manifest.md` with epic records  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\manifest.md`
-   Update only the exact subsection that matches your stage. Do not create new headings
+- If `docs/ai/forge/ideas/$ARGUMENTS/inputs/epic_config.md` exists, apply it.
 
-> Note: If you cannot write to the target paths directly, output the three artifacts as separate markdown blocks labeled with their filenames so another process can save them.
+If `latest/concept_summary.md` is missing, STOP and report the expected path.
+If `inputs/idea.md` is missing, STOP and report the expected path.
+
+If the idea docs contradict the concept summary, prefer the concept summary and record the conflict as a warning in `run_log.md`.
 
 ---
 
-## Definition
+## Context (include file contents)
 
-### Epic
+Include the content via file references:
+
+- Concept summary (required):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+
+- Preferred normalized idea (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md
+
+- Baseline raw idea (always):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+
+- Optional config (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/epic_config.md
+
+---
+
+## Run identity
+
+Generate:
+
+- `RUN_ID` as a filesystem-safe id (Windows-safe, no `:`), e.g.:
+  - `2026-01-10T19-22-41Z_run-8f3c`
+
+Also capture:
+
+- `generated_at` as ISO-8601 time (may include timezone offset)
+
+---
+
+## Outputs (required)
+
+Write:
+
+1. `epics.md` to:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/epics.md`
+
+Then also update:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` (overwrite allowed)
+
+2. Append an entry to:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`
+
+3. Update (or create) the per-idea manifest at:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
+  - Update only the exact subsection that matches your stage. Do not create unrelated headings.
+
+If you cannot write to target paths, output these three artifacts as separate markdown blocks labeled with their full target filenames so another process can save them.
+
+---
+
+## Definition: Epic
 
 An **Epic** is a major deliverable representing a **subsystem**, **responsibility area**, or **lifecycle phase** that:
 
@@ -60,7 +157,7 @@ An **Epic** is a major deliverable representing a **subsystem**, **responsibilit
 - Can be planned, owned, and tracked independently
 - Helps structure releases (MVP → V1 → Full → Later)
 
-Epics should describe **what outcome exists when the epic is done**, not how it is implemented.
+Epics describe **what outcome exists when the epic is done**, not how it is implemented.
 
 ---
 
@@ -70,10 +167,10 @@ Epics should describe **what outcome exists when the epic is done**, not how it 
 
 - Produce **6–12 epics** that collectively cover the system described in `concept_summary.md`.
 - Keep epics **distinct** and **minimally overlapping**.
-- Use the **Invariants**, **Constraints**, and **Exclusions** from `concept_summary.md` as hard guardrails.
+- Use **Invariants**, **Constraints**, and **Exclusions** from `concept_summary.md` as hard guardrails.
 - Assign each epic:
   - `release_target`: `MVP | V1 | Full | Later`
-  - `priority`: `P0 | P1 | P2` (relative importance within the release target)
+  - `priority`: `P0 | P1 | P2`
   - `tags`: select from a small, consistent set
 
 ### You MUST NOT
@@ -87,67 +184,69 @@ Epics should describe **what outcome exists when the epic is done**, not how it 
 
 ## How to Extract Epics (Method)
 
-Use this method to avoid overlap and ensure full coverage.
+1. Read `concept_summary.md` first
 
-### Step-by-step
+- Treat it as authoritative for intent and boundaries.
+- Pay special attention to: Core Capabilities, Conceptual Workflow, Invariants, Key Constraints, Primary Artifacts, Key Entities.
 
-1. **Read `concept_summary.md` first**
-   - Treat it as the authoritative definition of intent and boundaries.
-   - Highlight: _Core Capabilities_, _Conceptual Workflow_, _Invariants_, _Key Constraints_, _Primary Artifacts_, _Key Entities_.
+2. Use `idea.md` / `idea_normalized.md` to recover missing detail
 
-2. **Use `idea.md` / `idea_normalized.md` to recover missing detail**
-   - Only to clarify or disambiguate—not to expand scope.
-   - If the idea contradicts the concept summary, prefer the concept summary and note the conflict in the run log warnings.
+- Clarify/disambiguate only; do not expand scope.
+- If conflicts exist, prefer concept summary and record warnings.
 
-3. **Create candidate epic buckets**
-   Use one or more of these decompositions (choose what fits the concept):
-   - **Architecture layers** (e.g., UI, orchestration backend, persistence, integration adapters)
-   - **Workflow phases** (e.g., intake → planning → execution → delivery)
-   - **Responsibility domains** (e.g., validation, configuration, observability)
-   - **Artifact ownership** (who produces and stores specs, plans, graphs, outputs)
+3. Create candidate epic buckets
+   Choose a decomposition that fits the concept:
 
-4. **Merge and split until epics are “just right”**
-   - If an epic feels too broad: split by responsibility boundary or workflow phase.
-   - If two epics overlap: move scope bullets so each responsibility belongs to exactly one epic.
-   - If you have fewer than 6 epics: you are likely under-modeling the system.
-   - If you have more than 12: merge adjacent areas with shared ownership.
+- Architecture responsibilities (not layers): orchestration, artifact store, validation, observability, config, provider adapters, UI (if present)
+- Workflow phases: intake → planning → execution → delivery
+- Responsibility domains: policy/validation, configuration, audit/logging, integrations
+- Artifact ownership: who produces/stores which canonical artifacts
 
-5. **Map epics to releases**
-   - MVP epics should form a coherent “first usable system” consistent with the concept summary.
-   - V1/Full/Later should represent expansions explicitly implied by the inputs (not invented).
+4. Merge/split until “just right”
 
-6. **Write clear scope bullets**
-   - Each epic must have `in_scope` and `out_of_scope` bullets to prevent overlap.
-   - Use exclusions from the concept summary where relevant.
+- Too broad → split by responsibility boundary or workflow phase.
+- Overlap → move scope bullets so each responsibility belongs to exactly one epic.
+- <6 epics → likely under-modeled; >12 → likely over-split; merge adjacent responsibilities.
 
-7. **Sanity check**
-   - Every core capability maps to at least one epic.
-   - Every invariant is respected (nothing in epics violates it).
-   - No epic is merely “Backend” or “Frontend” without a specific responsibility.
+5. Map epics to releases
+
+- MVP epics should form a coherent “first usable system”.
+- V1/Full/Later should reflect explicit implications from inputs (not invented).
+
+6. Write clear scope bullets
+
+- Each epic must have `in_scope` and `out_of_scope` bullets to prevent overlap.
+
+7. Sanity check
+
+- Every core capability maps to at least one epic.
+- No epic violates any invariant/exclusion.
+- No epic is merely “Backend” or “Frontend” without a specific responsibility.
 
 ---
 
-## Output Format: `epics.md` (Markdown + YAML canonical block)
+## Output Format: `epics.md` (YAML canonical block + Markdown rendering)
 
 Write `epics.md` as:
 
-1. A YAML block containing the canonical epic list (machine-readable)
-2. A Markdown rendering for readability
+1. A YAML header + canonical epic list (machine-readable)
+2. A Markdown rendering (human-readable)
 
-### YAML header + canonical epics list (example)
+YAML header + canonical epics list (example):
 
 ```yaml
 ---
 doc_type: epics
-run_id: "<RUN-ID>"
+idea_id: "$ARGUMENTS"
+run_id: "<RUN_ID>"
 generated_by: "Epic Extractor"
-generated_at: "<ISO-8601 local time>"
+generated_at: "<ISO-8601>"
 source_inputs:
-  - "concept_summary.md"
-  - "idea.md"
-  - "idea_normalized.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md"
 configs:
-  - "epic_config.md (if used)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/epic_config.md (if used)"
 release_targets_supported: ["MVP", "V1", "Full", "Later"]
 status: "Draft"
 ---
@@ -172,12 +271,10 @@ epics:
 Constraints:
 
 - 6–12 epics
-- IDs must be stable and sequential (`EPIC-001`, `EPIC-002`, …)
-- If dependencies are unknown, omit them or leave as an empty list
+- IDs stable and sequential: `EPIC-001`, `EPIC-002`, ...
+- If dependencies are unknown, omit them or use an empty list
 
-### Markdown rendering (required)
-
-After the YAML block:
+Markdown rendering (required):
 
 # Project Epics
 
@@ -207,48 +304,23 @@ After the YAML block:
 
 ---
 
-## Examples (Patterns)
+## Logging Requirements: `run_log.md` (append-only)
 
-These are _format examples_, not additional requirements.
-
-### Example A — Epic boundary by responsibility
-
-- EPIC: “Agent Orchestration Engine”
-  - In scope: workflow state, agent lifecycle, routing, coordination
-  - Out of scope: UI pages, specific provider API details
-
-### Example B — Avoiding overlap
-
-If you have “Validation Pipeline” and “Review Agents”:
-
-- Put “policy rules, gating, pass/fail criteria, reports” in Validation
-- Put “role behavior and interactions for reviewer agents” in Agents
-  (Do not duplicate “validation rules” in both.)
-
-### Example C — Release targeting
-
-- MVP: essential execution path exists end-to-end
-- V1: robustness improvements (more controls, stronger checks)
-- Full/Later: major expansions explicitly implied by inputs
-
----
-
-## Logging Requirements: `run_log.md`
-
-Append an entry in `run_log.md` (append-only).
-
-### Format
+Append an entry to `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`:
 
 ```md
 ### <ISO-8601 timestamp> — Epic Extractor
 
-- Run-ID: <RUN-ID>
+- Idea-ID: $ARGUMENTS
+- Run-ID: <RUN_ID>
 - Inputs:
-  - concept_summary.md (hash: <optional>)
-  - idea.md (hash: <optional>)
-  - idea_normalized.md (hash: <optional>)
-  - epic_config.md (hash: <optional>)
-- Output: epics.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/epic_config.md (if present)
+- Output:
+  - runs/<RUN_ID>/epics.md
+  - latest/epics.md
 - Counts: <N epics>
 - Warnings:
   - <overlap risks, unclear boundaries, missing info, conflicts>
@@ -259,19 +331,24 @@ If you can compute file hashes, include them; otherwise omit hashes.
 
 ---
 
-## Manifest Update Requirements: `manifest.md`
+## Manifest Update Requirements: `manifest.md` (per-idea)
 
-Update or create an “Epics” section. For each epic, add a concise record with:
+Update or create an `Epics` section in:
 
-- `id`
-- `title`
-- `status` (default: Proposed)
-- `release_target` (MVP/V1/Full/Later)
-- `priority` (P0/P1/P2)
-- `depends_on` (list of epic ids, optional)
-- `last_updated` (date)
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
 
-Keep the manifest as an index; do not duplicate full epic descriptions there.
+For each epic, add a concise index record:
+
+- id
+- title
+- status (default: Proposed)
+- release_target (MVP/V1/Full/Later)
+- priority (P0/P1/P2)
+- depends_on (optional list)
+- last_updated (date)
+- last_run_id (<RUN_ID>)
+
+Keep the manifest as an index; do not duplicate full epic descriptions.
 
 ---
 

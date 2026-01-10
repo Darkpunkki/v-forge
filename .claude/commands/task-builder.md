@@ -1,4 +1,69 @@
+---
+description: Expand features into implementable tasks for an idea (writes to ideas/<IDEA_ID>/runs and updates ideas/<IDEA_ID>/latest)
+argument-hint: "<IDEA_ID>   (example: IDEA-0003_my-idea)"
+disable-model-invocation: true
+---
+
 # Task Builder — Agent Instructions
+
+## Invocation
+
+Run this command with an idea folder id:
+
+- `/task-builder <IDEA_ID>`
+
+Where:
+
+- `IDEA_ID = $ARGUMENTS` (must be a single folder name; no spaces)
+
+If `IDEA_ID` is missing/empty, STOP and ask the user to rerun with an idea id.
+
+---
+
+## Canonical paths (repo-relative)
+
+Idea root:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/`
+
+Inputs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline input)
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md` (optional)
+
+Optional upstream reference:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (optional)
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` (optional reference only; do not rewrite)
+
+Required upstream artifacts:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md`
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/features.md`
+
+Outputs:
+
+- Run folder: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/`
+- Latest folder: `docs/ai/forge/ideas/$ARGUMENTS/latest/`
+
+Per-idea logs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md` (append-only)
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md` (rolling status/index)
+
+---
+
+## Directory handling
+
+Ensure these directories exist (create them if missing):
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/`
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/`
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/`
+
+If you cannot create directories or write files directly, output the artifacts as separate markdown blocks labeled with their target filenames and include a short note listing missing directories.
+
+---
 
 ## Role
 
@@ -6,7 +71,8 @@ You are the **Task Builder** agent.
 
 Your job is to expand a set of Features into concrete, implementable **Tasks** and write them to `tasks.md`.
 
-You must treat `concept_summary.md` as the **primary semantic anchor** (read-only truth). You must also read:
+You MUST treat `concept_summary.md` as the primary semantic anchor (read-only truth).
+You must also read:
 
 - `features.md` (authoritative feature boundaries, acceptance criteria, release targets)
 - the original idea documents (`idea.md` and/or `idea_normalized.md`) as required context to avoid losing important details
@@ -15,48 +81,90 @@ This stage produces **no code**. It produces backlog tasks only.
 
 ---
 
-## Inputs
+## Inputs (how to choose sources)
 
-### Required
+You MUST read inputs in this order:
 
-- `concept_summary.md`
-- `features.md`
-- `idea.md`
-- `idea_normalized.md` (if both exist, use `idea_normalized.md` as the preferred structured version)
+1. `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required; primary anchor)
+2. `docs/ai/forge/ideas/$ARGUMENTS/latest/features.md` (required; feature boundaries + acceptance criteria)
+3. `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (preferred if present)
+4. `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline context)
 
-### Optional
+Optional:
 
-- `task_config.md` (task sizing rules, acceptance-criteria style, tag presets, estimates, definition-of-done conventions)
-- `epics.md` (optional reference for cross-checking epic boundaries; do not rewrite)
+- If `docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md` exists, apply it.
+- If `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` exists, you may use it only to cross-check epic boundaries and titles. Do not edit epics.
 
-### Repo paths (defaults; may be overridden by the orchestrator)
+If `latest/concept_summary.md` or `latest/features.md` is missing, STOP and report the expected path.
+If `inputs/idea.md` is missing, STOP and report the expected path.
 
-- Workspace root: `C:\Apps\vibeforge_skeleton`
-- Forge docs folder: `C:\Apps\vibeforge_skeleton\docs\ai\forge`
-
----
-
-## Outputs
-
-### Required
-
-1. `tasks.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\tasks.md`
-
-2. Append a run entry to `run_log.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\run_log.md`
-
-3. Update `manifest.md` with task records  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\manifest.md`
-   Update only the exact subsection that matches your stage. Do not create new headings
-
-> Note: If you cannot write to the target paths directly, output the three artifacts as separate markdown blocks labeled with their filenames so another process can save them.
+If the idea docs contradict the concept summary/features, prefer `concept_summary.md` + `features.md` and record the conflict as a warning in `run_log.md`.
 
 ---
 
-## Definition
+## Context (include file contents)
 
-### Task
+Include the content via file references:
+
+- Concept summary (required):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+
+- Features (required):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/features.md
+
+- Optional epics reference (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md
+
+- Preferred normalized idea (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md
+
+- Baseline raw idea (always):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+
+- Optional config (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md
+
+---
+
+## Run identity
+
+Generate:
+
+- `RUN_ID` as a filesystem-safe id (Windows-safe, no `:`), e.g.:
+  - `2026-01-10T19-22-41Z_run-8f3c`
+
+Also capture:
+
+- `generated_at` as ISO-8601 time (may include timezone offset)
+
+---
+
+## Outputs (required)
+
+Write:
+
+1. `tasks.md` to:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/tasks.md`
+
+Then also update:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/tasks.md` (overwrite allowed)
+
+2. Append an entry to:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`
+
+3. Update (or create) the per-idea manifest at:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
+  - Update only the exact subsection that matches your stage. Do not create unrelated headings.
+
+If you cannot write to target paths, output these three artifacts as separate markdown blocks labeled with their full target filenames so another process can save them.
+
+---
+
+## Definition: Task
 
 A **Task** is an implementable unit of engineering work that:
 
@@ -66,7 +174,7 @@ A **Task** is an implementable unit of engineering work that:
 - Stays within one parent feature’s scope
 - Uses implementation language only to the extent necessary to be unambiguous
 
-Tasks are allowed to be technical (e.g., endpoints, persistence, UI components) because this stage is implementation planning.
+Tasks may be technical (routes, persistence, UI components) because this stage is implementation planning.
 
 ---
 
@@ -74,93 +182,91 @@ Tasks are allowed to be technical (e.g., endpoints, persistence, UI components) 
 
 ### You MUST
 
-- Produce tasks **for every feature** in `features.md`.
+- Produce tasks for every feature in `features.md`.
 - Keep tasks strictly within the scope of their parent feature (and indirectly within the epic).
-- Use the **acceptance criteria** of each feature to drive task decomposition.
-- Respect **Invariants**, **Constraints**, and **Exclusions** from `concept_summary.md`.
+- Use the acceptance criteria of each feature to drive task decomposition.
+- Respect Invariants, Constraints, and Exclusions from `concept_summary.md`.
 - Assign each task:
   - `release_target`: `MVP | V1 | Full | Later` (default to the parent feature)
-  - `priority`: `P0 | P1 | P2` (relative within the release target)
+  - `priority`: `P0 | P1 | P2`
   - `estimate`: `S | M | L` (or per `task_config.md`)
-  - `tags`: select from a small, consistent set
-- Ensure tasks cover:
+  - `tags`: from a small, consistent set
+- Ensure tasks cover where appropriate:
   - Implementation work
-  - Tests/verification where appropriate
-  - Documentation updates where appropriate (without bloating every feature)
+  - Tests/verification
+  - Documentation updates (only where meaningful)
 
 ### You MUST NOT
 
 - Invent new product scope beyond the feature and concept.
 - Rewrite features or epics.
-- Produce vague “umbrella” tasks like “Implement backend” or “Build UI”.
+- Produce vague umbrella tasks (“Implement backend”, “Build UI”).
 - Produce tasks without acceptance criteria.
 
 ---
 
 ## How to Build Tasks (Method)
 
-### Step-by-step
+1. Anchor on the feature
 
-1. **Anchor on the feature**
-   - For each feature, read:
-     - Feature outcome
-     - Feature description
-     - Feature acceptance criteria
-   - Convert each acceptance criterion into one or more concrete tasks.
+- For each feature, read outcome, description, acceptance criteria.
+- Convert each acceptance criterion into one or more concrete tasks.
 
-2. **Decompose by layers**
-   When appropriate, split tasks into:
-   - Backend API / orchestration logic
-   - Persistence / data model changes
-   - Frontend UI behavior
-   - Validation / error handling
-   - Tests (unit/integration) or verification scripts
-   - Documentation updates
+2. Decompose by layers (when appropriate)
 
-3. **Make tasks “small and shippable”**
-   - Each task should be doable in 1–2 days.
-   - If a task is too big, split by:
-     - workflow step (e.g., create vs read vs update)
-     - component boundary (backend vs frontend)
-     - artifact boundary (spec vs plan vs task graph)
+- Backend API / orchestration logic
+- Persistence / data model
+- Frontend UI behavior
+- Validation / error handling
+- Tests (unit/integration) or verification scripts
+- Documentation updates
 
-4. **Be explicit about done-ness**
-   - Acceptance criteria must be testable.
-   - Prefer “Given/When/Then” or “System does X with Y constraint”.
-   - Include negative cases when critical (validation, errors, authorization).
+3. Make tasks small and shippable
 
-5. **Avoid dependency ambiguity**
-   - If a task depends on another, reference the task id in `dependencies`.
-   - Create “plumbing” tasks early if multiple tasks depend on them.
+- Target 1–2 days per task.
+- If too big, split by workflow step, component boundary, or artifact boundary.
 
-6. **Don’t overfit implementation**
-   - Name concrete components only when it improves clarity (e.g., “FastAPI route for …”).
-   - Avoid choosing libraries or frameworks not specified by the idea/concept unless `task_config.md` instructs otherwise.
+4. Be explicit about done-ness
+
+- Acceptance criteria must be testable.
+- Prefer Given/When/Then or “System does X with constraint Y”.
+- Include negative cases when critical (validation, errors, authorization).
+
+5. Declare dependencies
+
+- If a task depends on another, reference the task id in `dependencies`.
+- Create plumbing tasks early if many tasks depend on them.
+
+6. Don’t overfit implementation
+
+- Name concrete components only when it improves clarity.
+- Avoid choosing new libraries/frameworks unless mandated by inputs or `task_config.md`.
 
 ---
 
-## Output Format: `tasks.md` (Markdown + YAML canonical block)
+## Output Format: `tasks.md` (YAML canonical block + Markdown rendering)
 
 Write `tasks.md` as:
 
-1. A YAML block containing the canonical task list (machine-readable)
-2. A Markdown rendering grouped by Feature (and optionally by Epic)
+1. YAML header + canonical task list
+2. Markdown rendering grouped by Feature (and optionally by Epic)
 
-### YAML header + canonical tasks list (example)
+YAML header + canonical tasks list (example):
 
 ```yaml
 ---
 doc_type: tasks
-run_id: "<RUN-ID>"
+idea_id: "$ARGUMENTS"
+run_id: "<RUN_ID>"
 generated_by: "Task Builder"
-generated_at: "<ISO-8601 local time>"
+generated_at: "<ISO-8601>"
 source_inputs:
-  - "concept_summary.md"
-  - "features.md"
-  - "idea.md"
-  - "idea_normalized.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/features.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md"
 configs:
-  - "task_config.md (if used)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md (if used)"
 release_targets_supported: ["MVP", "V1", "Full", "Later"]
 status: "Draft"
 ---
@@ -183,18 +289,16 @@ tasks:
 
 Constraints:
 
-- Every task must include `id`, `feature_id`, `epic_id`, `title`, `description`, `acceptance_criteria`, `release_target`, `priority`, `estimate`, `tags`.
-- Task IDs must be stable and sequential (`TASK-001`, `TASK-002`, …).
+- Every task includes: `id`, `feature_id`, `epic_id`, `title`, `description`, `acceptance_criteria`, `release_target`, `priority`, `estimate`, `tags`.
+- IDs stable and sequential: `TASK-001`, `TASK-002`, ...
 - `feature_id` must match a feature in `features.md`.
-- `epic_id` must match the epic of the parent feature.
+- `epic_id` must match the epic of the parent feature (as recorded in features).
 
-### Markdown rendering (required)
-
-After the YAML block, render:
+Markdown rendering (required):
 
 # Tasks
 
-## EPIC-001: <Epic Title> (optional, if known from features.md)
+## EPIC-001: <Epic Title> (optional, if known)
 
 ### FEAT-001: <Feature Title>
 
@@ -215,51 +319,24 @@ After the YAML block, render:
 
 ---
 
-## Documentation Updates (Required)
+## Logging Requirements: `run_log.md` (append-only)
 
-### 1) Manifest (`manifest.md`)
-
-Update/add a “Tasks” section. For each task, add a concise record with:
-
-- `id`
-- `feature_id`
-- `epic_id`
-- `title`
-- `status` (default: Proposed)
-- `release_target` (MVP/V1/Full/Later)
-- `priority` (P0/P1/P2)
-- `estimate` (S/M/L)
-- `depends_on` (optional)
-- `last_updated` (date)
-
-Do not duplicate full task descriptions in the manifest.
-
-### 2) Cross-file consistency
-
-- Ensure `tasks.md` references only feature ids that exist in `features.md`.
-- Ensure each task’s `epic_id` matches its parent feature’s epic.
-- Do not rename existing ids in upstream documents.
-- If you detect a structural inconsistency in upstream docs, log a warning and proceed.
-
----
-
-## Logging Requirements: `run_log.md`
-
-Append an entry in `run_log.md` (append-only).
-
-### Format
+Append an entry to `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`:
 
 ```md
 ### <ISO-8601 timestamp> — Task Builder
 
-- Run-ID: <RUN-ID>
+- Idea-ID: $ARGUMENTS
+- Run-ID: <RUN_ID>
 - Inputs:
-  - concept_summary.md (hash: <optional>)
-  - features.md (hash: <optional>)
-  - idea.md (hash: <optional>)
-  - idea_normalized.md (hash: <optional>)
-  - task_config.md (hash: <optional>)
-- Output: tasks.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/features.md
+  - docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md (if present)
+- Output:
+  - runs/<RUN_ID>/tasks.md
+  - latest/tasks.md
 - Counts:
   - total_tasks: <N>
   - by_release_target:
@@ -275,18 +352,42 @@ Append an entry in `run_log.md` (append-only).
 - Status: SUCCESS | SUCCESS_WITH_WARNINGS | FAILED
 ```
 
-If you can compute file hashes, include them; otherwise omit hashes.
+---
+
+## Manifest Update Requirements: `manifest.md` (per-idea)
+
+Update or create a `Tasks` section in:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
+
+For each task, add a concise index record:
+
+- id
+- feature_id
+- epic_id
+- title
+- status (default: Proposed)
+- release_target (MVP/V1/Full/Later)
+- priority (P0/P1/P2)
+- estimate (S/M/L)
+- depends_on (optional list)
+- last_updated (date)
+- last_run_id (<RUN_ID>)
+
+Do not duplicate full task descriptions in the manifest.
+Do not rename existing ids in upstream documents.
+If you detect a structural inconsistency in upstream docs, log a warning and proceed.
 
 ---
 
 ## Quality Check (internal)
 
 - Every feature in `features.md` has at least one task.
-- Tasks collectively satisfy each feature’s acceptance criteria.
+- Tasks satisfy each feature’s acceptance criteria.
 - Tasks are small and specific; oversized tasks are split.
 - Acceptance criteria are concrete and testable.
 - Dependencies are declared where needed.
-- Release targets are coherent: MVP tasks represent a runnable, verifiable slice.
+- Release targets are coherent (MVP tasks represent a runnable, verifiable slice).
 - No task violates concept invariants or exclusions.
 
 ---
@@ -298,11 +399,11 @@ If a feature lacks sufficient detail to produce implementable tasks:
 - Do not guess major requirements.
 - Create one or more “Clarify …” tasks under that feature.
 - Each clarify task must:
-  - List 3–8 concrete questions or decisions needed
-  - Be assigned an appropriate release target (usually same as the feature)
-  - Be marked priority P0 if it blocks MVP execution
+  - List 3–8 concrete questions/decisions needed
+  - Use an appropriate release target (usually same as the feature)
+  - Use priority P0 if it blocks MVP execution
 
 If tasks become too numerous:
 
-- Prefer consolidating trivial tasks only when they share the same done state.
+- Consolidate trivial tasks only when they share the same done state.
 - Do not collapse unrelated concerns into one task.

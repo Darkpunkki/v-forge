@@ -1,12 +1,57 @@
+---
+description: Normalize an idea into a consistent structure (writes to ideas/<IDEA_ID>/runs and updates ideas/<IDEA_ID>/latest)
+argument-hint: "<IDEA_ID>   (example: IDEA-0002_controller-tool)"
+disable-model-invocation: true
+---
+
 # Idea Normalizer — Agent Instructions
 
-## Role
+## Invocation
 
-You are the **Idea Normalizer** agent.
+Run this command with an idea folder id:
 
-Your job is to take a raw idea description (typically unstructured) and produce a normalized, consistently structured document called `idea_normalized.md`.
+- `/idea-normalizer <IDEA_ID>`
 
-`idea_normalized.md` is an upstream input for later agents. It must preserve the original meaning while improving structure and clarity. It is not a backlog and not a redesign.
+Where:
+
+- `IDEA_ID = $ARGUMENTS` (must be a single folder name; no spaces)
+
+If `IDEA_ID` is missing/empty, STOP and ask the user to rerun with an idea id.
+
+---
+
+## Canonical paths (repo-relative)
+
+Idea root:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/`
+
+Inputs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md`
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/normalizer_config.md` (optional)
+
+Outputs:
+
+- Run folder: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/`
+- Latest folder: `docs/ai/forge/ideas/$ARGUMENTS/latest/`
+
+Per-idea logs:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md` (append-only)
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md` (rolling status)
+
+---
+
+## Directory handling
+
+Ensure these directories exist (create them if missing):
+
+- `docs/ai/forge/ideas/$ARGUMENTS/inputs/`
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/`
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/`
+
+If you cannot create directories or write files directly, output the artifacts as separate markdown blocks labeled with their target filenames and include a short note listing missing directories.
 
 ---
 
@@ -14,49 +59,74 @@ Your job is to take a raw idea description (typically unstructured) and produce 
 
 ### Required
 
-- `idea.md` (raw idea description)
+- `idea.md` at `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md`
 
 ### Optional
 
-- `normalizer_config.md` (format preferences, required sections, terminology conventions)
-- Additional context files if explicitly provided by the orchestrator (e.g., `constraints.md`)
-
-### Repo paths (defaults; may be overridden by the orchestrator)
-
-- Workspace root: `C:\Apps\vibeforge_skeleton`
-- Forge docs folder: `C:\Apps\vibeforge_skeleton\docs\ai\forge`
+- `normalizer_config.md` at `docs/ai/forge/ideas/$ARGUMENTS/inputs/normalizer_config.md`
+- Additional context files only if explicitly provided by the orchestrator.
 
 ---
 
-## Outputs
+## Context (include file contents)
 
-### Required
+Use file references to pull content into context:
 
-1. `idea_normalized.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\idea_normalized.md`
+- Raw idea:
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
 
-2. Append a run entry to `run_log.md`  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\run_log.md`
+- Optional config (only if it exists):
+  @docs/ai/forge/ideas/$ARGUMENTS/inputs/normalizer_config.md
 
-3. Update `manifest.md` with Idea Normalization metadata  
-   Target location (default): `C:\Apps\vibeforge_skeleton\docs\ai\forge\manifest.md`
-
-> Note: If you cannot write to the target paths directly, output the three artifacts as separate markdown blocks labeled with their filenames so another process can save them.
+If `idea.md` is missing, STOP and report the expected path.
 
 ---
 
-## Definition
+## Run identity
 
-### Normalization
+Generate:
+
+- `RUN_ID` as a filesystem-safe id (Windows-safe, no `:`), e.g.:
+  - `2026-01-10T19-22-41Z_run-8f3c`
+
+Also capture:
+
+- `generated_at` as ISO-8601 time (may include timezone offset)
+
+---
+
+## Outputs (required)
+
+Write:
+
+1. `idea_normalized.md` to:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/idea_normalized.md`
+
+Then also update:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (overwrite allowed)
+
+2. Append an entry to:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`
+
+3. Update (or create) the per-idea manifest at:
+
+- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
+
+---
+
+## Definition: Normalization
 
 Normalization means:
 
-- Keep the meaning and scope of the source idea intact
-- Re-express it in consistent sections and terminology
+- Preserve meaning and scope of the source idea
+- Re-express in consistent sections/terminology
 - Make implicit structure explicit (inputs, workflow, outputs, constraints, exclusions)
 - Record uncertainties instead of guessing
 
-Normalization does **not** mean:
+Normalization does NOT mean:
 
 - Adding new requirements
 - Choosing tech stacks not stated in the source
@@ -68,50 +138,31 @@ Normalization does **not** mean:
 
 ### You MUST
 
-- Preserve the original intent and scope from `idea.md`.
-- Use the required section template below.
-- Convert free-form text into concise bullets where appropriate.
-- Mark assumptions as assumptions (do not silently invent facts).
-- Capture constraints and exclusions explicitly.
-- Include an “Open Questions” section for missing decisions.
+- Preserve original intent and scope from `idea.md`
+- Use the required section template below
+- Convert free-form text into concise bullets where appropriate
+- Mark assumptions explicitly as assumptions
+- Capture constraints and exclusions explicitly
+- Include “Open Questions” for missing decisions
 
 ### You MUST NOT
 
-- Introduce new features or scope not present in `idea.md`.
-- Redesign the system.
-- Produce backlog items.
-- Remove meaningful nuance; if unsure, keep the detail and place it in the correct section.
+- Introduce new scope or features not present in `idea.md`
+- Redesign the system
+- Produce backlog items
+- Remove meaningful nuance; if unsure, keep detail and place it in the correct section
 
 ---
 
 ## How to Normalize (Method)
 
-### Step-by-step
-
-1. **Read the entire idea.md once**
-   - Identify any explicit: goals, users, workflow steps, constraints, outputs, technology mentions.
-
-2. **Extract key statements into scratch**
-   - Do not output scratch notes.
-   - Focus on “must/should/may”, boundaries, and any hard rules.
-
-3. **Map statements into the standard sections**
-   - If something fits multiple sections, prefer:
-     - constraints/exclusions for hard boundaries
-     - workflow for sequencing
-     - capabilities for “what it does”
-
-4. **Rewrite in consistent modality**
-   - “Must” = non-negotiable
-   - “Should” = preference
-   - “May” = optional
-
-5. **Resolve contradictions conservatively**
-   - If `idea.md` contradicts itself, do not choose a side — record it in Open Questions.
-
-6. **Keep it brief but complete**
-   - Prefer bullets.
-   - Avoid long paragraphs unless necessary for clarity.
+1. Read entire `idea.md` once
+2. Extract key statements into scratch (do not output scratch)
+3. Map statements into the standard sections
+4. Rewrite in consistent modality:
+   - Must / Should / May
+5. Handle contradictions conservatively (record in Open Questions)
+6. Keep it brief but complete (prefer bullets)
 
 ---
 
@@ -124,13 +175,14 @@ Write `idea_normalized.md` with a YAML header followed by required sections.
 ```yaml
 ---
 doc_type: idea_normalized
-run_id: "<RUN-ID>"
+idea_id: "$ARGUMENTS"
+run_id: "<RUN_ID>"
 generated_by: "Idea Normalizer"
-generated_at: "<ISO-8601 local time>"
+generated_at: "<ISO-8601>"
 source_inputs:
-  - "idea.md"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md"
 configs:
-  - "normalizer_config.md (if used)"
+  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/normalizer_config.md (if used)"
 status: "Draft"
 ---
 ```
@@ -141,114 +193,110 @@ status: "Draft"
 
 ## Summary
 
-(1 short paragraph: what the idea is)
+(1 short paragraph)
 
 ## Goals
 
-- What success means (outcomes, not implementation)
+- ...
 
 ## Target Users
 
-- Who uses it (can be “self” or “developers” etc., only if present in idea.md)
+- ...
 
 ## Primary Use Cases
 
-- Bullet list of main user journeys or scenarios
+- ...
 
 ## Inputs
 
-- What the user/system provides as inputs (documents, choices, settings, etc.)
+- ...
 
 ## Outputs
 
-- What the system produces (artifacts, UI outcomes, data outputs)
+- ...
 
 ## Conceptual Workflow
 
 1. ...
 2. ...
-   (High-level steps; keep conceptual)
 
 ## Core Capabilities
 
-- Bullet list of “the system can …” capabilities
+- The system can ...
 
 ## Constraints
 
-- Non-negotiable constraints (tech, UX, privacy, determinism, etc.)
+- ...
 
 ## Preferences
 
-- Nice-to-haves or “should” items
+- ...
 
 ## Out-of-Scope / Exclusions
 
-- Explicit non-goals and boundaries
+- ...
 
 ## Terminology
-
-Define important terms used by the idea (short glossary).
 
 - Term: meaning
 
 ## Open Questions / Ambiguities
 
-- Missing decisions, unclear requirements, contradictions
+- ...
 
 ---
 
-## Logging Requirements: `run_log.md`
+## Logging Requirements: `run_log.md` (append-only)
 
-Append an entry in `run_log.md` (append-only).
-
-### Format
+Append an entry with this shape:
 
 ```md
 ### <ISO-8601 timestamp> — Idea Normalizer
 
-- Run-ID: <RUN-ID>
+- Idea-ID: $ARGUMENTS
+- Run-ID: <RUN_ID>
 - Inputs:
-  - idea.md (hash: <optional>)
-  - normalizer_config.md (hash: <optional>)
-- Output: idea_normalized.md
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+  - docs/ai/forge/ideas/$ARGUMENTS/inputs/normalizer_config.md (if present)
+- Outputs:
+  - runs/<RUN_ID>/idea_normalized.md
+  - latest/idea_normalized.md
 - Notes:
   - <1–5 bullets on key clarifications or ambiguities>
 - Status: SUCCESS | SUCCESS_WITH_WARNINGS | FAILED
 ```
 
-If you can compute file hashes, include them; otherwise omit hashes.
-
 ---
 
-## Documentation Updates (Required)
+## Manifest updates: `manifest.md` (per-idea)
 
-### Manifest (`manifest.md`)
+If `manifest.md` does not exist, create it using the template below.
+If it exists, update ONLY the keys under the `Idea` section.
 
-Update or create an “Idea” section with:
+### Manifest template (if creating new)
 
-- `idea_normalized_status` (Draft/Approved)
-- `last_updated` (date)
-- `run_id`
-- `notes` (optional short bullets)
+```md
+# Manifest — $ARGUMENTS
+
+## Idea
+
+- idea_normalized_status: Draft
+- last_updated: <YYYY-MM-DD>
+- last_run_id: <RUN_ID>
+- latest_outputs:
+  - latest/idea_normalized.md
+- notes:
+  - <optional bullets>
+```
 
 Do not add epics/features/tasks here.
-Update only the exact subsection that matches your stage. Do not create new headings
 
 ---
 
-## Quality Check (internal)
+## Failure handling
 
-- All major content from `idea.md` is represented somewhere in the normalized sections.
-- No new scope was introduced.
-- Constraints and exclusions are explicit.
-- Open questions capture unresolved decisions instead of guessing.
+If `idea.md` is extremely short/vague:
 
----
-
-## Failure Handling
-
-If `idea.md` is extremely short or vague:
-
-- Produce the normalized template anyway.
-- Place missing items in Open Questions.
-- Do not invent details to fill sections.
+- Produce the normalized template anyway
+- Put missing items into Open Questions
+- Do not invent details
