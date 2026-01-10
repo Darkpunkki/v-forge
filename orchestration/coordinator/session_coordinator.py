@@ -16,22 +16,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from vibeforge_api.core.session import Session, SessionStoreInterface
-from vibeforge_api.core.workspace import WorkspaceManager
-from vibeforge_api.core.questionnaire import QuestionnaireEngine
-from vibeforge_api.core.spec_builder import SpecBuilder
-from vibeforge_api.core.artifacts import ArtifactStore
-from vibeforge_api.core.event_log import (
+from apps.api.vibeforge_api.core.session import Session, SessionStoreInterface
+from apps.api.vibeforge_api.core.workspace import WorkspaceManager
+from apps.api.vibeforge_api.core.questionnaire import QuestionnaireEngine
+from apps.api.vibeforge_api.core.spec_builder import SpecBuilder
+from apps.api.vibeforge_api.core.artifacts import ArtifactStore
+from apps.api.vibeforge_api.core.event_log import (
     Event,
     EventLog,
     EventType,
     create_phase_transition_event,
 )
-from vibeforge_api.core.patch import PatchApplier
-from vibeforge_api.core.gates import GatePipeline, DiffAndCommandGate, PolicyGate, GateContext
-from vibeforge_api.core.verifiers import VerifierSuite
-from vibeforge_api.models.types import SessionPhase
-from vibeforge_api.models.responses import QuestionResponse
+from apps.api.vibeforge_api.core.patch import PatchApplier
+from apps.api.vibeforge_api.core.gates import GatePipeline, DiffAndCommandGate, PolicyGate, GateContext
+from apps.api.vibeforge_api.core.verifiers import VerifierSuite
+from apps.api.vibeforge_api.models.types import SessionPhase
+from apps.api.vibeforge_api.models.responses import QuestionResponse
 from orchestration.orchestrator import Orchestrator
 from orchestration.models import ConceptDoc, TaskGraph, RunSummary
 from orchestration.context_loader import RepoContextLoader, DEFAULT_CONTEXT_BUDGET_BYTES
@@ -1090,7 +1090,7 @@ class SessionCoordinator:
                 )
 
             # Import enum for comparison
-            from vibeforge_api.models.types import GateResultStatus
+            from apps.api.vibeforge_api.models.types import GateResultStatus
 
             if gate_result.status == GateResultStatus.BLOCK:
                 # Gates blocked

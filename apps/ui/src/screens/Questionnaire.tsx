@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getQuestion, submitAnswer } from '../api/client'
+import { getQuestion, submitAnswer, getProgress } from '../api/client'
 import type { QuestionResponse } from '../types/api'
 
 export function QuestionnaireScreen() {
@@ -16,6 +16,28 @@ export function QuestionnaireScreen() {
   const [selectedCheckboxes, setSelectedCheckboxes] = useState<Set<string>>(new Set())
   const [selectedDropdown, setSelectedDropdown] = useState<string>('')
   const [sliderValue, setSliderValue] = useState<number>(0)
+
+  async function routeFromPhase() {
+    if (!sessionId) return
+    const p = await getProgress(sessionId)
+
+    switch (p.phase) {
+      case 'PLAN_REVIEW':
+        navigate(`/plan/${sessionId}`, { replace: true })
+        return
+      case 'CLARIFICATION':
+        navigate(`/clarification/${sessionId}`, { replace: true })
+        return
+      case 'COMPLETE':
+      case 'FAILED':
+        navigate(`/result/${sessionId}`, { replace: true })
+        return
+      default:
+        // QUESTIONNAIRE / BUILD_SPEC / IDEA / EXECUTION / VERIFICATION etc.
+        navigate(`/progress/${sessionId}`, { replace: true })
+        return
+    }
+  }
 
   async function loadQuestion() {
     if (!sessionId) return
@@ -38,13 +60,19 @@ export function QuestionnaireScreen() {
         setSliderValue(Math.floor((q.min_value + q.max_value) / 2))
       }
     } catch (err: any) {
-      // If questionnaire is complete (400 error), navigate to result
-      if (err.status === 400) {
-        navigate(`/result/${sessionId}`)
-      } else {
-        setError(err.message || String(err))
+      // If backend says "no question" (common when phase moved on), route by phase
+      if (err?.status === 400) {
+        try {
+          await routeFromPhase()
+          return
+        } catch (e: any) {
+          setError(e?.detail || e?.message || String(e))
+          return
+        }
       }
-    } finally {
+      setError(err?.detail || err?.message || String(err))
+    }
+    finally {
       setLoading(false)
     }
   }
@@ -100,10 +128,12 @@ export function QuestionnaireScreen() {
       })
 
       if (response.is_complete) {
-        navigate(`/result/${sessionId}`)
+        // Questionnaire complete; session likely moved to PLAN_REVIEW or beyond
+        await routeFromPhase()
       } else {
         await loadQuestion()
       }
+
     } catch (err: any) {
       setError(err.message || String(err))
     } finally {
@@ -271,32 +301,32 @@ export function QuestionnaireScreen() {
 
         {/* Slider */}
         {question.question_type === 'slider' &&
-         question.min_value !== undefined &&
-         question.max_value !== undefined && (
-          <div>
-            <div style={{ marginBottom: 16 }}>
-              <input
-                type="range"
-                min={question.min_value}
-                max={question.max_value}
-                value={sliderValue}
-                onChange={(e) => setSliderValue(Number(e.target.value))}
-                style={{ width: '100%' }}
-              />
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: '0.9em',
-                marginTop: 8,
-                opacity: 0.7
-              }}>
-                <span>{question.min_value}</span>
-                <strong style={{ fontSize: '1.2em', opacity: 1 }}>{sliderValue}</strong>
-                <span>{question.max_value}</span>
+          question.min_value !== undefined &&
+          question.max_value !== undefined && (
+            <div>
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="range"
+                  min={question.min_value}
+                  max={question.max_value}
+                  value={sliderValue}
+                  onChange={(e) => setSliderValue(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '0.9em',
+                  marginTop: 8,
+                  opacity: 0.7
+                }}>
+                  <span>{question.min_value}</span>
+                  <strong style={{ fontSize: '1.2em', opacity: 1 }}>{sliderValue}</strong>
+                  <span>{question.max_value}</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Submit button */}
         <button

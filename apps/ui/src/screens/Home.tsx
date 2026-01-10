@@ -11,10 +11,28 @@ export function HomeScreen() {
     setError(null)
     setLoading(true)
     try {
-      const { session_id } = await createSession()
-      navigate(`/questionnaire/${session_id}`)
+      const { session_id, phase } = await createSession()
+
+      switch (phase) {
+        case 'QUESTIONNAIRE':
+          navigate(`/questionnaire/${session_id}`)
+          break
+        case 'PLAN_REVIEW':
+          navigate(`/plan/${session_id}`)
+          break
+        case 'CLARIFICATION':
+          navigate(`/clarification/${session_id}`)
+          break
+        case 'COMPLETE':
+        case 'FAILED':
+          navigate(`/result/${session_id}`)
+          break
+        default:
+          navigate(`/progress/${session_id}`)
+          break
+      }
     } catch (err: any) {
-      setError(err.message || String(err))
+      setError(err?.detail || err?.message || String(err))
     } finally {
       setLoading(false)
     }

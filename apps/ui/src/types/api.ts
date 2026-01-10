@@ -10,9 +10,11 @@ export type SessionPhase =
   | 'IDEA'
   | 'PLAN_REVIEW'
   | 'EXECUTION'
+  | 'CLARIFICATION'
   | 'VERIFICATION'
   | 'COMPLETE'
   | 'FAILED'
+
 
 // Question types
 export interface QuestionOption {

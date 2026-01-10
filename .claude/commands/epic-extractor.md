@@ -7,7 +7,7 @@ Your job is to generate a high-level backlog skeleton consisting of **Epics only
 
 You must treat `concept_summary.md` as the **primary semantic anchor** (read-only truth). You must also read the original idea document (`idea.md` and/or `idea_normalized.md`) as required context to avoid losing important details.
 
-This stage produces **no features** and **no tasks**.
+This stage produces **no features** and **no tasks**. These will be produced at a later stage based on the epics created by this command.
 
 ---
 

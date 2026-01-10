@@ -105,8 +105,12 @@ export async function getProgress(
  * Get the final result for a completed session
  */
 export async function getResult(sessionId: string): Promise<ResultResponse> {
+  console.groupCollapsed('[api] getResult called', sessionId)
+  console.trace()
+  console.groupEnd()
   return fetchJson<ResultResponse>(`/sessions/${sessionId}/result`)
 }
+
 
 /**
  * Get plan summary (for PLAN_REVIEW phase)

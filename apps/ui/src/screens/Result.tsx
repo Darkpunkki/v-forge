@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getResult } from '../api/client'
+import { getProgress, getResult } from '../api/client'
 import type { ResultResponse } from '../types/api'
 
 export function ResultScreen() {
@@ -18,14 +18,34 @@ export function ResultScreen() {
     setLoading(true)
 
     try {
+      // Check phase first
+      const progress = await getProgress(sessionId)
+      const phase = progress.phase
+
+      if (phase === 'PLAN_REVIEW') {
+        navigate(`/plan/${sessionId}`, { replace: true })
+        return
+      }
+      if (phase === 'CLARIFICATION') {
+        navigate(`/clarification/${sessionId}`, { replace: true })
+        return
+      }
+      if (phase !== 'COMPLETE') {
+        navigate(`/progress/${sessionId}`, { replace: true })
+        return
+      }
+
+      // Only now fetch the result
       const r = await getResult(sessionId)
       setResult(r)
     } catch (err: any) {
-      setError(err.message || String(err))
+      // ApiError has .detail; fall back to message
+      setError(err.detail || err.message || String(err))
     } finally {
       setLoading(false)
     }
   }
+
 
   async function copyToClipboard(text: string) {
     try {

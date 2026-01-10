@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getProgress } from '../api/client'
-import type { ProgressResponse } from '../types/api'
+import type { ProgressResponse, SessionPhase } from '../types/api'
+
+const TERMINAL_PHASES: SessionPhase[] = ['COMPLETE', 'FAILED']
 
 export function ProgressScreen() {
   const { sessionId } = useParams<{ sessionId: string }>()
@@ -11,34 +13,54 @@ export function ProgressScreen() {
   const [loading, setLoading] = useState(true)
   const logsEndRef = useRef<HTMLDivElement>(null)
 
+  // Prevent repeated navigations on polling ticks
+  const hasNavigatedRef = useRef(false)
+
   async function loadProgress() {
     if (!sessionId) return
+    if (hasNavigatedRef.current) return
 
     setError(null)
-    if (!progress) {
-      setLoading(true)
-    }
+    if (!progress) setLoading(true)
 
     try {
       const p = await getProgress(sessionId)
       setProgress(p)
 
-      // Auto-navigate when complete or failed
-      if (p.phase === 'COMPLETE') {
-        setTimeout(() => navigate(`/result/${sessionId}`), 1000)
+      // Phase-driven routing
+      if (p.phase === 'PLAN_REVIEW') {
+        hasNavigatedRef.current = true
+        navigate(`/plan/${sessionId}`, { replace: true })
+        return
+      }
+
+      if (p.phase === 'CLARIFICATION') {
+        hasNavigatedRef.current = true
+        navigate(`/clarification/${sessionId}`, { replace: true })
+        return
+      }
+
+      if (TERMINAL_PHASES.includes(p.phase)) {
+        hasNavigatedRef.current = true
+        navigate(`/result/${sessionId}`, { replace: true })
+        return
       }
     } catch (err: any) {
-      setError(err.message || String(err))
+      // ApiError uses .detail; fallback to message
+      setError(err?.detail || err?.message || String(err))
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
+    hasNavigatedRef.current = false
+
     loadProgress()
-    // Poll for updates every 2 seconds
+
     const interval = setInterval(loadProgress, 2000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
   // Auto-scroll logs to bottom
@@ -64,16 +86,27 @@ export function ProgressScreen() {
     return <div>No progress available</div>
   }
 
-  const totalTasks = progress.completed_tasks.length + progress.failed_tasks.length + (progress.active_task ? 1 : 0)
+  // Basic progress computation (stable & readable)
   const completedCount = progress.completed_tasks.length
-  const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+  const failedCount = progress.failed_tasks.length
+  const activeCount = progress.active_task ? 1 : 0
+  const totalKnown = completedCount + failedCount + activeCount
+  const progressPercent = totalKnown > 0 ? Math.round((completedCount / totalKnown) * 100) : 0
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <h1>Building Your App</h1>
 
       {/* Phase Indicator */}
-      <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: 24, borderRadius: 12, marginBottom: 24 }}>
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          padding: 24,
+          borderRadius: 12,
+          marginBottom: 24,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 4 }}>Current Phase</div>
@@ -84,7 +117,8 @@ export function ProgressScreen() {
             <div style={{ fontSize: 28, fontWeight: 600 }}>{progressPercent}%</div>
           </div>
         </div>
-        {totalTasks > 0 && (
+
+        {totalKnown > 0 && (
           <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.2)', borderRadius: 8, height: 8, overflow: 'hidden' }}>
             <div style={{ background: 'white', height: '100%', width: `${progressPercent}%`, transition: 'width 0.3s ease' }} />
           </div>
@@ -115,7 +149,7 @@ export function ProgressScreen() {
               <p style={{ color: '#999', fontStyle: 'italic' }}>No tasks yet</p>
             )}
 
-            {progress.completed_tasks.map((task, idx) => (
+            {progress.completed_tasks.map((task) => (
               <div key={task.task_id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
                 <div style={{ fontSize: 20, flexShrink: 0 }}>✅</div>
                 <div style={{ flex: 1 }}>
@@ -135,7 +169,7 @@ export function ProgressScreen() {
               </div>
             )}
 
-            {progress.failed_tasks.map((task, idx) => (
+            {progress.failed_tasks.map((task) => (
               <div key={task.task_id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
                 <div style={{ fontSize: 20, flexShrink: 0 }}>❌</div>
                 <div style={{ flex: 1 }}>
@@ -182,15 +216,15 @@ export function ProgressScreen() {
       {/* Summary Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         <div style={{ background: '#d4edda', padding: 16, borderRadius: 8, textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#155724' }}>{progress.completed_tasks.length}</div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: '#155724' }}>{completedCount}</div>
           <div style={{ fontSize: 14, color: '#155724', marginTop: 4 }}>Completed</div>
         </div>
         <div style={{ background: '#fff3cd', padding: 16, borderRadius: 8, textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#856404' }}>{progress.active_task ? 1 : 0}</div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: '#856404' }}>{activeCount}</div>
           <div style={{ fontSize: 14, color: '#856404', marginTop: 4 }}>In Progress</div>
         </div>
         <div style={{ background: '#f8d7da', padding: 16, borderRadius: 8, textAlign: 'center' }}>
-          <div style={{ fontSize: 32, fontWeight: 700, color: '#721c24' }}>{progress.failed_tasks.length}</div>
+          <div style={{ fontSize: 32, fontWeight: 700, color: '#721c24' }}>{failedCount}</div>
           <div style={{ fontSize: 14, color: '#721c24', marginTop: 4 }}>Failed</div>
         </div>
       </div>
