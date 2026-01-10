@@ -1,5 +1,6 @@
 """Session API endpoints."""
 
+import asyncio
 import json
 
 from fastapi import APIRouter, HTTPException, status
@@ -31,18 +32,68 @@ from vibeforge_api.models.responses import (
 from orchestration.coordinator import SessionCoordinator
 from orchestration.orchestrator import Orchestrator
 from orchestration.models import TaskGraph
+from models.agent_framework import DirectLlmAdapter
 
 router = APIRouter()
 
 llm_client = get_llm_client()
 orchestrator = Orchestrator(llm_client)
+agent_framework = DirectLlmAdapter(llm_client)
 session_coordinator = SessionCoordinator(
     session_store,
     workspace_manager,
     questionnaire_engine,
     spec_builder,
     orchestrator,
+    agent_framework=agent_framework,
 )
+
+_execution_tasks: dict[str, asyncio.Task] = {}
+
+
+def _spawn_execution_task(session_id: str) -> None:
+    existing = _execution_tasks.get(session_id)
+    if existing and not existing.done():
+        return
+
+    async def _runner() -> None:
+        while True:
+            session = session_store.get_session(session_id)
+            if not session or session.phase != SessionPhase.EXECUTION:
+                break
+
+            try:
+                result = await session_coordinator.execute_next_task(session_id)
+            except Exception as exc:
+                session_coordinator.fail_session(
+                    session_id, f"Execution error: {exc}", task_id="execution"
+                )
+                break
+
+            status = result.get("status")
+
+            if status == "needs_clarification":
+                break
+            if status == "all_tasks_complete":
+                try:
+                    await session_coordinator.finalize_session(session_id)
+                except Exception as exc:
+                    session_coordinator.fail_session(
+                        session_id, f"Finalization failed: {exc}", task_id="finalize"
+                    )
+                break
+            if status in {"task_failed_terminal", "blocked"}:
+                reason = result.get("error") or result.get("message") or "Execution failed"
+                task_id = result.get("task_id") or "execution"
+                session_coordinator.fail_session(session_id, reason, task_id=task_id)
+                break
+
+            await asyncio.sleep(0)
+
+    loop = asyncio.get_running_loop()
+    task = loop.create_task(_runner())
+    _execution_tasks[session_id] = task
+    task.add_done_callback(lambda _: _execution_tasks.pop(session_id, None))
 
 
 # VF-021: POST /sessions (startSession)
@@ -174,18 +225,15 @@ async def submit_plan_decision(session_id: str, request: PlanDecisionRequest):
         )
 
     if request.approved:
-        session.update_phase(SessionPhase.EXECUTION)
-        session.add_log("Plan approved, moving to EXECUTION phase")
+        session_coordinator.approve_plan(session_id)
+        _spawn_execution_task(session_id)
     else:
-        session.update_phase(SessionPhase.IDEA)
         reason = request.reason or "No reason provided"
-        session.add_log(f"Plan rejected: {reason}, returning to IDEA phase")
-
-    session_store.update_session(session)
+        session_coordinator.reject_plan(session_id, reason=reason)
 
     return {
         "status": "accepted",
-        "next_phase": session.phase,
+        "next_phase": session_store.get_session(session_id).phase,
     }
 
 
@@ -287,16 +335,13 @@ async def submit_clarification(
     session.pending_clarification = None
     session.add_log(f"Clarification answered: {request.answer}")
 
-    # For MVP, transition back to EXECUTION phase
-    # In future, the coordinator will handle this transition based on the answer
-    next_phase = SessionPhase.EXECUTION
-
-    session.update_phase(next_phase)
     session_store.update_session(session)
+    session_coordinator.resume_execution(session_id)
+    _spawn_execution_task(session_id)
 
     return {
         "status": "accepted",
-        "next_phase": next_phase.value,
+        "next_phase": SessionPhase.EXECUTION.value,
     }
 
 

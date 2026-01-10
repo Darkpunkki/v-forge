@@ -696,6 +696,10 @@ class SessionCoordinator:
             "error_message": error_message,
         }
         session.add_log(f"Fix loop clarification required for task {task_id}")
+        self._transition_phase(
+            session, SessionPhase.CLARIFICATION, "Fix loop clarification required"
+        )
+        session.add_log("Phase transition: EXECUTION → CLARIFICATION")
         self.session_store.update_session(session)
         return {
             "status": "needs_clarification",
@@ -769,6 +773,14 @@ class SessionCoordinator:
             )
 
         if session.pending_clarification and not session.clarification_answer:
+            if session.phase != SessionPhase.CLARIFICATION:
+                self._transition_phase(
+                    session,
+                    SessionPhase.CLARIFICATION,
+                    "Clarification required before execution can continue",
+                )
+                session.add_log("Phase transition: EXECUTION → CLARIFICATION")
+                self.session_store.update_session(session)
             return {
                 "status": "needs_clarification",
                 "clarification": session.pending_clarification,
@@ -1049,6 +1061,12 @@ class SessionCoordinator:
                 session.clarification_answer = None
                 session.add_log(f"Task {task.task_id} requires clarification")
                 task_master.markNeedsClarification(task.task_id)
+                self._transition_phase(
+                    session,
+                    SessionPhase.CLARIFICATION,
+                    f"Clarification required for task {task.task_id}",
+                )
+                session.add_log("Phase transition: EXECUTION → CLARIFICATION")
                 self.session_store.update_session(session)
                 return {
                     "status": "needs_clarification",
@@ -1329,16 +1347,29 @@ class SessionCoordinator:
         verification_results_dict = [asdict(result) for result in verification_results]
 
         artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
-        artifacts = {
-            "build_spec": session.build_spec,
-            "concept": session.concept,
-            "task_graph": session.task_graph,
-            "verification_results": verification_results_dict,
-            "completed_tasks": session.completed_task_ids,
-        }
+        repo_path = self.workspace_manager.get_repo_path(session_id)
+        files_generated: list[str] = []
+        if repo_path.exists():
+            for file_path in repo_path.rglob("*"):
+                if file_path.is_file():
+                    files_generated.append(str(file_path.relative_to(repo_path)))
+
+        completed_tasks = [
+            {"task_id": task_id, "status": "completed"}
+            for task_id in session.completed_task_ids
+        ]
+        verification_summary = {}
+        for name, result in zip(["build", "test"], verification_results):
+            status = "passed" if result.success else "failed"
+            verification_summary[name] = f"{status}: {result.message}"
 
         try:
-            run_summary: RunSummary = await self.orchestrator.summarize(artifacts)
+            run_summary: RunSummary = await self.orchestrator.summarize(
+                session_id=session_id,
+                files_generated=sorted(files_generated),
+                completed_tasks=completed_tasks,
+                verification_results=verification_summary,
+            )
             summary_dict = run_summary.to_dict()
 
             # Persist RunSummary
@@ -1379,6 +1410,27 @@ class SessionCoordinator:
     # =========================================================================
     # VF-039: abort/reset session flows
     # =========================================================================
+
+    def resume_execution(
+        self, session_id: str, reason: str = "Clarification resolved"
+    ) -> None:
+        """Resume execution after clarification."""
+        session = self._get_session_or_raise(session_id)
+        old_phase = session.phase
+        self._transition_phase(session, SessionPhase.EXECUTION, reason)
+        session.add_log(f"Phase transition: {old_phase.value} → EXECUTION")
+        self.session_store.update_session(session)
+
+    def fail_session(self, session_id: str, reason: str, task_id: str = "session") -> None:
+        """Transition a session to FAILED with a reason."""
+        session = self._get_session_or_raise(session_id)
+        old_phase = session.phase
+        session.add_error(task_id=task_id, error_message=reason)
+        session.active_task_id = None
+        session.pending_clarification = None
+        self._transition_phase(session, SessionPhase.FAILED, reason)
+        session.add_log(f"Phase transition: {old_phase.value} → FAILED")
+        self.session_store.update_session(session)
 
     def abort_session(self, session_id: str, reason: str = "User aborted") -> dict[str, str]:
         """Abort session and preserve artifacts.

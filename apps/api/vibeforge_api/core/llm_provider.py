@@ -95,9 +95,8 @@ class DeterministicStubClient(LlmClient):
                     "inputs": {},
                     "expected_outputs": ["src/App.tsx", "src/components/Layout.tsx"],
                     "verification": {
-                        "type": "build",
-                        "commands": ["npm run build"],
-                        "success_criteria": "Build completes without errors.",
+                        "type": "manual",
+                        "success_criteria": "Scaffold renders the base layout.",
                     },
                     "constraints": {
                         "max_files": 10,
@@ -114,9 +113,8 @@ class DeterministicStubClient(LlmClient):
                     "inputs": {},
                     "expected_outputs": ["src/components/GoalCard.tsx", "src/state/useGoals.ts"],
                     "verification": {
-                        "type": "test",
-                        "commands": ["npm test"],
-                        "success_criteria": "Goal state tests pass.",
+                        "type": "manual",
+                        "success_criteria": "Goal components render and update correctly.",
                     },
                     "constraints": {
                         "max_files": 10,
@@ -134,7 +132,6 @@ class DeterministicStubClient(LlmClient):
                     "expected_outputs": ["src/screens/Dashboard.tsx", "src/App.tsx"],
                     "verification": {
                         "type": "manual",
-                        "commands": ["npm run dev"],
                         "success_criteria": "Dashboard renders and goals update correctly.",
                     },
                     "constraints": {
@@ -178,6 +175,15 @@ class DeterministicStubClient(LlmClient):
 
 def get_llm_client() -> LlmClient:
     """Select an LLM client based on environment configuration."""
+    llm_mode = (os.getenv("VIBEFORGE_LLM_MODE") or "").strip().lower()
+    no_spend = (os.getenv("VIBEFORGE_NO_SPEND") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    if llm_mode in {"stub", "dry_run", "dry-run"} or no_spend:
+        return DeterministicStubClient()
+
     api_key = os.getenv("OPENAI_API_KEY")
     if api_key:
         return OpenAiProvider(api_key=api_key, base_url=os.getenv("OPENAI_BASE_URL"))
