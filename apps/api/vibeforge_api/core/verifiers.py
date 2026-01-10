@@ -1,5 +1,6 @@
 """Verification runners for build, test, and smoke checks."""
 
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -471,6 +472,14 @@ class VerifierSuite:
         Returns:
             List of VerificationResults
         """
+        if _should_skip_verification():
+            return [
+                VerificationResult(
+                    success=True,
+                    message="Verification skipped in stub mode",
+                    details={"mode": "stub"},
+                )
+            ]
         return self._run_verifiers(task_verifiers, workspace_path, build_spec)
 
     def run_global_verification(
@@ -485,6 +494,14 @@ class VerifierSuite:
         Returns:
             List of VerificationResults
         """
+        if _should_skip_verification():
+            return [
+                VerificationResult(
+                    success=True,
+                    message="Verification skipped in stub mode",
+                    details={"mode": "stub"},
+                )
+            ]
         # Global verification: build + test
         return self._run_verifiers(["build", "test"], workspace_path, build_spec)
 
@@ -543,3 +560,13 @@ class VerifierSuite:
 build_verifier = BuildVerifier()
 test_verifier = TestVerifier()
 verifier_suite = VerifierSuite()
+
+
+def _should_skip_verification() -> bool:
+    llm_mode = (os.getenv("VIBEFORGE_LLM_MODE") or "").strip().lower()
+    no_spend = (os.getenv("VIBEFORGE_NO_SPEND") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    return llm_mode in {"stub", "dry_run", "dry-run"} or no_spend
