@@ -920,9 +920,96 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - **Verify:**
   - `pytest`
 
+---
+
+## Agent Workflow Configuration (Control Panel Simulation Mode)
+
+The following WPs implement the multi-agent workflow configuration capabilities outlined in `CONTROL_AGENT_WORKFLOW_STEPS.md`. These enable admins to initialize agents, assign roles/models, define communication flows, and run custom simulations through the control panel.
+
+## WP-0043 — Session model + orchestration models for agent workflow
+- **Status:** Queued
+- **VF Tasks:** VF-190, VF-191
+- **Goal:** Extend Session model with agent workflow fields and create AgentConfig/AgentFlowGraph orchestration models to enable workflow state persistence.
+- **Dependencies:** WP-0013 ✓ (Session model foundations)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0043_VF-190-191_agent-workflow-models.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_session_model.py tests/test_session_store.py tests/test_orchestration_models.py -v`
+- **Files to touch:**
+  - `apps/api/vibeforge_api/core/session.py` (add workflow fields)
+  - `orchestration/models.py` (add AgentConfig, AgentFlowGraph)
+  - `apps/api/tests/test_session_model.py` (extend tests)
+  - `apps/api/tests/test_orchestration_models.py` (add AgentConfig/FlowGraph tests)
+
+## WP-0044 — Agent workflow API endpoints
+- **Status:** Queued
+- **VF Tasks:** VF-192, VF-193
+- **Goal:** Add Pydantic schemas and 5 control API endpoints for agent initialization, role assignment, task setting, flow configuration, and workflow retrieval.
+- **Dependencies:** WP-0043 (agent workflow models)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0044_VF-192-193_agent-workflow-endpoints.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_control_api.py -v`
+  - `cd apps/api && python -c "from vibeforge_api.models import InitializeAgentsRequest, WorkflowConfigResponse"`
+- **Files to touch:**
+  - `apps/api/vibeforge_api/models/requests.py` (add workflow request schemas)
+  - `apps/api/vibeforge_api/models/responses.py` (add workflow response schemas)
+  - `apps/api/vibeforge_api/models/__init__.py` (export new models)
+  - `apps/api/vibeforge_api/routers/control.py` (add 5 endpoints)
+  - `apps/api/tests/test_control_api.py` (add endpoint tests)
+
+## WP-0045 — Wire workflow config into orchestration
+- **Status:** Queued
+- **VF Tasks:** VF-194
+- **Goal:** Update SessionCoordinator to consume AgentConfig and add forced model override to ModelRouter for per-agent model enforcement.
+- **Dependencies:** WP-0043 (models), WP-0044 (endpoints to set config)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0045_VF-194_workflow-orchestration-wiring.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_session_coordinator.py tests/test_model_router.py -v`
+- **Files to touch:**
+  - `orchestration/coordinator/session_coordinator.py` (consume AgentConfig)
+  - `models/router.py` (add forced_model parameter)
+  - `apps/api/tests/test_session_coordinator.py` (add workflow config tests)
+  - `apps/api/tests/test_model_router.py` (add forced model tests)
+
+## WP-0046 — Agent workflow UI widgets
+- **Status:** Queued
+- **VF Tasks:** VF-195, VF-196, VF-197, VF-198
+- **Goal:** Create 4 control panel widgets for agent initialization, role assignment, task input, and flow editing to enable visual workflow configuration.
+- **Dependencies:** WP-0044 (API endpoints to call)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0046_VF-195-198_agent-workflow-widgets.md
+- **Verify:**
+  - `cd apps/ui && npm run build`
+  - Visual verification: All 4 widgets render in control panel
+- **Files to touch:**
+  - `apps/ui/src/screens/control/widgets/AgentInitializer.tsx` (new)
+  - `apps/ui/src/screens/control/widgets/AgentAssignment.tsx` (new)
+  - `apps/ui/src/screens/control/widgets/AgentTaskInput.tsx` (new)
+  - `apps/ui/src/screens/control/widgets/AgentFlowEditor.tsx` (new)
+  - `apps/ui/src/screens/ControlPanel.tsx` (integrate widgets)
+
+## WP-0047 — Agent workflow API client + integration tests
+- **Status:** Queued
+- **VF Tasks:** VF-199
+- **Goal:** Extend controlClient.ts with typed methods for all workflow endpoints and add integration tests covering the full init → assign → task → flows → execute workflow.
+- **Dependencies:** WP-0044 (endpoints), WP-0046 (widgets to wire)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0047_VF-199_workflow-client-integration.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_control_api.py -v`
+  - `cd apps/ui && npm run build`
+- **Files to touch:**
+  - `apps/ui/src/api/controlClient.ts` (add 5 methods)
+  - `apps/api/tests/test_control_api.py` (add integration tests)
+
+---
+
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
+- **2026-01-11**: Added Agent Workflow Configuration section (WP-0043 through WP-0047)
+  - Created VF-190 through VF-199 in vibeforge_master_checklist.md
+  - Implements CONTROL_AGENT_WORKFLOW_STEPS.md requirements for simulation mode
+  - Enables admins to initialize agents, assign roles/models, set tasks, configure flows
+  - Builds on existing control panel monitoring (VF-170-186) which is complete
+  - Rationale: Observation/monitoring complete; now adding configuration/simulation capabilities
 - **2026-01-05 (early)**: Broke WP-0007 (UI Shell MVP, 7 tasks) into 4 smaller WPs:
   - WP-0007a: UI Foundation (VF-010, VF-016) - 2 tasks
   - WP-0007b: Questionnaire Screen (VF-011) - 1 task

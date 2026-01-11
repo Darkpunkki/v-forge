@@ -1202,3 +1202,75 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Status:** Planned
   - **Done when:** A follow-on design/plan doc exists outlining scope, rollout guards, and test hooks for each stubbed provider/adapter; stubs are referenced from the audit with clear next-step VF IDs or WP links.
   - **Verify:** Manual review of the plan doc and cross-check that stubs are annotated with links to the planned work.
+
+---
+
+### 18 Agent Workflow Configuration (Control Panel Simulation Mode)
+
+This section covers the capabilities for admins to configure and run custom agent simulations through the control panel, as specified in `CONTROL_AGENT_WORKFLOW_STEPS.md`.
+
+- [ ] **VF-190 — Extend Session model with agent workflow fields**
+  - Add fields to `apps/api/vibeforge_api/core/session.py` to store agent configuration state: `agents` (list of initialized agent instances), `agent_roles` (agent_id → role mapping), `agent_models` (agent_id → model_id mapping), `agent_graph` (agent-to-agent communication DAG), `main_task` (orchestration task payload).
+  - **Status:** Planned
+  - **Done when:** Session model includes all workflow fields with proper typing; `SessionStore.update_session()` persists these fields; existing tests still pass.
+  - **Verify:** `cd apps/api && pytest tests/test_session_model.py tests/test_session_store.py -v`
+
+- [ ] **VF-191 — Create AgentConfig and AgentFlowGraph orchestration models**
+  - Add `AgentConfig` (agent initialization/configuration) and `AgentFlowGraph` (agent-to-agent communication topology with DAG validation) to `orchestration/models.py`. Include validation for supported roles, model IDs, and acyclic graph structure.
+  - **Status:** Planned
+  - **Done when:** Both models exist with Pydantic validation; `AgentFlowGraph` has `validate_dag()` like `TaskGraph`; unit tests cover validation edge cases.
+  - **Verify:** `cd apps/api && pytest tests/test_orchestration_models.py -v`
+
+- [ ] **VF-192 — Add Pydantic request/response schemas for agent workflow endpoints**
+  - Create request/response models in `apps/api/vibeforge_api/models/`: `InitializeAgentsRequest/Response`, `AssignAgentRoleRequest/Response`, `SetMainTaskRequest/Response`, `ConfigureAgentFlowRequest/Response`, `WorkflowConfigResponse`. Include validation for agent counts, supported roles, and known model IDs.
+  - **Status:** Planned
+  - **Done when:** All schemas exist with proper validation; OpenAPI docs show the new models; import/export works from models/__init__.py.
+  - **Verify:** `cd apps/api && python -c "from vibeforge_api.models import InitializeAgentsRequest, WorkflowConfigResponse"`
+
+- [ ] **VF-193 — Implement control workflow API endpoints**
+  - Add 5 new endpoints to `apps/api/vibeforge_api/routers/control.py`:
+    - `POST /control/sessions/{id}/agents/init` — initialize N agents for the session
+    - `POST /control/sessions/{id}/agents/assign` — assign role + model per agent
+    - `POST /control/sessions/{id}/task` — set the main task payload
+    - `POST /control/sessions/{id}/flows` — persist agent-to-agent communication graph
+    - `GET /control/sessions/{id}/workflow` — return current workflow configuration
+  - Include phase guardrails to reject changes if session is in incompatible state.
+  - **Status:** Planned
+  - **Done when:** All 5 endpoints functional; phase validation prevents illegal state changes; OpenAPI docs complete.
+  - **Verify:** `cd apps/api && pytest tests/test_control_api.py -v`
+
+- [ ] **VF-194 — Wire workflow configuration into SessionCoordinator and ModelRouter**
+  - Update `orchestration/coordinator/session_coordinator.py` to accept explicit `AgentConfig` before execution. Add "forced model" option to `models/router.py` for enforcing per-agent model selection. Emit workflow config metadata in agent events.
+  - **Status:** Planned
+  - **Done when:** SessionCoordinator consumes AgentConfig; ModelRouter respects forced_model override; events include workflow metadata.
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py tests/test_model_router.py -v`
+
+- [ ] **VF-195 — Create AgentInitializer widget for control panel**
+  - Add `apps/ui/src/screens/control/widgets/AgentInitializer.tsx` with agent count selection (slider or number input), initialize button, and status feedback. Wire to `POST /control/sessions/{id}/agents/init`.
+  - **Status:** Planned
+  - **Done when:** Widget renders in control panel; clicking init creates agents and shows success/error; count validation works.
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-196 — Create AgentAssignment widget for control panel**
+  - Add `apps/ui/src/screens/control/widgets/AgentAssignment.tsx` displaying initialized agents as cards with role dropdown (worker/foreman/reviewer/fixer) and model dropdown. Wire to `POST /control/sessions/{id}/agents/assign`.
+  - **Status:** Planned
+  - **Done when:** Widget shows agent cards with dropdowns; assignments persist via API; visual feedback on save.
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-197 — Create AgentTaskInput widget for control panel**
+  - Add `apps/ui/src/screens/control/widgets/AgentTaskInput.tsx` with structured task input (description, acceptance criteria, verification commands) or free-text option for simulation mode. Wire to `POST /control/sessions/{id}/task`.
+  - **Status:** Planned
+  - **Done when:** Widget accepts task input; validates required fields; submits to API; shows confirmation.
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-198 — Create AgentFlowEditor widget for control panel**
+  - Add `apps/ui/src/screens/control/widgets/AgentFlowEditor.tsx` with visual graph editor for defining agent-to-agent communication flows. Support drag-to-connect, edge deletion, and DAG validation feedback. Wire to `POST /control/sessions/{id}/flows`.
+  - **Status:** Planned
+  - **Done when:** Widget renders agents as nodes; edges can be created/deleted; DAG cycles show validation error; saves to API.
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-199 — Add API client methods and integration tests for agent workflow**
+  - Extend `apps/ui/src/api/controlClient.ts` with 5 new methods: `initializeAgents()`, `assignAgentRole()`, `setMainTask()`, `configureAgentFlow()`, `getWorkflowConfig()`. Add integration tests in `apps/api/tests/test_control_api.py` covering the full workflow: init → assign → task → flows → execute.
+  - **Status:** Planned
+  - **Done when:** All client methods typed and working; integration test runs full workflow; CI passes.
+  - **Verify:** `cd apps/api && pytest tests/test_control_api.py -v && cd ../ui && npm run build`
