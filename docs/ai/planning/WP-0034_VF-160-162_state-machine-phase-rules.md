@@ -1,7 +1,7 @@
 # WP-0034 — State machine transitions + phase rules
 
 ## Status
-- Queued
+- Done
 
 ## Context
 - Chapter(s): 16 State Machine: MVP Phases (State Diagram)
@@ -14,12 +14,19 @@
 - Define and enforce explicit phase transitions with clear entry actions and exit criteria to prevent illegal session state changes.
 
 ## VF Tasks (canonical)
-- [ ] **VF-160 — Encode the session state machine as a formal transition table**
+- [x] **VF-160 — Encode the session state machine as a formal transition table**
   - Implement an explicit allowed-transition map (fromPhase → toPhase) to prevent accidental illegal transitions as the codebase evolves.
-- [ ] **VF-161 — Implement “entry actions” per phase**
+  - **Files:** `orchestration/coordinator/state_machine.py` (ALLOWED_TRANSITIONS, validate_transition, is_valid_transition)
+  - **Tests:** 15 tests in `apps/api/tests/test_state_machine.py::TestVF160_TransitionTable`
+- [x] **VF-161 — Implement "entry actions" per phase**
   - Define and implement what happens *on entering* each phase (e.g., BUILD_SPEC creates BuildSpec, IDEA generates concept, PLAN_REVIEW generates TaskGraph, EXECUTION starts scheduling).
-- [ ] **VF-162 — Implement “exit criteria” per phase**
+  - **Files:** `orchestration/coordinator/state_machine.py` (ENTRY_ACTIONS, EntryAction, get_entry_action)
+  - **Tests:** 8 tests in `apps/api/tests/test_state_machine.py::TestVF161_EntryActions`
+- [x] **VF-162 — Implement "exit criteria" per phase**
   - Define and enforce the condition that must be true to exit each phase (e.g., questionnaire complete, concept accepted, plan approved, all tasks done, global verification pass).
+  - **Files:** `orchestration/coordinator/state_machine.py` (EXIT_CRITERIA, ExitCriteria, check_exit_criteria, validate_exit)
+  - **Files:** `orchestration/coordinator/session_coordinator.py` (_transition_phase updated to enforce validation)
+  - **Tests:** 12 tests in `apps/api/tests/test_state_machine.py::TestVF162_ExitCriteria`
 
 ## Plan
 ### Approach

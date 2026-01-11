@@ -815,13 +815,22 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 ---
 
 ## WP-0034 — State machine transitions + phase rules
-- **Status:** Queued
-- **VF Tasks:** VF-160, VF-161, VF-162
+- **Status:** Done
+- **Started:** 2026-01-11 (local)
+- **Completed:** 2026-01-11 (local)
+- **Branch:** master
+- **VF Tasks:** VF-160 ✓, VF-161 ✓, VF-162 ✓
 - **Goal:** Formalize session phase transitions with explicit entry actions and exit criteria to prevent illegal state changes.
 - **Dependencies:** WP-0020 ✓ (SessionCoordinator lifecycle)
 - **Plan Doc:** docs/ai/planning/WP-0034_VF-160-162_state-machine-phase-rules.md
-- **Verify:**
-  - `pytest`
+- **Verified:**
+  - `pytest` - 506 tests passed (39 new state machine tests)
+- **Files touched:**
+  - `orchestration/coordinator/state_machine.py` (new - ALLOWED_TRANSITIONS, ENTRY_ACTIONS, EXIT_CRITERIA)
+  - `orchestration/coordinator/session_coordinator.py` (updated _transition_phase with validation)
+  - `orchestration/coordinator/__init__.py` (export state machine components)
+  - `apps/api/tests/test_state_machine.py` (new - 39 comprehensive tests)
+  - `apps/api/tests/test_sessions.py` (fixed test_submit_clarification_valid_answer)
 
 ## WP-0035 — Failure recovery + fix loop transitions
 - **Status:** Queued

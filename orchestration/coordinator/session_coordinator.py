@@ -38,6 +38,15 @@ from orchestration.context_loader import RepoContextLoader, DEFAULT_CONTEXT_BUDG
 from runtime.task_master import TaskMaster
 from runtime.distributor import Distributor
 from models.agent_framework import AgentFramework, AgentResult
+from orchestration.coordinator.state_machine import (
+    validate_transition,
+    validate_phase_transition,
+    is_valid_transition,
+    get_entry_action,
+    check_exit_criteria,
+    TransitionError,
+    ExitCriteriaNotMet,
+)
 
 
 class SessionCoordinator:
@@ -92,11 +101,49 @@ class SessionCoordinator:
             # Observability should not break execution; errors are logged via session logs.
             pass
 
-    def _transition_phase(self, session: Session, new_phase: SessionPhase, reason: str) -> None:
-        """Transition session phase and emit a phase transition event."""
+    def _transition_phase(
+        self,
+        session: Session,
+        new_phase: SessionPhase,
+        reason: str,
+        skip_exit_check: bool = False,
+    ) -> None:
+        """Transition session phase with validation and emit a phase transition event.
 
+        This method enforces the state machine rules (VF-160, VF-161, VF-162):
+        1. Validates that the transition is allowed
+        2. Checks exit criteria for current phase (unless skip_exit_check=True)
+        3. Updates session phase
+        4. Emits phase transition event
+
+        Args:
+            session: Session to transition
+            new_phase: Target phase
+            reason: Human-readable reason for transition
+            skip_exit_check: Skip exit criteria validation (for error recovery paths)
+
+        Raises:
+            TransitionError: If the transition is not allowed
+            ExitCriteriaNotMet: If exit criteria for current phase are not met
+        """
         old_phase = session.phase
+
+        # VF-160: Validate transition is allowed
+        # VF-162: Check exit criteria (skip for FAILED transitions - error recovery)
+        if new_phase == SessionPhase.FAILED:
+            # Always allow transition to FAILED (error recovery)
+            validate_transition(old_phase, new_phase)
+        elif not skip_exit_check:
+            # Full validation: exit criteria + transition rules
+            validate_phase_transition(session, old_phase, new_phase, skip_exit_check=False)
+        else:
+            # Skip exit check but still validate transition
+            validate_transition(old_phase, new_phase)
+
+        # Perform the transition
         session.update_phase(new_phase)
+
+        # Emit phase transition event
         self._emit_event(
             create_phase_transition_event(
                 session.session_id, old_phase.value, new_phase.value, reason
@@ -644,8 +691,8 @@ class SessionCoordinator:
         # Clear TaskGraph to force regeneration
         session.task_graph = None
 
-        # Transition back to IDEA phase
-        self._transition_phase(session, SessionPhase.IDEA, reason)
+        # Transition back to IDEA phase (skip exit check since we intentionally cleared task_graph)
+        self._transition_phase(session, SessionPhase.IDEA, reason, skip_exit_check=True)
         session.add_log(f"Plan rejected by user: {reason}")
         session.add_log(f"Phase transition: PLAN_REVIEW → IDEA (for regeneration)")
         self._emit_event(

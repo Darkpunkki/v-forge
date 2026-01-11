@@ -976,14 +976,21 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 ## 16 State Machine: MVP Phases (State Diagram)
 
-- [ ] **VF-160 — Encode the session state machine as a formal transition table**
+- [x] **VF-160 — Encode the session state machine as a formal transition table**
   - Implement an explicit allowed-transition map (fromPhase → toPhase) to prevent accidental illegal transitions as the codebase evolves.
+  - **Files:** `orchestration/coordinator/state_machine.py` (ALLOWED_TRANSITIONS, validate_transition, is_valid_transition)
+  - **Tests:** 15 tests in `apps/api/tests/test_state_machine.py::TestVF160_TransitionTable`
 
-- [ ] **VF-161 — Implement “entry actions” per phase**
+- [x] **VF-161 — Implement "entry actions" per phase**
   - Define and implement what happens *on entering* each phase (e.g., BUILD_SPEC creates BuildSpec, IDEA generates concept, PLAN_REVIEW generates TaskGraph, EXECUTION starts scheduling).
+  - **Files:** `orchestration/coordinator/state_machine.py` (ENTRY_ACTIONS, EntryAction, get_entry_action)
+  - **Tests:** 8 tests in `apps/api/tests/test_state_machine.py::TestVF161_EntryActions`
 
-- [ ] **VF-162 — Implement “exit criteria” per phase**
+- [x] **VF-162 — Implement "exit criteria" per phase**
   - Define and enforce the condition that must be true to exit each phase (e.g., questionnaire complete, concept accepted, plan approved, all tasks done, global verification pass).
+  - **Files:** `orchestration/coordinator/state_machine.py` (EXIT_CRITERIA, ExitCriteria, check_exit_criteria, validate_exit)
+  - **Files:** `orchestration/coordinator/session_coordinator.py` (_transition_phase updated to enforce validation)
+  - **Tests:** 12 tests in `apps/api/tests/test_state_machine.py::TestVF162_ExitCriteria`
 
 - [ ] **VF-163 — Implement FAILED terminal behavior + recovery options**
   - Define what constitutes unrecoverable failure; ensure the system transitions to FAILED cleanly, emits a final error artifact, and offers safe recovery options (restart session, reduce scope, export logs).

@@ -354,13 +354,16 @@ def test_get_clarification_session_not_found():
 def test_submit_clarification_valid_answer():
     """Test VF-027: POST /sessions/{id}/clarification accepts valid answer."""
     from vibeforge_api.core.session import session_store
+    from vibeforge_api.models.types import SessionPhase
 
     # Create session
     create_response = client.post("/sessions")
     session_id = create_response.json()["session_id"]
 
-    # Set pending clarification
+    # Set session to CLARIFICATION phase with pending clarification
+    # (simulates mid-execution clarification request)
     session = session_store.get_session(session_id)
+    session.phase = SessionPhase.CLARIFICATION
     session.pending_clarification = {
         "question": "How to proceed?",
         "options": [
@@ -368,6 +371,8 @@ def test_submit_clarification_valid_answer():
             {"value": "cancel", "label": "Cancel"},
         ],
     }
+    # Required artifacts for the flow to work
+    session.task_graph = {"tasks": []}  # Required for EXECUTION transition
     session_store.update_session(session)
 
     # Submit valid answer
