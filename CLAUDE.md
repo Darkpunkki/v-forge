@@ -82,6 +82,19 @@ Agents should preserve this structure and casing when editing.
 
 ## Checklist rules (only if using vibeforge_master_checklist.md)
 
+### Note on checklist size + how to filter tasks
+
+`vibeforge_master_checklist.md` is **large**. Do not try to “read it all” top-to-bottom during execution.
+Instead, use the WP’s referenced VF IDs to jump directly to the relevant chapter(s), then filter by checkbox state.
+
+VF tasks in the checklist are structured as markdown checkbox items:
+
+- Done tasks: `- [x] **VF-### — Title...**`
+- Not done tasks: `- [ ] **VF-### — Title...**`
+
+
+### Execution + update rules
+
 - Before starting work, identify the next relevant VF items and reference their **VF IDs** in your plan and commits.
 - Work in small, verifiable increments (1–3 VF tasks per iteration).
 - When complete:
@@ -179,11 +192,12 @@ Agents should preserve this structure and casing when editing.
 
 ## Commit / PR Hygiene
 
-- Include relevant IDs in commit messages:
+- Provide relevant IDs in commit messages:
   - VF mode example: `WP-0014 VF-063: model routing`
   - Task mode example: `WP-0040 TASK-012: implement <thing>`
 - Keep commits coherent and verifiable.
 - If you create/modify WPs or plan docs, include the WP id in the commit message.
+- User will handle the final commit / push to remote.
 
 ---
 
