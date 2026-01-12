@@ -301,3 +301,167 @@ class TestRunSummary:
         assert summary.session_id == "session-456"
         assert summary.status == "failed"
         assert len(summary.files_generated) == 0
+
+
+class TestAgentWorkflowModels:
+    """Tests for VF-191: Agent workflow models."""
+
+    def test_agent_config_validation(self):
+        """AgentConfig requires non-empty agent_id."""
+        from pydantic import ValidationError
+        from orchestration.models import AgentConfig
+
+        # Valid agent config
+        agent = AgentConfig(agent_id="agent-1")
+        assert agent.agent_id == "agent-1"
+
+        # Empty agent_id should fail
+        with pytest.raises(ValidationError):
+            AgentConfig(agent_id="")
+
+        # Whitespace-only agent_id should fail
+        with pytest.raises(ValidationError):
+            AgentConfig(agent_id="   ")
+
+    def test_agent_config_with_role_and_model(self):
+        """AgentConfig can store role and model_id."""
+        from orchestration.models import AgentConfig, AgentRole
+
+        agent = AgentConfig(
+            agent_id="agent-1",
+            role=AgentRole.WORKER,
+            model_id="gpt-4",
+            display_name="Worker Agent 1",
+        )
+
+        assert agent.agent_id == "agent-1"
+        assert agent.role == AgentRole.WORKER
+        assert agent.model_id == "gpt-4"
+        assert agent.display_name == "Worker Agent 1"
+
+    def test_agent_role_enum_values(self):
+        """AgentRole enum has expected values."""
+        from orchestration.models import AgentRole
+
+        assert AgentRole.ORCHESTRATOR.value == "orchestrator"
+        assert AgentRole.FOREMAN.value == "foreman"
+        assert AgentRole.WORKER.value == "worker"
+        assert AgentRole.REVIEWER.value == "reviewer"
+        assert AgentRole.FIXER.value == "fixer"
+
+    def test_agent_flow_graph_valid(self):
+        """Valid DAG passes validation."""
+        from orchestration.models import AgentFlowGraph, AgentFlowEdge
+
+        graph = AgentFlowGraph(
+            edges=[
+                AgentFlowEdge(from_agent="a", to_agent="b"),
+                AgentFlowEdge(from_agent="b", to_agent="c"),
+            ]
+        )
+        is_valid, error = graph.validate_dag(["a", "b", "c"])
+        assert is_valid
+        assert error is None
+
+    def test_agent_flow_graph_cycle_detection(self):
+        """Cyclic graph fails validation."""
+        from orchestration.models import AgentFlowGraph, AgentFlowEdge
+
+        graph = AgentFlowGraph(
+            edges=[
+                AgentFlowEdge(from_agent="a", to_agent="b"),
+                AgentFlowEdge(from_agent="b", to_agent="a"),  # cycle!
+            ]
+        )
+        is_valid, error = graph.validate_dag(["a", "b"])
+        assert not is_valid
+        assert "Cycle" in error
+
+    def test_agent_flow_graph_unknown_agent(self):
+        """Unknown agent reference fails validation."""
+        from orchestration.models import AgentFlowGraph, AgentFlowEdge
+
+        graph = AgentFlowGraph(
+            edges=[
+                AgentFlowEdge(from_agent="a", to_agent="unknown"),
+            ]
+        )
+        is_valid, error = graph.validate_dag(["a", "b"])
+        assert not is_valid
+        assert "Unknown agent" in error
+
+    def test_agent_flow_graph_get_predecessors(self):
+        """get_predecessors returns agents that feed into target."""
+        from orchestration.models import AgentFlowGraph, AgentFlowEdge
+
+        graph = AgentFlowGraph(
+            edges=[
+                AgentFlowEdge(from_agent="a", to_agent="c"),
+                AgentFlowEdge(from_agent="b", to_agent="c"),
+            ]
+        )
+
+        predecessors = graph.get_predecessors("c")
+        assert set(predecessors) == {"a", "b"}
+
+        predecessors = graph.get_predecessors("a")
+        assert predecessors == []
+
+    def test_agent_flow_graph_get_successors(self):
+        """get_successors returns agents that target feeds into."""
+        from orchestration.models import AgentFlowGraph, AgentFlowEdge
+
+        graph = AgentFlowGraph(
+            edges=[
+                AgentFlowEdge(from_agent="a", to_agent="b"),
+                AgentFlowEdge(from_agent="a", to_agent="c"),
+            ]
+        )
+
+        successors = graph.get_successors("a")
+        assert set(successors) == {"b", "c"}
+
+        successors = graph.get_successors("c")
+        assert successors == []
+
+    def test_simulation_config_defaults(self):
+        """SimulationConfig has correct defaults."""
+        from orchestration.models import SimulationConfig
+
+        config = SimulationConfig()
+        assert config.simulation_mode == "manual"
+        assert config.auto_delay_ms is None
+        assert config.tick_budget is None
+
+    def test_simulation_config_with_values(self):
+        """SimulationConfig stores custom values."""
+        from orchestration.models import SimulationConfig
+
+        config = SimulationConfig(
+            simulation_mode="auto", auto_delay_ms=1000, tick_budget=100
+        )
+        assert config.simulation_mode == "auto"
+        assert config.auto_delay_ms == 1000
+        assert config.tick_budget == 100
+
+    def test_tick_state_defaults(self):
+        """TickState has correct defaults."""
+        from orchestration.models import TickState
+
+        state = TickState()
+        assert state.tick_index == 0
+        assert state.tick_status == "idle"
+        assert state.pending_work_summary is None
+
+    def test_tick_state_with_values(self):
+        """TickState stores custom values."""
+        from orchestration.models import TickState
+
+        state = TickState(
+            tick_index=5,
+            tick_status="running",
+            pending_work_summary="3 tasks queued",
+        )
+        assert state.tick_index == 5
+        assert state.tick_status == "running"
+        assert state.pending_work_summary == "3 tasks queued"

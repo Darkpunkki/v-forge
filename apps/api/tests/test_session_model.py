@@ -207,3 +207,82 @@ class TestSessionModel:
         # Timestamps should be timezone-aware UTC
         assert session.created_at.tzinfo == timezone.utc
         assert session.updated_at.tzinfo == timezone.utc
+
+
+class TestSessionWorkflowFields:
+    """Tests for VF-190: Agent workflow and simulation fields."""
+
+    def test_session_workflow_fields_default(self):
+        """Workflow fields should default to empty/None."""
+        session = Session(session_id="test-123")
+
+        # Agent workflow fields
+        assert session.agents == []
+        assert session.agent_roles == {}
+        assert session.agent_models == {}
+        assert session.agent_graph is None
+        assert session.main_task is None
+
+        # Simulation control fields
+        assert session.simulation_mode == "manual"
+        assert session.tick_index == 0
+        assert session.tick_status == "idle"
+        assert session.auto_delay_ms is None
+        assert session.tick_budget is None
+
+    def test_session_with_agent_config(self):
+        """Session can store agent configurations."""
+        from orchestration.models import AgentConfig, AgentRole
+
+        agent = AgentConfig(
+            agent_id="agent-1", role=AgentRole.WORKER, model_id="gpt-4"
+        )
+        session = Session(session_id="test-123")
+        session.agents = [agent.model_dump()]
+
+        assert len(session.agents) == 1
+        assert session.agents[0]["agent_id"] == "agent-1"
+        assert session.agents[0]["role"] == "worker"
+
+    def test_session_with_agent_graph(self):
+        """Session can store agent flow graph."""
+        from orchestration.models import AgentFlowGraph, AgentFlowEdge
+
+        graph = AgentFlowGraph(
+            edges=[
+                AgentFlowEdge(from_agent="a", to_agent="b"),
+                AgentFlowEdge(from_agent="b", to_agent="c"),
+            ]
+        )
+        session = Session(session_id="test-123")
+        session.agent_graph = graph.model_dump()
+
+        assert len(session.agent_graph["edges"]) == 2
+
+    def test_session_serialization_includes_workflow_fields(self):
+        """to_dict() and from_dict() preserve workflow fields."""
+        session = Session(session_id="test-123")
+        session.agents = [{"agent_id": "a1", "role": "worker"}]
+        session.agent_roles = {"a1": "worker"}
+        session.agent_models = {"a1": "gpt-4"}
+        session.main_task = "Build a web app"
+        session.simulation_mode = "auto"
+        session.tick_index = 5
+        session.tick_status = "running"
+
+        # Serialize
+        data = session.to_dict()
+        assert data["agents"] == [{"agent_id": "a1", "role": "worker"}]
+        assert data["agent_roles"] == {"a1": "worker"}
+        assert data["simulation_mode"] == "auto"
+        assert data["tick_index"] == 5
+
+        # Deserialize
+        restored = Session.from_dict(data)
+        assert restored.agents == [{"agent_id": "a1", "role": "worker"}]
+        assert restored.agent_roles == {"a1": "worker"}
+        assert restored.agent_models == {"a1": "gpt-4"}
+        assert restored.main_task == "Build a web app"
+        assert restored.simulation_mode == "auto"
+        assert restored.tick_index == 5
+        assert restored.tick_status == "running"

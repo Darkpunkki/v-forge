@@ -979,18 +979,25 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 The following WPs implement the multi-agent workflow configuration capabilities outlined in `CONTROL_AGENT_WORKFLOW_STEPS.md`. These enable admins to initialize agents, assign roles/models, define communication flows, and run custom simulations through the control panel.
 
 ## WP-0043 — Session model + orchestration models for agent workflow
-- **Status:** Queued
-- **VF Tasks:** VF-190, VF-191
+- **Status:** Done
+- **Started:** 2026-01-12 (local)
+- **Completed:** 2026-01-12 (local)
+- **Branch:** master
+- **VF Tasks:** VF-190 ✓, VF-191 ✓
 - **Goal:** Extend Session model with agent workflow fields and create AgentConfig/AgentFlowGraph orchestration models to enable workflow state persistence.
 - **Dependencies:** WP-0013 ✓ (Session model foundations)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0043_VF-190-191_agent-workflow-models.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_session_model.py tests/test_session_store.py tests/test_orchestration_models.py -v`
-- **Files to touch:**
-  - `apps/api/vibeforge_api/core/session.py` (add workflow fields)
-  - `orchestration/models.py` (add AgentConfig, AgentFlowGraph)
-  - `apps/api/tests/test_session_model.py` (extend tests)
-  - `apps/api/tests/test_orchestration_models.py` (add AgentConfig/FlowGraph tests)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_session_model.py tests/test_session_store.py tests/test_orchestration_models.py -v` - 67 passed, 1 warning
+  - Added 10 workflow/simulation fields to Session model
+  - Created 5 new Pydantic models: AgentRole, AgentConfig, AgentFlowEdge, AgentFlowGraph, SimulationConfig, TickState
+  - Added 4 session tests + 13 orchestration tests
+  - All existing tests still pass
+- **Files touched:**
+  - `apps/api/vibeforge_api/core/session.py` (VF-190: added workflow/simulation fields)
+  - `orchestration/models.py` (VF-191: added AgentConfig, AgentFlowGraph, SimulationConfig, TickState)
+  - `apps/api/tests/test_session_model.py` (VF-190: TestSessionWorkflowFields class)
+  - `apps/api/tests/test_orchestration_models.py` (VF-191: TestAgentWorkflowModels class)
 
 ## WP-0044 — Agent workflow API endpoints
 - **Status:** Queued

@@ -233,8 +233,9 @@ cd apps/api && pytest tests/test_session_model.py tests/test_session_store.py te
 
 ## Done When
 
-- [ ] Session model includes all 5 workflow fields
-- [ ] AgentConfig model with validation
-- [ ] AgentFlowGraph model with DAG validation
-- [ ] All existing tests pass
-- [ ] New tests cover edge cases
+- [x] Session model includes all 5 workflow fields (+ 5 simulation fields)
+- [x] AgentConfig model with validation
+- [x] AgentFlowGraph model with DAG validation
+- [x] SimulationConfig and TickState models created
+- [x] All existing tests pass (67 passed, 1 warning)
+- [x] New tests cover edge cases (4 session tests + 13 orchestration tests)

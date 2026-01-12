@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass, field
 from typing import Any, Optional
+from enum import Enum
+from pydantic import BaseModel, Field, field_validator
 
 
 @dataclass
@@ -323,3 +325,150 @@ class RunSummary:
             how_to_run=data["how_to_run"],
             limitations=data["limitations"],
         )
+
+
+# VF-191: Agent workflow models (for control panel simulation mode)
+
+
+class AgentRole(str, Enum):
+    """Enumeration of valid agent roles."""
+
+    ORCHESTRATOR = "orchestrator"
+    FOREMAN = "foreman"
+    WORKER = "worker"
+    REVIEWER = "reviewer"
+    FIXER = "fixer"
+
+
+class AgentConfig(BaseModel):
+    """Configuration for a single agent instance (VF-191).
+
+    Used by the control panel simulation mode to configure agents
+    before running custom multi-agent workflows.
+    """
+
+    agent_id: str = Field(..., description="Unique identifier for this agent")
+    role: Optional[AgentRole] = Field(None, description="Assigned role")
+    model_id: Optional[str] = Field(
+        None, description="Model to use (e.g., 'gpt-4', 'claude-3')"
+    )
+    display_name: Optional[str] = Field(None, description="Human-readable name")
+
+    @field_validator("agent_id")
+    @classmethod
+    def validate_agent_id(cls, v: str) -> str:
+        """Validate that agent_id is non-empty."""
+        if not v or not v.strip():
+            raise ValueError("agent_id cannot be empty")
+        return v.strip()
+
+
+class AgentFlowEdge(BaseModel):
+    """Edge in agent communication graph (VF-191)."""
+
+    from_agent: str = Field(..., description="Source agent ID")
+    to_agent: str = Field(..., description="Target agent ID")
+    label: Optional[str] = Field(None, description="Edge label/description")
+
+
+class AgentFlowGraph(BaseModel):
+    """DAG representing agent-to-agent communication topology (VF-191).
+
+    Used by the control panel simulation mode to define which agents
+    can communicate with each other. Messages are only allowed along
+    configured edges (graph-gated messaging).
+    """
+
+    edges: list[AgentFlowEdge] = Field(default_factory=list)
+
+    def validate_dag(self, agent_ids: list[str]) -> tuple[bool, Optional[str]]:
+        """Validate graph is acyclic and references valid agents.
+
+        Args:
+            agent_ids: List of valid agent IDs to check against
+
+        Returns:
+            (is_valid, error_message) tuple
+        """
+        # Check all referenced agents exist
+        for edge in self.edges:
+            if edge.from_agent not in agent_ids:
+                return False, f"Unknown agent: {edge.from_agent}"
+            if edge.to_agent not in agent_ids:
+                return False, f"Unknown agent: {edge.to_agent}"
+
+        # Check for cycles using DFS
+        visited = set()
+        rec_stack = set()
+
+        def has_cycle(node: str) -> bool:
+            visited.add(node)
+            rec_stack.add(node)
+
+            for edge in self.edges:
+                if edge.from_agent == node:
+                    neighbor = edge.to_agent
+                    if neighbor not in visited:
+                        if has_cycle(neighbor):
+                            return True
+                    elif neighbor in rec_stack:
+                        return True
+
+            rec_stack.remove(node)
+            return False
+
+        for agent_id in agent_ids:
+            if agent_id not in visited:
+                if has_cycle(agent_id):
+                    return False, "Cycle detected in agent flow graph"
+
+        return True, None
+
+    def get_predecessors(self, agent_id: str) -> list[str]:
+        """Get agents that feed into this agent.
+
+        Args:
+            agent_id: Target agent ID
+
+        Returns:
+            List of agent IDs that have edges pointing to this agent
+        """
+        return [e.from_agent for e in self.edges if e.to_agent == agent_id]
+
+    def get_successors(self, agent_id: str) -> list[str]:
+        """Get agents this agent feeds into.
+
+        Args:
+            agent_id: Source agent ID
+
+        Returns:
+            List of agent IDs that this agent points to
+        """
+        return [e.to_agent for e in self.edges if e.from_agent == agent_id]
+
+
+class SimulationConfig(BaseModel):
+    """Configuration for tick-based simulation mode (VF-191)."""
+
+    simulation_mode: str = Field(
+        "manual", description="Simulation mode: 'manual' or 'auto'"
+    )
+    auto_delay_ms: Optional[int] = Field(
+        None, description="Auto-run delay between ticks (milliseconds)"
+    )
+    tick_budget: Optional[int] = Field(
+        None, description="Maximum events/messages per tick (safety limit)"
+    )
+
+
+class TickState(BaseModel):
+    """Current state of tick-based simulation (VF-191)."""
+
+    tick_index: int = Field(0, description="Current tick number (starts at 0)")
+    tick_status: str = Field(
+        "idle",
+        description="Tick status: 'idle' | 'running' | 'blocked' | 'completed'",
+    )
+    pending_work_summary: Optional[str] = Field(
+        None, description="Summary of pending work for next tick"
+    )

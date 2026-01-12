@@ -51,6 +51,20 @@ class Session:
         self.fix_loop_count: int = 0
         self.max_fix_loops: int = 3  # Prevent infinite fix loops
 
+        # Agent workflow fields (VF-190: for control panel simulation mode)
+        self.agents: list[dict] = []  # List of AgentConfig dicts
+        self.agent_roles: dict[str, str] = {}  # agent_id -> role
+        self.agent_models: dict[str, str] = {}  # agent_id -> model_id
+        self.agent_graph: Optional[dict] = None  # AgentFlowGraph dict
+        self.main_task: Optional[str] = None  # Orchestration goal
+
+        # Simulation control fields (VF-190: tick-based simulation)
+        self.simulation_mode: str = "manual"  # "manual" | "auto"
+        self.tick_index: int = 0
+        self.tick_status: str = "idle"  # "idle" | "running" | "blocked" | "completed"
+        self.auto_delay_ms: Optional[int] = None
+        self.tick_budget: Optional[int] = None  # Max events/messages per tick
+
     def update_phase(self, new_phase: SessionPhase):
         """Update session phase."""
         self.phase = new_phase
@@ -165,6 +179,18 @@ class Session:
             # Fix loop tracking
             "fix_loop_count": self.fix_loop_count,
             "max_fix_loops": self.max_fix_loops,
+            # Agent workflow fields
+            "agents": self.agents,
+            "agent_roles": self.agent_roles,
+            "agent_models": self.agent_models,
+            "agent_graph": self.agent_graph,
+            "main_task": self.main_task,
+            # Simulation control fields
+            "simulation_mode": self.simulation_mode,
+            "tick_index": self.tick_index,
+            "tick_status": self.tick_status,
+            "auto_delay_ms": self.auto_delay_ms,
+            "tick_budget": self.tick_budget,
         }
 
     @classmethod
@@ -222,6 +248,20 @@ class Session:
         # Fix loop tracking
         session.fix_loop_count = data.get("fix_loop_count", 0)
         session.max_fix_loops = data.get("max_fix_loops", 3)
+
+        # Agent workflow fields
+        session.agents = data.get("agents", [])
+        session.agent_roles = data.get("agent_roles", {})
+        session.agent_models = data.get("agent_models", {})
+        session.agent_graph = data.get("agent_graph")
+        session.main_task = data.get("main_task")
+
+        # Simulation control fields
+        session.simulation_mode = data.get("simulation_mode", "manual")
+        session.tick_index = data.get("tick_index", 0)
+        session.tick_status = data.get("tick_status", "idle")
+        session.auto_delay_ms = data.get("auto_delay_ms")
+        session.tick_budget = data.get("tick_budget")
 
         return session
 

@@ -1285,24 +1285,39 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 This section covers the capabilities for admins to configure and run custom agent simulations through the control panel, as specified in `CONTROL_AGENT_WORKFLOW_STEPS.md`.
 
-- [ ] **VF-190 — Extend Session model with agent workflow and simulation fields**
+- [x] **VF-190 — Extend Session model with agent workflow and simulation fields**
   - Add fields to `apps/api/vibeforge_api/core/session.py` to store:
     - **Agent configuration:** `agents` (list of initialized agent instances), `agent_roles` (agent_id → role mapping), `agent_models` (agent_id → model_id mapping), `agent_graph` (agent-to-agent communication DAG), `main_task` (orchestration task payload).
     - **Simulation control:** `simulation_mode` ("manual" | "auto"), `tick_index` (int, starts at 0), `tick_status` ("idle" | "running" | "blocked" | "completed"), `auto_delay_ms` (optional int), `tick_budget` (optional max events per tick).
-  - **Status:** Planned
+  - **Status:** Complete (2026-01-12)
   - **Done when:** Session model includes all workflow + simulation fields with proper typing; `SessionStore.update_session()` persists these fields; existing tests still pass.
   - **Verify:** `cd apps/api && pytest tests/test_session_model.py tests/test_session_store.py -v`
+  - **Implementation:**
+    - Added 10 workflow/simulation fields to Session.__init__() with proper typing
+    - Updated Session.to_dict() to serialize all workflow fields
+    - Updated Session.from_dict() to deserialize all workflow fields
+    - Added 4 tests in test_session_model.py (TestSessionWorkflowFields class)
+    - All tests pass (19 session model tests + 19 session store tests)
+    - Files: apps/api/vibeforge_api/core/session.py, apps/api/tests/test_session_model.py
 
-- [ ] **VF-191 — Create AgentConfig, AgentFlowGraph, SimulationConfig, and TickState orchestration models**
+- [x] **VF-191 — Create AgentConfig, AgentFlowGraph, SimulationConfig, and TickState orchestration models**
   - Add to `orchestration/models.py`:
     - `AgentConfig` (agent initialization/configuration with role and model)
     - `AgentFlowGraph` (agent-to-agent communication topology with DAG validation)
     - `SimulationConfig` (mode, delay, budget settings)
     - `TickState` (tick_index, status, pending work summary)
   - Include validation for supported roles, model IDs, and acyclic graph structure.
-  - **Status:** Planned
+  - **Status:** Complete (2026-01-12)
   - **Done when:** All 4 models exist with Pydantic validation; `AgentFlowGraph` has `validate_dag()` like `TaskGraph`; unit tests cover validation edge cases.
   - **Verify:** `cd apps/api && pytest tests/test_orchestration_models.py -v`
+  - **Implementation:**
+    - Created AgentRole enum (orchestrator/foreman/worker/reviewer/fixer)
+    - Created AgentConfig model with agent_id validation
+    - Created AgentFlowEdge and AgentFlowGraph models with validate_dag(), get_predecessors(), get_successors()
+    - Created SimulationConfig and TickState models
+    - Added 13 tests in test_orchestration_models.py (TestAgentWorkflowModels class)
+    - All tests pass (67 total: 19 session + 19 session_store + 29 orchestration)
+    - Files: orchestration/models.py, apps/api/tests/test_orchestration_models.py
 
 - [ ] **VF-192 — Add Pydantic request/response schemas for agent workflow and simulation endpoints**
   - Create request/response models in `apps/api/vibeforge_api/models/`:
