@@ -1,6 +1,6 @@
 # MVP Placeholder Audit Inventory
 
-_Last reviewed: 2026-01-07_
+_Last reviewed: 2026-01-12_
 
 ## Scope
 This inventory tracks MVP placeholders and stubs that remain in the runtime path and require post-MVP remediation. Each entry includes file + line references, ownership, impact, and a recommended disposition.
@@ -12,8 +12,8 @@ This inventory tracks MVP placeholders and stubs that remain in the runtime path
 | MP-002 | `apps/api/vibeforge_api/core/mock_generator.py:1-233` | Mock generator writes demo projects instead of real artifacts. | API (Workspace/Artifacts) | Demo-only output; no real app scaffolding or execution pipeline. | **Replace** with real scaffold pipeline or keep behind explicit demo flag. | VF-302 |
 | MP-003 | `apps/api/vibeforge_api/routers/sessions.py:158-166` | `get_plan_summary` returns hardcoded plan summary. | API (Plan Review) | Plan review displays fake plan details; no TaskGraph linkage. | **Replace** with TaskGraph-backed summary and real constraints. | VF-303 |
 | MP-004 | `apps/api/vibeforge_api/routers/sessions.py:213-238` | `get_progress` uses simplified task lists/logs instead of TaskGraph + event data. | API (Progress) | Progress UI lacks real task status, sequencing, or event context. | **Replace** with TaskGraph/event-backed progress report. | VF-303 |
-| MP-005 | `models/agent_framework_stubs.py:1-105` | LangGraph/CrewAI/AutoGen adapters raise `NotImplementedError`. | Model layer (Agent frameworks) | Non-OpenAI frameworks unavailable; runtime fails if selected. | **Replace** with real adapters or guard with feature flags. | VF-304 |
-| MP-006 | `models/local/provider.py:1-118` | LocalProvider stub raises `NotImplementedError` for local model usage. | Model layer (LLM providers) | Local model selection fails; only OpenAI path works. | **Replace** with local provider integrations or guard. | VF-304 |
+| MP-005 | `models/agent_framework_stubs.py:1-105` | LangGraph/CrewAI/AutoGen adapters raise `NotImplementedError`. | Model layer (Agent frameworks) | Non-OpenAI frameworks unavailable; runtime fails if selected. | **Replace** with real adapters or guard with feature flags. | VF-304 ✓ → [Upgrade Path](../design/agent-local-stub-upgrade-path.md) |
+| MP-006 | `models/local/provider.py:1-118` | LocalProvider stub raises `NotImplementedError` for local model usage. | Model layer (LLM providers) | Local model selection fails; only OpenAI path works. | **Replace** with local provider integrations or guard. | VF-304 ✓ → [Upgrade Path](../design/agent-local-stub-upgrade-path.md) |
 | MP-007 | `models/agent_framework.py:106-223` | DirectLlmAdapter uses hardcoded prompts and treats any response as success. | Model layer (Agent runtime) | Limited role configuration and validation; errors slip through. | **Replace** with AgentRegistry prompts + strict validation. | VF-102 follow-through |
 
 ## Ownership Notes
@@ -23,3 +23,6 @@ This inventory tracks MVP placeholders and stubs that remain in the runtime path
 ## Follow-up Guidance
 - Prefer creating feature flags for demo-only shortcuts if replacement is not immediate.
 - Update this inventory whenever stubs are removed or replaced.
+
+## Upgrade Path Documents
+- **Agent Framework & Local Provider Stubs (MP-005, MP-006)**: See [docs/ai/design/agent-local-stub-upgrade-path.md](../design/agent-local-stub-upgrade-path.md) for detailed implementation plans, feature flags, rollout guards, and acceptance tests.

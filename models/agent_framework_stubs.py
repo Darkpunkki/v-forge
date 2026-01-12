@@ -2,6 +2,13 @@
 Agent Framework Stubs: Placeholder adapters for future integrations.
 
 VF-103: Stub implementations for LangGraph, CrewAI, and AutoGen
+
+Upgrade Path: docs/ai/design/agent-local-stub-upgrade-path.md
+- LangGraphAdapter: VF-310 through VF-312 (High priority)
+- CrewAIAdapter: VF-315 through VF-316 (Medium priority)
+- AutoGenAdapter: VF-320 through VF-321 (Low priority, deferred)
+
+See MVP Placeholder Audit (MP-005) for remediation guidance.
 """
 
 from typing import Any

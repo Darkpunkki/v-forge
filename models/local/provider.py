@@ -2,6 +2,14 @@
 
 VF-066: Placeholder implementation for local models (Ollama/llama.cpp/vLLM).
 Not implemented in MVP, but exists to make the architecture seam visible and testable.
+
+Upgrade Path: docs/ai/design/agent-local-stub-upgrade-path.md
+- Ollama backend: VF-330 through VF-332 (High priority)
+- vLLM backend: VF-335 through VF-336 (Medium priority)
+- llama.cpp backend: VF-340 (Low priority, deferred)
+- MLX backend: VF-345 (Low priority, deferred)
+
+See MVP Placeholder Audit (MP-006) for remediation guidance.
 """
 
 from typing import Optional

@@ -1260,11 +1260,24 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Files:** `apps/api/vibeforge_api/routers/sessions.py`, `apps/api/tests/test_sessions.py`
   - Verified via `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"`.
 
-- [ ] **VF-304 — Define upgrade path for agent/local stubs (LangGraph/CrewAI/AutoGen + LocalProvider)**
+- [x] **VF-304 — Define upgrade path for agent/local stubs (LangGraph/CrewAI/AutoGen + LocalProvider)**
   - Turn the stub adapters in `models/agent_framework_stubs.py` and the `LocalProvider` stub in `models/local/provider.py` into explicit upgrade tasks: document intended feature flags, minimum viable integrations, and acceptance tests so they can be scheduled without ambiguity.
-  - **Status:** Planned
+  - **Status:** Complete (2026-01-12)
   - **Done when:** A follow-on design/plan doc exists outlining scope, rollout guards, and test hooks for each stubbed provider/adapter; stubs are referenced from the audit with clear next-step VF IDs or WP links.
   - **Verify:** Manual review of the plan doc and cross-check that stubs are annotated with links to the planned work.
+  - **Implementation:**
+    - Created `docs/ai/design/agent-local-stub-upgrade-path.md` with comprehensive upgrade path
+    - Defined feature flags, rollout guards, and acceptance tests for each provider/adapter:
+      - LangGraph (VF-310-312, High priority)
+      - CrewAI (VF-315-316, Medium priority)
+      - AutoGen (VF-320-321, Low priority)
+      - Ollama (VF-330-332, High priority)
+      - vLLM (VF-335-336, Medium priority)
+      - llama.cpp (VF-340, Deferred)
+      - MLX (VF-345, Deferred)
+    - Updated `models/agent_framework_stubs.py` with upgrade path references
+    - Updated `models/local/provider.py` with upgrade path references
+    - Updated MVP Placeholder Audit (MP-005, MP-006) with links to upgrade path
 
 ---
 

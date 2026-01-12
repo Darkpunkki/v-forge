@@ -953,13 +953,24 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
 - Commits: 3f97ff3
 
 ## WP-0042 — Agent/local stub upgrade path plan
-- **Status:** Queued
-- **VF Tasks:** VF-304
+- **Status:** Done
+- **Started:** 2026-01-12 (local)
+- **Completed:** 2026-01-12 (local)
+- **Branch:** master
+- **VF Tasks:** VF-304 ✓
 - **Goal:** Define a documented upgrade path for agent framework stubs and LocalProvider integrations with clear acceptance tests.
 - **Dependencies:** WP-0039 ✓
 - **Plan Doc:** docs/ai/planning/WP-0042_VF-304-304_agent-local-stub-upgrade-path.md
-- **Verify:**
-  - `pytest`
+- **Verified:**
+  - `pytest` - 579 passed, 1 skipped (pre-existing failures unrelated to changes)
+  - Created `docs/ai/design/agent-local-stub-upgrade-path.md` with comprehensive upgrade plan
+  - Updated stub files with upgrade path references (VF-310-345)
+  - Updated MVP placeholder audit with links to upgrade path document
+- **Files touched:**
+  - `docs/ai/design/agent-local-stub-upgrade-path.md` (new - comprehensive upgrade path)
+  - `models/agent_framework_stubs.py` (added upgrade path header)
+  - `models/local/provider.py` (added upgrade path header)
+  - `docs/ai/planning/mvp_placeholder_audit.md` (added upgrade path links)
 
 ---
 

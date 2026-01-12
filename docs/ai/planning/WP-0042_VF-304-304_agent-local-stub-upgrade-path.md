@@ -1,7 +1,7 @@
 # WP-0042 — Agent/local stub upgrade path plan
 
 ## Status
-- Queued
+- Done (2026-01-12)
 
 ## Context
 - Chapter(s): 30 MVP/Placeholder Cleanup
