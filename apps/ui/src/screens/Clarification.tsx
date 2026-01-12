@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   getClarification,
@@ -13,45 +13,52 @@ import type { ClarificationResponse } from "../types/api";
 export function ClarificationScreen() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+
   const [clarification, setClarification] =
     useState<ClarificationResponse | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+
+  // Used for API/flow errors (load/submit/routing). (Not for inline validation.)
   const [error, setError] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   function formatError(err: unknown): string {
-    if (!err) {
-      return "Unknown error";
-    }
-    if (typeof err === "string") {
-      return err;
-    }
-    if (err instanceof Error) {
-      return err.message || String(err);
-    }
+    if (!err) return "Unknown error";
+    if (typeof err === "string") return err;
+    if (err instanceof Error) return err.message || String(err);
+
     if (typeof err === "object") {
       const detail =
         (err as { detail?: unknown; message?: unknown }).detail ??
         (err as { message?: unknown }).message;
+
       if (detail) {
         return typeof detail === "string"
           ? detail
           : JSON.stringify(detail, null, 2);
       }
+
       return JSON.stringify(err, null, 2);
     }
+
     return String(err);
   }
 
-  function formatContext(context: ClarificationResponse["context"]): string {
-    if (!context) {
-      return "";
+  // Safely render context (string or object) as text.
+  function formatContext(
+    context: ClarificationResponse["context"]
+  ): string {
+    if (context == null) return "";
+    if (typeof context === "string") return context;
+
+    // If backend ever sends arrays, this still works because arrays are objects in JS.
+    try {
+      return JSON.stringify(context, null, 2);
+    } catch {
+      return String(context);
     }
-    if (typeof context === "string") {
-      return context;
-    }
-    return JSON.stringify(context, null, 2);
   }
 
   async function routeFromPhase() {
@@ -140,17 +147,26 @@ export function ClarificationScreen() {
       await routeFromPhase();
       await loadClarification();
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
+
+  // Compute once per clarification update (avoid double stringify).
+  const contextText = useMemo(() => {
+    return clarification ? formatContext(clarification.context) : "";
+  }, [clarification]);
 
   if (loading) {
     return <div>Loading clarification...</div>;
   }
 
+  // Fatal page-level error (load/routing failure)
   if (error) {
     return (
       <div>
         <h2>Error</h2>
-        <pre style={{ background: "#fee", padding: 12 }}>{error}</pre>
+        <pre style={{ background: "#fee", padding: 12, whiteSpace: "pre-wrap" }}>
+          {error}
+        </pre>
         <button onClick={() => navigate("/")}>Back to Home</button>
       </div>
     );
@@ -193,7 +209,7 @@ export function ClarificationScreen() {
         </h2>
 
         {/* Context (if provided) */}
-        {formatContext(clarification.context) && (
+        {contextText && (
           <div
             style={{
               background: "#f0f7ff",
@@ -203,9 +219,18 @@ export function ClarificationScreen() {
               border: "1px solid #b3d9ff",
             }}
           >
-            <p style={{ margin: 0, fontSize: 14, color: "#0056b3" }}>
-              {formatContext(clarification.context)}
-            </p>
+            <pre
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: "#0056b3",
+                whiteSpace: "pre-wrap",
+                fontFamily:
+                  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+              }}
+            >
+              {contextText}
+            </pre>
           </div>
         )}
 
@@ -227,17 +252,13 @@ export function ClarificationScreen() {
                   transition: "all 0.2s ease",
                 }}
               >
-                <div
-                  style={{ display: "flex", alignItems: "flex-start", gap: 12 }}
-                >
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                   <div
                     style={{
                       width: 20,
                       height: 20,
                       borderRadius: "50%",
-                      border: isSelected
-                        ? "6px solid #0070f3"
-                        : "2px solid #999",
+                      border: isSelected ? "6px solid #0070f3" : "2px solid #999",
                       flexShrink: 0,
                       marginTop: 2,
                       transition: "all 0.2s ease",
@@ -255,9 +276,7 @@ export function ClarificationScreen() {
                       {option.label}
                     </div>
                     {option.description && (
-                      <div
-                        style={{ fontSize: 14, color: "#666", lineHeight: 1.5 }}
-                      >
+                      <div style={{ fontSize: 14, color: "#666", lineHeight: 1.5 }}>
                         {option.description}
                       </div>
                     )}
@@ -267,21 +286,6 @@ export function ClarificationScreen() {
             );
           })}
         </div>
-
-        {/* Error Display */}
-        {error && (
-          <div
-            style={{
-              background: "#fee",
-              padding: 12,
-              borderRadius: 6,
-              marginTop: 16,
-              color: "#c00",
-            }}
-          >
-            <strong>Error:</strong> {error}
-          </div>
-        )}
 
         {/* Submit Button */}
         <div style={{ marginTop: 32, display: "flex", gap: 12 }}>
