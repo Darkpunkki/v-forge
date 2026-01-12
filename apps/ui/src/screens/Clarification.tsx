@@ -20,6 +20,30 @@ export function ClarificationScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  function formatError(err: unknown): string {
+    if (!err) {
+      return "Unknown error";
+    }
+    if (typeof err === "string") {
+      return err;
+    }
+    if (err instanceof Error) {
+      return err.message || String(err);
+    }
+    if (typeof err === "object") {
+      const detail =
+        (err as { detail?: unknown; message?: unknown }).detail ??
+        (err as { message?: unknown }).message;
+      if (detail) {
+        return typeof detail === "string"
+          ? detail
+          : JSON.stringify(detail, null, 2);
+      }
+      return JSON.stringify(err, null, 2);
+    }
+    return String(err);
+  }
+
   async function routeFromPhase() {
     if (!sessionId) return;
     const p = await getProgress(sessionId);
@@ -57,11 +81,11 @@ export function ClarificationScreen() {
           await routeFromPhase();
           return;
         } catch (e: any) {
-          setError(e?.detail || e?.message || String(e));
+          setError(formatError(e));
           return;
         }
       }
-      setError(err?.detail || err?.message || String(err));
+      setError(formatError(err));
     } finally {
       setLoading(false);
     }
@@ -95,7 +119,7 @@ export function ClarificationScreen() {
           return;
       }
     } catch (err: any) {
-      setError(err.message || String(err));
+      setError(formatError(err));
     } finally {
       setSubmitting(false);
     }
