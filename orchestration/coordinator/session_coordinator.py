@@ -15,6 +15,7 @@ VF-035, VF-036 (WP-0019)
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+from uuid import uuid4
 
 from apps.api.vibeforge_api.core.session import Session, SessionStoreInterface
 from apps.api.vibeforge_api.core.workspace import WorkspaceManager
@@ -1001,7 +1002,13 @@ class SessionCoordinator:
                 task, agent_role.role, context
             )
 
+            request_id = None
             if agent_result.request:
+                request_metadata = agent_result.request.metadata or {}
+                request_id = request_metadata.get("request_id")
+                if not request_id:
+                    request_id = str(uuid4())
+                    request_metadata["request_id"] = request_id
                 system_message = ""
                 user_prompt = ""
                 for message in agent_result.request.messages:
@@ -1025,11 +1032,14 @@ class SessionCoordinator:
                             "system_message": system_message,
                             "max_tokens": agent_result.request.max_tokens,
                             "temperature": agent_result.request.temperature,
+                            "request_id": request_id,
+                            "operation": request_metadata.get("operation"),
                         },
                     )
                 )
 
-            if agent_result.usage:
+            if agent_result.usage or agent_result.outputs.get("response"):
+                usage = agent_result.usage
                 self._emit_event(
                     Event(
                         event_type=EventType.LLM_RESPONSE_RECEIVED,
@@ -1041,9 +1051,11 @@ class SessionCoordinator:
                         metadata={
                             "agent_role": agent_role.role,
                             "model": agent_result.outputs.get("model"),
-                            "prompt_tokens": agent_result.usage.prompt_tokens,
-                            "completion_tokens": agent_result.usage.completion_tokens,
-                            "total_tokens": agent_result.usage.total_tokens,
+                            "response": agent_result.outputs.get("response"),
+                            "prompt_tokens": usage.prompt_tokens if usage else None,
+                            "completion_tokens": usage.completion_tokens if usage else None,
+                            "total_tokens": usage.total_tokens if usage else None,
+                            "request_id": request_id,
                         },
                     )
                 )

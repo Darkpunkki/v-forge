@@ -347,3 +347,64 @@ class TestControlRunBundle:
 
         assert response.media_type == "application/zip"
         assert Path(response.path).exists()
+
+
+class TestControlLlmTrace:
+    """Tests for /control/sessions/{id}/llm-trace endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_session_llm_trace(self, tmp_path):
+        """Ensure LLM trace combines prompts and responses."""
+        from vibeforge_api.routers.control import get_session_llm_trace
+
+        session_id = "trace-session"
+        request_id = "req-123"
+        event_log = EventLog(tmp_path)
+        event_log.append(
+            Event(
+                event_type=EventType.LLM_REQUEST_SENT,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message="LLM request",
+                task_id="task-1",
+                metadata={
+                    "agent_role": "worker",
+                    "model": "gpt-4o-mini",
+                    "prompt": "Write a Python function to add two numbers",
+                    "system_message": "You are a helpful coding assistant",
+                    "max_tokens": 1000,
+                    "temperature": 0.7,
+                    "request_id": request_id,
+                },
+            )
+        )
+        event_log.append(
+            Event(
+                event_type=EventType.LLM_RESPONSE_RECEIVED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message="LLM response",
+                task_id="task-1",
+                metadata={
+                    "agent_role": "worker",
+                    "model": "gpt-4o-mini",
+                    "response": "Here is the function...",
+                    "prompt_tokens": 12,
+                    "completion_tokens": 8,
+                    "total_tokens": 20,
+                    "request_id": request_id,
+                },
+            )
+        )
+
+        with patch("vibeforge_api.core.workspace.WorkspaceManager") as mock_wm_class:
+            mock_wm = Mock()
+            mock_wm.workspace_root = tmp_path
+            mock_wm_class.return_value = mock_wm
+
+            response = await get_session_llm_trace(session_id)
+
+        assert response["total"] == 1
+        trace = response["traces"][0]
+        assert trace["response"] == "Here is the function..."
+        assert "add two numbers" in trace["prompt"]

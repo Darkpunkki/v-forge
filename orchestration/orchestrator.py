@@ -1,12 +1,15 @@
 """Orchestrator for high-level build coordination (VF-073, VF-074, VF-075)."""
 
+from datetime import datetime, timezone
 from typing import Optional
+from uuid import uuid4
 from jinja2 import Template
 
 from models.base.llm_client import LlmClient, LlmRequest, LlmMessage
 from models.router import get_model_router, RoutingContext
 from models.validation import OutputValidator
 from models.repair import OutputRepair, RepairFailedError
+from vibeforge_api.core.event_log import Event, EventLog, EventType
 
 from orchestration.prompts import (
     CONCEPT_GENERATION_TEMPLATE,
@@ -24,18 +27,50 @@ from orchestration.models import ConceptDoc, TaskGraph, RunSummary
 class Orchestrator:
     """High-level orchestrator for generating concepts, task graphs, and summaries."""
 
-    def __init__(self, llm_client: LlmClient, max_repair_attempts: int = 2):
+    def __init__(
+        self,
+        llm_client: LlmClient,
+        max_repair_attempts: int = 2,
+        event_log: Optional[EventLog] = None,
+    ):
         """
         Initialize orchestrator.
 
         Args:
             llm_client: LLM client for making model requests
             max_repair_attempts: Maximum repair attempts for invalid outputs
+            event_log: Optional event log for observability
         """
         self.llm_client = llm_client
         self.router = get_model_router()
         self.validator = OutputValidator()
         self.repair = OutputRepair(llm_client, max_repair_attempts)
+        self.event_log = event_log
+
+    def _emit_llm_event(
+        self,
+        *,
+        event_type: EventType,
+        session_id: str,
+        message: str,
+        task_id: Optional[str] = None,
+        metadata: Optional[dict] = None,
+    ) -> None:
+        if not self.event_log:
+            return
+        try:
+            self.event_log.append(
+                Event(
+                    event_type=event_type,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=session_id,
+                    message=message,
+                    task_id=task_id,
+                    metadata=metadata,
+                )
+            )
+        except Exception:
+            pass
 
     async def generateConcept(self, build_spec: dict) -> ConceptDoc:
         """
@@ -80,6 +115,7 @@ class Orchestrator:
         )
         provider, model = self.router.select_model(routing_context)
 
+        request_id = str(uuid4())
         # Make LLM request
         request = LlmRequest(
             messages=[
@@ -91,10 +127,50 @@ class Orchestrator:
             ],
             model=model,
             temperature=0.7,
-            metadata={"session_id": session_id, "operation": "concept_generation"},
+            metadata={
+                "session_id": session_id,
+                "operation": "concept_generation",
+                "agent_role": "orchestrator",
+                "request_id": request_id,
+            },
+        )
+
+        self._emit_llm_event(
+            event_type=EventType.LLM_REQUEST_SENT,
+            session_id=session_id,
+            message="LLM request sent for concept generation",
+            metadata={
+                "agent_role": "orchestrator",
+                "model": model,
+                "provider": provider,
+                "prompt": prompt,
+                "system_message": "You are an expert software architect. You generate structured, practical concepts for software projects.",
+                "temperature": request.temperature,
+                "max_tokens": request.max_tokens,
+                "request_id": request_id,
+                "operation": "concept_generation",
+            },
         )
 
         response = await self.llm_client.complete(request)
+
+        self._emit_llm_event(
+            event_type=EventType.LLM_RESPONSE_RECEIVED,
+            session_id=session_id,
+            message="LLM response received for concept generation",
+            metadata={
+                "agent_role": "orchestrator",
+                "model": response.model,
+                "provider": provider,
+                "response": response.content,
+                "finish_reason": response.finish_reason,
+                "prompt_tokens": response.usage.prompt_tokens if response.usage else None,
+                "completion_tokens": response.usage.completion_tokens if response.usage else None,
+                "total_tokens": response.usage.total_tokens if response.usage else None,
+                "request_id": request_id,
+                "operation": "concept_generation",
+            },
+        )
 
         # Validate response
         result = self.validator.validate(response, CONCEPT_SCHEMA)
@@ -162,6 +238,7 @@ class Orchestrator:
         )
         provider, model = self.router.select_model(routing_context)
 
+        request_id = str(uuid4())
         # Make LLM request
         request = LlmRequest(
             messages=[
@@ -173,10 +250,50 @@ class Orchestrator:
             ],
             model=model,
             temperature=0.6,  # Slightly lower for more structured output
-            metadata={"session_id": session_id, "operation": "taskgraph_generation"},
+            metadata={
+                "session_id": session_id,
+                "operation": "taskgraph_generation",
+                "agent_role": "orchestrator",
+                "request_id": request_id,
+            },
+        )
+
+        self._emit_llm_event(
+            event_type=EventType.LLM_REQUEST_SENT,
+            session_id=session_id,
+            message="LLM request sent for task graph generation",
+            metadata={
+                "agent_role": "orchestrator",
+                "model": model,
+                "provider": provider,
+                "prompt": prompt,
+                "system_message": "You are an expert task planner. You break down software projects into dependency-ordered tasks that form a valid DAG.",
+                "temperature": request.temperature,
+                "max_tokens": request.max_tokens,
+                "request_id": request_id,
+                "operation": "taskgraph_generation",
+            },
         )
 
         response = await self.llm_client.complete(request)
+
+        self._emit_llm_event(
+            event_type=EventType.LLM_RESPONSE_RECEIVED,
+            session_id=session_id,
+            message="LLM response received for task graph generation",
+            metadata={
+                "agent_role": "orchestrator",
+                "model": response.model,
+                "provider": provider,
+                "response": response.content,
+                "finish_reason": response.finish_reason,
+                "prompt_tokens": response.usage.prompt_tokens if response.usage else None,
+                "completion_tokens": response.usage.completion_tokens if response.usage else None,
+                "total_tokens": response.usage.total_tokens if response.usage else None,
+                "request_id": request_id,
+                "operation": "taskgraph_generation",
+            },
+        )
 
         # Validate response
         result = self.validator.validate(response, TASKGRAPH_SCHEMA)
@@ -249,6 +366,7 @@ class Orchestrator:
         )
         provider, model = self.router.select_model(routing_context)
 
+        request_id = str(uuid4())
         # Make LLM request
         request = LlmRequest(
             messages=[
@@ -260,10 +378,50 @@ class Orchestrator:
             ],
             model=model,
             temperature=0.5,  # Lower for factual, consistent summaries
-            metadata={"session_id": session_id, "operation": "run_summary"},
+            metadata={
+                "session_id": session_id,
+                "operation": "run_summary",
+                "agent_role": "orchestrator",
+                "request_id": request_id,
+            },
+        )
+
+        self._emit_llm_event(
+            event_type=EventType.LLM_REQUEST_SENT,
+            session_id=session_id,
+            message="LLM request sent for run summary",
+            metadata={
+                "agent_role": "orchestrator",
+                "model": model,
+                "provider": provider,
+                "prompt": prompt,
+                "system_message": "You are a technical writer. You document completed software builds with clear, accurate summaries and run instructions.",
+                "temperature": request.temperature,
+                "max_tokens": request.max_tokens,
+                "request_id": request_id,
+                "operation": "run_summary",
+            },
         )
 
         response = await self.llm_client.complete(request)
+
+        self._emit_llm_event(
+            event_type=EventType.LLM_RESPONSE_RECEIVED,
+            session_id=session_id,
+            message="LLM response received for run summary",
+            metadata={
+                "agent_role": "orchestrator",
+                "model": response.model,
+                "provider": provider,
+                "response": response.content,
+                "finish_reason": response.finish_reason,
+                "prompt_tokens": response.usage.prompt_tokens if response.usage else None,
+                "completion_tokens": response.usage.completion_tokens if response.usage else None,
+                "total_tokens": response.usage.total_tokens if response.usage else None,
+                "request_id": request_id,
+                "operation": "run_summary",
+            },
+        )
 
         # Validate response
         result = self.validator.validate(response, RUN_SUMMARY_SCHEMA)
