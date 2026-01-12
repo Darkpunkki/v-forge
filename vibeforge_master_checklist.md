@@ -1272,23 +1272,33 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 This section covers the capabilities for admins to configure and run custom agent simulations through the control panel, as specified in `CONTROL_AGENT_WORKFLOW_STEPS.md`.
 
-- [ ] **VF-190 — Extend Session model with agent workflow fields**
-  - Add fields to `apps/api/vibeforge_api/core/session.py` to store agent configuration state: `agents` (list of initialized agent instances), `agent_roles` (agent_id → role mapping), `agent_models` (agent_id → model_id mapping), `agent_graph` (agent-to-agent communication DAG), `main_task` (orchestration task payload).
+- [ ] **VF-190 — Extend Session model with agent workflow and simulation fields**
+  - Add fields to `apps/api/vibeforge_api/core/session.py` to store:
+    - **Agent configuration:** `agents` (list of initialized agent instances), `agent_roles` (agent_id → role mapping), `agent_models` (agent_id → model_id mapping), `agent_graph` (agent-to-agent communication DAG), `main_task` (orchestration task payload).
+    - **Simulation control:** `simulation_mode` ("manual" | "auto"), `tick_index` (int, starts at 0), `tick_status` ("idle" | "running" | "blocked" | "completed"), `auto_delay_ms` (optional int), `tick_budget` (optional max events per tick).
   - **Status:** Planned
-  - **Done when:** Session model includes all workflow fields with proper typing; `SessionStore.update_session()` persists these fields; existing tests still pass.
+  - **Done when:** Session model includes all workflow + simulation fields with proper typing; `SessionStore.update_session()` persists these fields; existing tests still pass.
   - **Verify:** `cd apps/api && pytest tests/test_session_model.py tests/test_session_store.py -v`
 
-- [ ] **VF-191 — Create AgentConfig and AgentFlowGraph orchestration models**
-  - Add `AgentConfig` (agent initialization/configuration) and `AgentFlowGraph` (agent-to-agent communication topology with DAG validation) to `orchestration/models.py`. Include validation for supported roles, model IDs, and acyclic graph structure.
+- [ ] **VF-191 — Create AgentConfig, AgentFlowGraph, SimulationConfig, and TickState orchestration models**
+  - Add to `orchestration/models.py`:
+    - `AgentConfig` (agent initialization/configuration with role and model)
+    - `AgentFlowGraph` (agent-to-agent communication topology with DAG validation)
+    - `SimulationConfig` (mode, delay, budget settings)
+    - `TickState` (tick_index, status, pending work summary)
+  - Include validation for supported roles, model IDs, and acyclic graph structure.
   - **Status:** Planned
-  - **Done when:** Both models exist with Pydantic validation; `AgentFlowGraph` has `validate_dag()` like `TaskGraph`; unit tests cover validation edge cases.
+  - **Done when:** All 4 models exist with Pydantic validation; `AgentFlowGraph` has `validate_dag()` like `TaskGraph`; unit tests cover validation edge cases.
   - **Verify:** `cd apps/api && pytest tests/test_orchestration_models.py -v`
 
-- [ ] **VF-192 — Add Pydantic request/response schemas for agent workflow endpoints**
-  - Create request/response models in `apps/api/vibeforge_api/models/`: `InitializeAgentsRequest/Response`, `AssignAgentRoleRequest/Response`, `SetMainTaskRequest/Response`, `ConfigureAgentFlowRequest/Response`, `WorkflowConfigResponse`. Include validation for agent counts, supported roles, and known model IDs.
+- [ ] **VF-192 — Add Pydantic request/response schemas for agent workflow and simulation endpoints**
+  - Create request/response models in `apps/api/vibeforge_api/models/`:
+    - **Workflow:** `InitializeAgentsRequest/Response`, `AssignAgentRoleRequest/Response`, `SetMainTaskRequest/Response`, `ConfigureAgentFlowRequest/Response`, `WorkflowConfigResponse`
+    - **Simulation:** `SimulationConfigRequest/Response`, `SimulationStartResponse`, `TickRequest/Response`, `SimulationStateResponse`
+  - Include validation for agent counts, supported roles, known model IDs, and simulation constraints.
   - **Status:** Planned
   - **Done when:** All schemas exist with proper validation; OpenAPI docs show the new models; import/export works from models/__init__.py.
-  - **Verify:** `cd apps/api && python -c "from vibeforge_api.models import InitializeAgentsRequest, WorkflowConfigResponse"`
+  - **Verify:** `cd apps/api && python -c "from vibeforge_api.models import InitializeAgentsRequest, SimulationConfigRequest, TickResponse"`
 
 - [ ] **VF-193 — Implement control workflow API endpoints**
   - Add 5 new endpoints to `apps/api/vibeforge_api/routers/control.py`:
@@ -1337,3 +1347,83 @@ This section covers the capabilities for admins to configure and run custom agen
   - **Status:** Planned
   - **Done when:** All client methods typed and working; integration test runs full workflow; CI passes.
   - **Verify:** `cd apps/api && pytest tests/test_control_api.py -v && cd ../ui && npm run build`
+
+- [ ] **VF-200 — Implement simulation lifecycle API endpoints**
+  - Add simulation control endpoints to `apps/api/vibeforge_api/routers/control.py`:
+    - `POST /control/sessions/{id}/simulation/config` — set simulation_mode and auto_delay_ms
+    - `POST /control/sessions/{id}/simulation/start` — validate readiness (agents+roles+models+graph+task), lock configuration
+    - `POST /control/sessions/{id}/simulation/reset` — clear tick index and pending queues, optionally preserve workflow config
+  - Include guardrails to reject changes if session is already running.
+  - **Status:** Planned
+  - **Done when:** All 3 endpoints functional; validation prevents start without complete config; reset clears simulation state; tests pass.
+  - **Verify:** `cd apps/api && pytest tests/test_simulation_api.py -v`
+
+- [ ] **VF-201 — Implement tick control API endpoints**
+  - Add tick control endpoints to `apps/api/vibeforge_api/routers/control.py`:
+    - `POST /control/sessions/{id}/simulation/tick` — advance exactly one tick, return events produced + updated tick state
+    - `POST /control/sessions/{id}/simulation/ticks` — advance N ticks (bounded by safety limits)
+    - `POST /control/sessions/{id}/simulation/pause` — pause auto-run mode
+    - `GET /control/sessions/{id}/simulation/state` — return tick_index, simulation_mode, tick_status, queued-work summary
+  - Include guardrails to reject ticks unless simulation is started.
+  - **Status:** Planned
+  - **Done when:** All 4 endpoints functional; tick increments exactly once; pause works; state reflects current simulation status; tests pass.
+  - **Verify:** `cd apps/api && pytest tests/test_simulation_api.py -v`
+
+- [ ] **VF-202 — Implement Tick Engine for discrete simulation progression**
+  - Add a "Tick Engine" in `orchestration/coordinator/tick_engine.py` that:
+    - Reads session state and pending work queues
+    - Performs one discrete unit of progress per tick (one scheduling cycle OR one agent message exchange batch OR one state-machine transition batch)
+    - Emits events/messages for everything it did in the tick
+    - Returns `events_in_tick` and optionally `messages_in_tick` for UI consumption
+  - Define and document what "one tick" means in this system.
+  - **Status:** Planned
+  - **Done when:** TickEngine class exists; `advance_tick()` performs one atomic unit of work; events are emitted with tick_index; unit tests cover single-tick and multi-tick scenarios.
+  - **Verify:** `cd apps/api && pytest tests/test_tick_engine.py -v`
+
+- [ ] **VF-203 — Implement graph-gated messaging enforcement**
+  - Enforce that agent-to-agent messages are only allowed along configured edges in `agent_graph`:
+    - Message from agent A → agent B is allowed only if edge A→B exists, OR message is a system/orchestrator broadcast
+    - If blocked, emit `MESSAGE_BLOCKED_BY_GRAPH` event so UI can show why nothing happened
+  - Update tick engine and coordinator to check graph edges before message delivery.
+  - **Status:** Planned
+  - **Done when:** Messages are validated against agent_graph; blocked messages emit specific event; allowed messages pass through; tests verify both cases.
+  - **Verify:** `cd apps/api && pytest tests/test_graph_gated_messaging.py -v`
+
+- [ ] **VF-204 — Create Simulation UI widgets for control panel**
+  - Add simulation control widgets to `apps/ui/src/screens/control/widgets/`:
+    - `SimulationConfig.tsx` — manual vs auto mode toggle, optional delay input
+    - `TickControls.tsx` — run 1 tick button, run N ticks input, pause button, reset button; show current tick index + status
+  - Wire widgets to simulation API endpoints.
+  - **Status:** Planned
+  - **Done when:** Widgets render in control panel; mode toggle and tick buttons functional; tick count and status display updates after each action.
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-205 — Create multi-agent messaging visualization**
+  - Add/extend UI components for agent-to-agent message display:
+    - `MultiAgentMessages.tsx` — conversation-style view grouped by agent, showing sender/recipient, timestamp/tick, role, model, message type
+    - Enhance `EventStream.tsx` to support filters by tick index, agent ID, and event type
+  - Wire to event/message retrieval endpoints with filtering.
+  - **Status:** Planned
+  - **Done when:** MultiAgentMessages shows messages grouped by agent; EventStream supports tick/agent/type filters; UI updates as ticks progress.
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-206 — Extend event logging for simulation events**
+  - Update `vibeforge_api/core/event_log.py` with new event types:
+    - `SIMULATION_STARTED`, `SIMULATION_RESET`
+    - `TICK_STARTED`, `TICK_COMPLETED`, `TICK_BLOCKED`
+    - `AGENT_MESSAGE_SENT`, `MESSAGE_BLOCKED_BY_GRAPH`
+  - Ensure all events include: `session_id`, `tick_index` (when applicable), `agent_id` (when applicable), `event_type`, `payload`.
+  - Add server-side filtering support for queries by tick_index, agent_id, and event_type.
+  - **Status:** Planned
+  - **Done when:** All event types defined; events emitted with required metadata; GET /events supports tick/agent/type query params; tests pass.
+  - **Verify:** `cd apps/api && pytest tests/test_event_log.py tests/test_simulation_api.py -v`
+
+- [ ] **VF-207 — Add API client methods for simulation endpoints**
+  - Extend `apps/ui/src/api/controlClient.ts` with simulation methods:
+    - `configureSimulation()`, `startSimulation()`, `resetSimulation()`
+    - `advanceTick()`, `advanceTicks(n)`, `pauseSimulation()`, `getSimulationState()`
+    - `getEvents(filters)` with tick/agent/type filtering
+  - Add integration tests covering: config → start → tick → observe events → reset cycle.
+  - **Status:** Planned
+  - **Done when:** All client methods typed and working; integration tests pass; UI can drive full simulation lifecycle.
+  - **Verify:** `cd apps/api && pytest tests/test_simulation_api.py -v && cd ../ui && npm run build`

@@ -1040,11 +1040,72 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/ui/src/api/controlClient.ts` (add 5 methods)
   - `apps/api/tests/test_control_api.py` (add integration tests)
 
+## WP-0048 — Simulation lifecycle and tick control endpoints
+- **Status:** Queued
+- **VF Tasks:** VF-200, VF-201
+- **Goal:** Add simulation lifecycle endpoints (config, start, reset) and tick control endpoints (tick, ticks, pause, state) to enable UI-driven manual simulation progression.
+- **Dependencies:** WP-0043 (session model with simulation fields), WP-0044 (workflow endpoints)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0048_VF-200-201_simulation-tick-endpoints.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_simulation_api.py -v`
+- **Files to touch:**
+  - `apps/api/vibeforge_api/routers/control.py` (add 7 endpoints)
+  - `apps/api/tests/test_simulation_api.py` (new test file)
+
+## WP-0049 — Tick Engine and graph-gated messaging
+- **Status:** Queued
+- **VF Tasks:** VF-202, VF-203
+- **Goal:** Implement the Tick Engine for discrete simulation progression and enforce graph-gated messaging (messages only allowed along configured agent_graph edges).
+- **Dependencies:** WP-0043 (AgentFlowGraph model), WP-0048 (simulation endpoints)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0049_VF-202-203_tick-engine-graph-messaging.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_tick_engine.py tests/test_graph_gated_messaging.py -v`
+- **Files to touch:**
+  - `orchestration/coordinator/tick_engine.py` (new file)
+  - `orchestration/coordinator/session_coordinator.py` (integrate tick engine)
+  - `apps/api/tests/test_tick_engine.py` (new test file)
+  - `apps/api/tests/test_graph_gated_messaging.py` (new test file)
+
+## WP-0050 — Simulation UI widgets
+- **Status:** Queued
+- **VF Tasks:** VF-204, VF-205
+- **Goal:** Add UI widgets for simulation control (mode toggle, tick buttons) and multi-agent messaging visualization (conversation-style view, event filtering).
+- **Dependencies:** WP-0048 (simulation endpoints), WP-0046 (workflow widgets)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0050_VF-204-205_simulation-ui-widgets.md
+- **Verify:**
+  - `cd apps/ui && npm run build`
+- **Files to touch:**
+  - `apps/ui/src/screens/control/widgets/SimulationConfig.tsx` (new)
+  - `apps/ui/src/screens/control/widgets/TickControls.tsx` (new)
+  - `apps/ui/src/screens/control/widgets/MultiAgentMessages.tsx` (new)
+  - `apps/ui/src/screens/control/widgets/EventStream.tsx` (add filters)
+
+## WP-0051 — Simulation event logging and API client
+- **Status:** Queued
+- **VF Tasks:** VF-206, VF-207
+- **Goal:** Extend event logging with simulation event types and add API client methods for simulation control with filtering support.
+- **Dependencies:** WP-0048 (simulation endpoints), WP-0049 (tick engine emits events)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0051_VF-206-207_simulation-events-client.md
+- **Verify:**
+  - `cd apps/api && pytest tests/test_event_log.py tests/test_simulation_api.py -v`
+  - `cd apps/ui && npm run build`
+- **Files to touch:**
+  - `apps/api/vibeforge_api/core/event_log.py` (add event types, filtering)
+  - `apps/ui/src/api/controlClient.ts` (add simulation methods)
+  - `apps/api/tests/test_simulation_api.py` (add client integration tests)
+
 ---
 
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
+- **2026-01-12**: Expanded Agent Workflow section with simulation capabilities (WP-0048 through WP-0051)
+  - Added VF-200 through VF-207 to align master checklist with CONTROL_AGENT_WORKFLOW_STEPS.md
+  - New capabilities: simulation lifecycle (config/start/reset), tick control (tick/ticks/pause/state), Tick Engine, graph-gated messaging, simulation UI widgets, multi-agent messaging visualization, extended event logging
+  - Updated VF-190 to include simulation control fields (simulation_mode, tick_index, tick_status)
+  - Updated VF-191 to include SimulationConfig and TickState models
+  - Updated VF-192 to include simulation request/response schemas
+  - Rationale: CONTROL_AGENT_WORKFLOW_STEPS.md is source of truth; checklist was missing simulation-specific tasks
 - **2026-01-11**: Added Agent Workflow Configuration section (WP-0043 through WP-0047)
   - Created VF-190 through VF-199 in vibeforge_master_checklist.md
   - Implements CONTROL_AGENT_WORKFLOW_STEPS.md requirements for simulation mode
