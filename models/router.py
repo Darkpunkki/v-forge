@@ -4,6 +4,7 @@ VF-063: Route model calls based on role, complexity, and failure history.
 """
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -34,15 +35,27 @@ class ModelRouter:
     - Failure count (escalate to stronger models on retries)
     """
 
-    def __init__(self, routing_config: Optional[dict] = None, config_path: Optional[Path] = None):
+    def __init__(
+        self, routing_config: Optional[dict] = None, config_path: Optional[Path] = None
+    ):
         """Initialize router with configuration.
 
         Args:
             routing_config: Routing configuration dict (if provided, overrides file)
             config_path: Path to routing.json config file (default: configs/models/routing.json)
         """
+        env_config_path = os.getenv("VIBEFORGE_MODEL_ROUTING_CONFIG")
         if routing_config:
             self.config = routing_config
+        elif env_config_path:
+            config_file = Path(env_config_path)
+            if config_file.exists():
+                with open(config_file, "r") as f:
+                    self.config = json.load(f)
+            else:
+                raise FileNotFoundError(
+                    f"Model routing config not found: {config_file}"
+                )
         elif config_path:
             with open(config_path, 'r') as f:
                 self.config = json.load(f)
@@ -65,6 +78,30 @@ class ModelRouter:
         self.escalation_rules = self.config.get("escalation_rules", {})
         self.default_provider = self.config.get("default_provider", "openai")
         self.default_model = self.config.get("default_model", "gpt-4o-mini")
+
+        provider_override = os.getenv("VIBEFORGE_MODEL_PROVIDER")
+        model_override = os.getenv("VIBEFORGE_MODEL")
+        if provider_override or model_override:
+            self._apply_overrides(
+                provider_override=provider_override, model_override=model_override
+            )
+
+    def _apply_overrides(
+        self,
+        provider_override: Optional[str] = None,
+        model_override: Optional[str] = None,
+    ) -> None:
+        if provider_override:
+            self.default_provider = provider_override
+        if model_override:
+            self.default_model = model_override
+
+        for _, role_rules in self.routing_rules.items():
+            for _, rule in role_rules.items():
+                if provider_override:
+                    rule["provider"] = provider_override
+                if model_override:
+                    rule["model"] = model_override
 
     def select_model(self, context: RoutingContext) -> tuple[str, str]:
         """Select appropriate model based on routing context.

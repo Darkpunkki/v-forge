@@ -8,6 +8,7 @@ VF-101: Implements DirectLlmAdapter (MVP)
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from typing import Any, Optional
+from uuid import uuid4
 
 from models.base.llm_client import LlmClient, LlmRequest, LlmMessage, LlmUsage
 from models.router import get_model_router, RoutingContext
@@ -145,6 +146,13 @@ class DirectLlmAdapter(AgentFramework):
             ],
             model=model,
             temperature=0.7,
+            metadata={
+                "request_id": str(uuid4()),
+                "session_id": context.get("session_id"),
+                "agent_role": role,
+                "task_id": task.task_id,
+                "operation": "task_execution",
+            },
         )
 
         try:

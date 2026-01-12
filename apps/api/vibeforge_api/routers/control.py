@@ -148,6 +148,88 @@ async def get_session_prompts(session_id: str):
     return {"prompts": prompts, "total": len(prompts)}
 
 
+@router.get("/sessions/{session_id}/llm-trace")
+async def get_session_llm_trace(session_id: str):
+    """Get prompts and responses for a session."""
+    from vibeforge_api.core.event_log import EventLog, EventType
+    from vibeforge_api.core.workspace import WorkspaceManager
+
+    workspace_manager = WorkspaceManager()
+    workspace_path = workspace_manager.workspace_root / session_id
+    event_log_path = workspace_path / "events.jsonl"
+
+    if not event_log_path.exists():
+        raise HTTPException(status_code=404, detail="Event log not found")
+
+    event_log = EventLog(workspace_manager.workspace_root)
+    events = event_log.get_events(session_id)
+
+    traces: dict[str, dict] = {}
+
+    def ensure_entry(key: str, timestamp: datetime) -> dict:
+        if key not in traces:
+            traces[key] = {
+                "request_id": key,
+                "timestamp": timestamp.isoformat(),
+                "task_id": None,
+                "agent_role": None,
+                "model": None,
+                "prompt": "",
+                "system_message": "",
+                "max_tokens": None,
+                "temperature": None,
+                "response": None,
+                "response_model": None,
+                "response_timestamp": None,
+                "prompt_tokens": None,
+                "completion_tokens": None,
+                "total_tokens": None,
+            }
+        return traces[key]
+
+    for event in events:
+        if event.event_type == EventType.LLM_REQUEST_SENT:
+            metadata = event.metadata or {}
+            request_id = metadata.get("request_id") or f"request::{event.timestamp.isoformat()}"
+            entry = ensure_entry(request_id, event.timestamp)
+            entry.update(
+                {
+                    "request_id": request_id,
+                    "timestamp": event.timestamp.isoformat(),
+                    "task_id": event.task_id,
+                    "agent_role": metadata.get("agent_role"),
+                    "model": metadata.get("model"),
+                    "prompt": metadata.get("prompt", ""),
+                    "system_message": metadata.get("system_message", ""),
+                    "max_tokens": metadata.get("max_tokens"),
+                    "temperature": metadata.get("temperature"),
+                }
+            )
+        if event.event_type == EventType.LLM_RESPONSE_RECEIVED:
+            metadata = event.metadata or {}
+            request_id = metadata.get("request_id") or f"response::{event.timestamp.isoformat()}"
+            entry = ensure_entry(request_id, event.timestamp)
+            entry.update(
+                {
+                    "request_id": request_id,
+                    "task_id": entry.get("task_id") or event.task_id,
+                    "agent_role": entry.get("agent_role") or metadata.get("agent_role"),
+                    "response": metadata.get("response"),
+                    "response_model": metadata.get("model"),
+                    "response_timestamp": event.timestamp.isoformat(),
+                    "prompt_tokens": metadata.get("prompt_tokens"),
+                    "completion_tokens": metadata.get("completion_tokens"),
+                    "total_tokens": metadata.get("total_tokens"),
+                }
+            )
+
+    def sort_key(item: dict) -> str:
+        return item.get("response_timestamp") or item.get("timestamp")
+
+    trace_list = sorted(traces.values(), key=sort_key, reverse=True)
+    return {"traces": trace_list, "total": len(trace_list)}
+
+
 @router.get("/sessions/{session_id}/status")
 async def get_session_status(session_id: str):
     """Get current session status for control panel."""

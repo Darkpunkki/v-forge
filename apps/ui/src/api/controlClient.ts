@@ -67,6 +67,24 @@ export interface SessionPrompt {
   temperature: number | null
 }
 
+export interface SessionLlmTrace {
+  request_id: string
+  timestamp: string
+  task_id: string | null
+  agent_role: string | null
+  model: string | null
+  prompt: string
+  system_message: string
+  max_tokens: number | null
+  temperature: number | null
+  response: string | null
+  response_model: string | null
+  response_timestamp: string | null
+  prompt_tokens: number | null
+  completion_tokens: number | null
+  total_tokens: number | null
+}
+
 /**
  * API client class
  */
@@ -150,6 +168,17 @@ export async function getSessionPrompts(
 ): Promise<{ prompts: SessionPrompt[]; total: number }> {
   return fetchJson<{ prompts: SessionPrompt[]; total: number }>(
     `/control/sessions/${sessionId}/prompts`
+  )
+}
+
+/**
+ * Get prompts and responses for a session.
+ */
+export async function getSessionLlmTrace(
+  sessionId: string
+): Promise<{ traces: SessionLlmTrace[]; total: number }> {
+  return fetchJson<{ traces: SessionLlmTrace[]; total: number }>(
+    `/control/sessions/${sessionId}/llm-trace`
   )
 }
 

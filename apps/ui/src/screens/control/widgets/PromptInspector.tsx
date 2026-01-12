@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getSessionPrompts, type SessionPrompt } from '../../../api/controlClient'
+import { getSessionLlmTrace, type SessionLlmTrace } from '../../../api/controlClient'
 import './PromptInspector.css'
 
 type PromptInspectorProps = {
@@ -24,8 +24,8 @@ function highlightPrompt(value: string) {
 }
 
 export default function PromptInspector({ sessionId }: PromptInspectorProps) {
-  const [prompts, setPrompts] = useState<SessionPrompt[]>([])
-  const [selectedPrompt, setSelectedPrompt] = useState<SessionPrompt | null>(null)
+  const [traces, setTraces] = useState<SessionLlmTrace[]>([])
+  const [selectedTrace, setSelectedTrace] = useState<SessionLlmTrace | null>(null)
   const [agentFilter, setAgentFilter] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,17 +33,17 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
   useEffect(() => {
     let cancelled = false
 
-    async function loadPrompts() {
+    async function loadTraces() {
       setLoading(true)
       setError(null)
       try {
-        const data = await getSessionPrompts(sessionId)
+        const data = await getSessionLlmTrace(sessionId)
         if (cancelled) return
-        setPrompts(data.prompts)
-        setSelectedPrompt(data.prompts[0] ?? null)
+        setTraces(data.traces)
+        setSelectedTrace(data.traces[0] ?? null)
       } catch (err: any) {
         if (!cancelled) {
-          setError(err.message || 'Unable to load prompts')
+          setError(err.message || 'Unable to load LLM traces')
         }
       } finally {
         if (!cancelled) {
@@ -52,7 +52,7 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
       }
     }
 
-    loadPrompts()
+    loadTraces()
     return () => {
       cancelled = true
     }
@@ -60,15 +60,15 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
 
   const agentOptions = useMemo(() => {
     const options = Array.from(
-      new Set(prompts.map((prompt) => prompt.agent_role).filter(Boolean))
+      new Set(traces.map((trace) => trace.agent_role).filter(Boolean))
     ) as string[]
     return ['ALL', ...options]
-  }, [prompts])
+  }, [traces])
 
-  const filteredPrompts = useMemo(() => {
-    if (agentFilter === 'ALL') return prompts
-    return prompts.filter((prompt) => prompt.agent_role === agentFilter)
-  }, [agentFilter, prompts])
+  const filteredTraces = useMemo(() => {
+    if (agentFilter === 'ALL') return traces
+    return traces.filter((trace) => trace.agent_role === agentFilter)
+  }, [agentFilter, traces])
 
   const handleCopy = async (text: string, label: string) => {
     try {
@@ -84,8 +84,8 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
     <section className="prompt-inspector">
       <header className="prompt-inspector__header">
         <div>
-          <h2>Prompt Inspector</h2>
-          <p>Review the exact prompts sent to agents in this session.</p>
+          <h2>Prompt + Response Inspector</h2>
+          <p>Review the exact prompts and responses captured for this session.</p>
         </div>
         <div className="prompt-inspector__controls">
           <select value={agentFilter} onChange={(event) => setAgentFilter(event.target.value)}>
@@ -103,28 +103,28 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
       <div className="prompt-inspector__layout">
         <aside className="prompt-inspector__list">
           {loading ? (
-            <div className="prompt-inspector__empty">Loading prompts...</div>
-          ) : filteredPrompts.length === 0 ? (
+            <div className="prompt-inspector__empty">Loading traces...</div>
+          ) : filteredTraces.length === 0 ? (
             <div className="prompt-inspector__empty">No prompts captured yet.</div>
           ) : (
             <ul>
-              {filteredPrompts.map((prompt) => (
+              {filteredTraces.map((trace) => (
                 <li
-                  key={`${prompt.timestamp}-${prompt.task_id ?? 'task'}`}
+                  key={`${trace.timestamp}-${trace.task_id ?? trace.request_id}`}
                   className={
-                    selectedPrompt?.timestamp === prompt.timestamp
+                    selectedTrace?.request_id === trace.request_id
                       ? 'prompt-inspector__item active'
                       : 'prompt-inspector__item'
                   }
-                  onClick={() => setSelectedPrompt(prompt)}
+                  onClick={() => setSelectedTrace(trace)}
                 >
-                  <div className="prompt-inspector__item-agent">{prompt.agent_role ?? 'unknown'}</div>
-                  <div className="prompt-inspector__item-model">{prompt.model ?? 'unknown model'}</div>
+                  <div className="prompt-inspector__item-agent">{trace.agent_role ?? 'unknown'}</div>
+                  <div className="prompt-inspector__item-model">{trace.model ?? 'unknown model'}</div>
                   <div className="prompt-inspector__item-task">
-                    Task: {prompt.task_id ?? '—'}
+                    Task: {trace.task_id ?? '—'}
                   </div>
                   <div className="prompt-inspector__item-time">
-                    {new Date(prompt.timestamp).toLocaleTimeString()}
+                    {new Date(trace.timestamp).toLocaleTimeString()}
                   </div>
                 </li>
               ))}
@@ -133,40 +133,48 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
         </aside>
 
         <div className="prompt-inspector__viewer">
-          {!selectedPrompt ? (
+          {!selectedTrace ? (
             <div className="prompt-inspector__empty">Select a prompt to inspect.</div>
           ) : (
             <div className="prompt-inspector__details">
               <div className="prompt-inspector__meta">
                 <div>
                   <span>Agent</span>
-                  <strong>{selectedPrompt.agent_role ?? 'unknown'}</strong>
+                  <strong>{selectedTrace.agent_role ?? 'unknown'}</strong>
                 </div>
                 <div>
                   <span>Model</span>
-                  <strong>{selectedPrompt.model ?? 'unknown'}</strong>
+                  <strong>{selectedTrace.model ?? 'unknown'}</strong>
                 </div>
                 <div>
                   <span>Task</span>
-                  <strong>{selectedPrompt.task_id ?? '—'}</strong>
+                  <strong>{selectedTrace.task_id ?? '—'}</strong>
                 </div>
                 <div>
                   <span>Max tokens</span>
-                  <strong>{selectedPrompt.max_tokens ?? '—'}</strong>
+                  <strong>{selectedTrace.max_tokens ?? '—'}</strong>
                 </div>
                 <div>
                   <span>Temperature</span>
-                  <strong>{selectedPrompt.temperature ?? '—'}</strong>
+                  <strong>{selectedTrace.temperature ?? '—'}</strong>
+                </div>
+                <div>
+                  <span>Response model</span>
+                  <strong>{selectedTrace.response_model ?? '—'}</strong>
+                </div>
+                <div>
+                  <span>Total tokens</span>
+                  <strong>{selectedTrace.total_tokens ?? '—'}</strong>
                 </div>
               </div>
 
-              {selectedPrompt.system_message && (
+              {selectedTrace.system_message && (
                 <div className="prompt-inspector__section">
                   <div className="prompt-inspector__section-header">
                     <h3>System message</h3>
                     <button
                       type="button"
-                      onClick={() => handleCopy(selectedPrompt.system_message, 'System message')}
+                      onClick={() => handleCopy(selectedTrace.system_message, 'System message')}
                     >
                       Copy
                     </button>
@@ -174,7 +182,7 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
                   <pre
                     className="prompt-inspector__code"
                     dangerouslySetInnerHTML={{
-                      __html: highlightPrompt(selectedPrompt.system_message),
+                      __html: highlightPrompt(selectedTrace.system_message),
                     }}
                   />
                 </div>
@@ -185,7 +193,7 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
                   <h3>User prompt</h3>
                   <button
                     type="button"
-                    onClick={() => handleCopy(selectedPrompt.prompt, 'Prompt')}
+                    onClick={() => handleCopy(selectedTrace.prompt, 'Prompt')}
                   >
                     Copy
                   </button>
@@ -194,7 +202,28 @@ export default function PromptInspector({ sessionId }: PromptInspectorProps) {
                   className="prompt-inspector__code"
                   dangerouslySetInnerHTML={{
                     __html: highlightPrompt(
-                      selectedPrompt.prompt || 'No prompt text captured.'
+                      selectedTrace.prompt || 'No prompt text captured.'
+                    ),
+                  }}
+                />
+              </div>
+
+              <div className="prompt-inspector__section">
+                <div className="prompt-inspector__section-header">
+                  <h3>LLM response</h3>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(selectedTrace.response || '', 'Response')}
+                    disabled={!selectedTrace.response}
+                  >
+                    Copy
+                  </button>
+                </div>
+                <pre
+                  className="prompt-inspector__code"
+                  dangerouslySetInnerHTML={{
+                    __html: highlightPrompt(
+                      selectedTrace.response || 'No response captured yet.'
                     ),
                   }}
                 />

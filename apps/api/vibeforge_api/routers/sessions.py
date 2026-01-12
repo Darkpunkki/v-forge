@@ -36,8 +36,9 @@ from models.agent_framework import DirectLlmAdapter
 
 router = APIRouter()
 
+event_log = EventLog(workspace_manager.workspace_root)
 llm_client = get_llm_client()
-orchestrator = Orchestrator(llm_client)
+orchestrator = Orchestrator(llm_client, event_log=event_log)
 agent_framework = DirectLlmAdapter(llm_client)
 session_coordinator = SessionCoordinator(
     session_store,
@@ -46,6 +47,7 @@ session_coordinator = SessionCoordinator(
     spec_builder,
     orchestrator,
     agent_framework=agent_framework,
+    event_log=event_log,
 )
 
 _execution_tasks: dict[str, asyncio.Task] = {}
