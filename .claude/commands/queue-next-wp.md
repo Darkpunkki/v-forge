@@ -71,7 +71,21 @@ For the selected VF batch:
 
 ---
 
-## Step 4 — Output next actions
+## Step 4 — Create plan document and output next actions
+
+1) Check if the WP’s Plan Doc exists at vibeforge_skeleton/docs/ai/planning/
+2) If missing, create it using this template:
+
+   - File: the WP plan doc path from WORK_PACKAGES.md
+   - Content must include:
+     - Title: `WP-XXXX — <name>`
+     - VF tasks included (explicit list)
+     - Ordered execution steps (implementation order)
+     - “Done means…” section with verification commands
+     - A checkbox list mirroring the VF tasks for this WP
+
+3) The Plan Doc must reference the VF tasks exactly (IDs unchanged).
+
 Print:
 - The new WP id and VF tasks selected
 - The Plan Doc path that will be created by `/execute-plan` if missing

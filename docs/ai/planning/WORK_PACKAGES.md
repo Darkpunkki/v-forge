@@ -863,13 +863,24 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
     - `apps/api/tests/test_session_coordinator.py::TestVF165_SafeAbortCleanup` (7 tests)
 
 ## WP-0036 — Phase transition tests + session resume
-- **Status:** Queued
-- **VF Tasks:** VF-166, VF-167
+- **Status:** Done
+- **Started:** 2026-01-12 (local)
+- **Completed:** 2026-01-12 (local)
+- **Branch:** master
+- **VF Tasks:** VF-166 ✓, VF-167 ✓
 - **Goal:** Add integration coverage for phase transitions and enable resuming sessions from stored artifacts.
 - **Dependencies:** WP-0034, WP-0035
 - **Plan Doc:** docs/ai/planning/WP-0036_VF-166-167_phase-transition-tests-resume.md
-- **Verify:**
-  - `pytest`
+- **Verified:**
+  - `cd apps/api && pytest tests/test_phase_transition_integration.py -v` (30 passed)
+  - `cd apps/api && pytest -v` (579 passed, 1 skipped)
+- **Files touched:**
+  - **VF-166 (integration tests):**
+    - `apps/api/tests/test_phase_transition_integration.py` (new - 21 tests for transitions)
+  - **VF-167 (session resume):**
+    - `apps/api/vibeforge_api/core/session.py` (to_dict, from_dict)
+    - `orchestration/coordinator/session_coordinator.py` (save_session_state, resume_session, list_resumable_sessions)
+    - `apps/api/tests/test_phase_transition_integration.py::TestVF167_SessionResume` (9 tests)
 
 ## WP-0037 — Control panel session list usability
 - **Status:** Done

@@ -1758,6 +1758,218 @@ class SessionCoordinator:
         }
 
     # =========================================================================
+    # VF-167: Session persistence and resume
+    # =========================================================================
+
+    def save_session_state(self, session_id: str) -> dict[str, Any]:
+        """Save session state to artifacts for later resume (VF-167).
+
+        Persists the full session state to a JSON artifact, enabling resume
+        after API restart.
+
+        Args:
+            session_id: ID of the session
+
+        Returns:
+            dict: Status with artifact path
+
+        Raises:
+            ValueError: If session not found
+        """
+        session = self._get_session_or_raise(session_id)
+
+        # Serialize session state
+        session_state = session.to_dict()
+
+        # Persist to artifacts
+        workspace_path = self.workspace_manager.workspace_root / session_id
+        try:
+            artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
+            artifact_store.save_artifact("session_state.json", session_state)
+            session.add_log("Session state saved to artifacts/session_state.json")
+            self.session_store.update_session(session)
+        except Exception as e:
+            raise ValueError(f"Failed to save session state: {str(e)}")
+
+        return {
+            "status": "saved",
+            "session_id": session_id,
+            "artifact_path": str(workspace_path / "artifacts" / "session_state.json"),
+            "phase": session.phase.value,
+        }
+
+    def resume_session(self, session_id: str) -> dict[str, Any]:
+        """Resume a session from stored artifacts (VF-167).
+
+        Loads session state from artifacts and restores it to the session store.
+        Supports resuming from specific phases with limitations.
+
+        Supported resume phases:
+        - QUESTIONNAIRE: Resume answering questions
+        - BUILD_SPEC: Resume spec generation
+        - IDEA: Resume concept generation
+        - PLAN_REVIEW: Resume plan review (approve/reject)
+        - EXECUTION: Resume task execution (limited - active task may be lost)
+        - CLARIFICATION: Resume waiting for clarification answer
+
+        Unsupported resume phases (terminal):
+        - COMPLETE: Session already finished
+        - FAILED: Session already failed
+
+        Args:
+            session_id: ID of the session to resume
+
+        Returns:
+            dict: Status with session info and any warnings
+
+        Raises:
+            ValueError: If session state not found or resume not supported
+        """
+        import json
+
+        workspace_path = self.workspace_manager.workspace_root / session_id
+        state_path = workspace_path / "artifacts" / "session_state.json"
+
+        if not state_path.exists():
+            raise ValueError(
+                f"No saved session state found for {session_id}. "
+                f"Expected: {state_path}"
+            )
+
+        # Load session state
+        try:
+            with open(state_path, "r") as f:
+                session_state = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid session state file: {str(e)}")
+
+        # Restore session from state
+        session = Session.from_dict(session_state)
+
+        # Check for terminal phases
+        terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+        if session.phase in terminal_phases:
+            return {
+                "status": "not_resumable",
+                "session_id": session_id,
+                "phase": session.phase.value,
+                "reason": f"Session is in terminal phase {session.phase.value}",
+                "recovery_options": session.get_recovery_options(),
+            }
+
+        # Build warnings for resume limitations
+        warnings = []
+
+        # Check for active task in EXECUTION phase
+        if session.phase == SessionPhase.EXECUTION and session.active_task_id:
+            warnings.append(
+                f"Active task '{session.active_task_id}' may need to be re-executed. "
+                f"Task state was not persisted."
+            )
+            # Clear active task - it will need to be re-scheduled
+            session.active_task_id = None
+
+        # Add resume log entry
+        session.add_log(f"Session resumed from artifacts at phase {session.phase.value}")
+
+        # Store the restored session
+        self.session_store.update_session(session)
+
+        # Emit resume event
+        self._emit_event(
+            Event(
+                event_type=EventType.INFO,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message=f"Session resumed from artifacts",
+                phase=session.phase.value,
+                metadata={
+                    "resumed_from_phase": session.phase.value,
+                    "completed_tasks": len(session.completed_task_ids),
+                    "failed_tasks": len(session.failed_task_ids),
+                    "warnings": warnings,
+                },
+            )
+        )
+
+        return {
+            "status": "resumed",
+            "session_id": session_id,
+            "phase": session.phase.value,
+            "completed_tasks": len(session.completed_task_ids),
+            "failed_tasks": len(session.failed_task_ids),
+            "warnings": warnings if warnings else None,
+            "next_action": self._get_resume_next_action(session),
+        }
+
+    def _get_resume_next_action(self, session: Session) -> str:
+        """Get the recommended next action after resuming a session.
+
+        Args:
+            session: The resumed session
+
+        Returns:
+            str: Description of recommended next action
+        """
+        phase_actions = {
+            SessionPhase.QUESTIONNAIRE: "Call get_next_question() to continue questionnaire",
+            SessionPhase.BUILD_SPEC: "Call generate_build_spec() to generate spec",
+            SessionPhase.IDEA: "Call generate_concept() to generate concept",
+            SessionPhase.PLAN_REVIEW: "Call approve_plan() or reject_plan() to continue",
+            SessionPhase.EXECUTION: "Call execute_next_task() to continue execution",
+            SessionPhase.CLARIFICATION: "Call submit_clarification_answer() with user response",
+            SessionPhase.VERIFICATION: "Call finalize_session() to complete verification",
+        }
+        return phase_actions.get(session.phase, "Session in unknown state")
+
+    def list_resumable_sessions(self) -> list[dict[str, Any]]:
+        """List all sessions that have saved state and can be resumed (VF-167).
+
+        Scans the workspace for session_state.json artifacts.
+
+        Returns:
+            list: List of resumable session info dicts
+        """
+        import json
+
+        resumable = []
+        workspace_root = self.workspace_manager.workspace_root
+
+        if not workspace_root.exists():
+            return resumable
+
+        for session_dir in workspace_root.iterdir():
+            if not session_dir.is_dir():
+                continue
+
+            state_path = session_dir / "artifacts" / "session_state.json"
+            if not state_path.exists():
+                continue
+
+            try:
+                with open(state_path, "r") as f:
+                    state = json.load(f)
+
+                session_id = state.get("session_id", session_dir.name)
+                phase = state.get("phase", "UNKNOWN")
+                is_terminal = phase in {"COMPLETE", "FAILED"}
+
+                resumable.append({
+                    "session_id": session_id,
+                    "phase": phase,
+                    "is_terminal": is_terminal,
+                    "is_resumable": not is_terminal,
+                    "updated_at": state.get("updated_at"),
+                    "completed_tasks": len(state.get("completed_task_ids", [])),
+                    "failed_tasks": len(state.get("failed_task_ids", [])),
+                })
+            except (json.JSONDecodeError, KeyError):
+                # Skip invalid state files
+                continue
+
+        return resumable
+
+    # =========================================================================
     # Helper methods
     # =========================================================================
 

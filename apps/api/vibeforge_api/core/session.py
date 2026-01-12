@@ -127,6 +127,104 @@ class Session:
         self.fix_loop_count = 0
         self.updated_at = datetime.now(timezone.utc)
 
+    def to_dict(self) -> dict:
+        """Serialize session state to a dictionary for persistence (VF-167).
+
+        Returns:
+            dict: Session state that can be serialized to JSON
+        """
+        return {
+            "session_id": self.session_id,
+            "phase": self.phase.value,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            # Questionnaire state
+            "current_question_index": self.current_question_index,
+            "answers": self.answers,
+            # Artifacts
+            "intent_profile": self.intent_profile,
+            "build_spec": self.build_spec,
+            "concept": self.concept,
+            "task_graph": self.task_graph,
+            # Execution state
+            "completed_task_ids": self.completed_task_ids,
+            "failed_task_ids": self.failed_task_ids,
+            "active_task_id": self.active_task_id,
+            "logs": self.logs,
+            # Clarification state
+            "pending_clarification": self.pending_clarification,
+            "clarification_answer": self.clarification_answer,
+            "clarification_context": self.clarification_context,
+            # Error history
+            "error_history": self.error_history,
+            # Failure/abort state
+            "failure_reason": self.failure_reason,
+            "failure_artifact": self.failure_artifact,
+            "is_aborted": self.is_aborted,
+            "abort_reason": self.abort_reason,
+            # Fix loop tracking
+            "fix_loop_count": self.fix_loop_count,
+            "max_fix_loops": self.max_fix_loops,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Session":
+        """Restore session state from a dictionary (VF-167).
+
+        Args:
+            data: Session state dictionary from to_dict()
+
+        Returns:
+            Session: Restored session instance
+        """
+        session = cls(session_id=data.get("session_id"))
+
+        # Phase
+        phase_value = data.get("phase", "QUESTIONNAIRE")
+        session.phase = SessionPhase(phase_value)
+
+        # Timestamps
+        if data.get("created_at"):
+            session.created_at = datetime.fromisoformat(data["created_at"])
+        if data.get("updated_at"):
+            session.updated_at = datetime.fromisoformat(data["updated_at"])
+
+        # Questionnaire state
+        session.current_question_index = data.get("current_question_index", 0)
+        session.answers = data.get("answers", {})
+
+        # Artifacts
+        session.intent_profile = data.get("intent_profile")
+        session.build_spec = data.get("build_spec")
+        session.concept = data.get("concept")
+        session.task_graph = data.get("task_graph")
+
+        # Execution state
+        session.completed_task_ids = data.get("completed_task_ids", [])
+        session.failed_task_ids = data.get("failed_task_ids", [])
+        session.active_task_id = data.get("active_task_id")
+        session.logs = data.get("logs", [])
+
+        # Clarification state
+        session.pending_clarification = data.get("pending_clarification")
+        session.clarification_answer = data.get("clarification_answer")
+        session.clarification_context = data.get("clarification_context")
+
+        # Error history
+        session.error_history = data.get("error_history", [])
+
+        # Failure/abort state
+        session.failure_reason = data.get("failure_reason")
+        session.failure_artifact = data.get("failure_artifact")
+        session.is_aborted = data.get("is_aborted", False)
+        session.abort_reason = data.get("abort_reason")
+
+        # Fix loop tracking
+        session.fix_loop_count = data.get("fix_loop_count", 0)
+        session.max_fix_loops = data.get("max_fix_loops", 3)
+
+        return session
+
 
 class SessionStoreInterface(ABC):
     """Abstract interface for session persistence.

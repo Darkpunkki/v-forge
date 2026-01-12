@@ -1039,11 +1039,29 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Tests:** 7 tests in `apps/api/tests/test_session_coordinator.py::TestVF165_SafeAbortCleanup`
   - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestVF165_SafeAbortCleanup -v` (7 passed)
 
-- [ ] **VF-166 — Add integration tests for phase transitions**
+- [x] **VF-166 — Add integration tests for phase transitions**
   - Write tests that simulate the main state transitions and assert the system rejects illegal transitions, emits expected events, and persists expected artifacts.
+  - **Files:**
+    - `apps/api/tests/test_phase_transition_integration.py` (new - 21 integration tests)
+  - **Implementation:**
+    - TestVF166_PhaseTransitionIntegration: 19 tests covering valid transitions, illegal transition rejection, exit criteria enforcement, event emission, artifact persistence, fix loop integration
+    - TestVF166_TransitionCoverage: 2 tests verifying all phases have proper transition coverage
+  - **Verify:** `cd apps/api && pytest tests/test_phase_transition_integration.py::TestVF166_PhaseTransitionIntegration tests/test_phase_transition_integration.py::TestVF166_TransitionCoverage -v` (21 passed)
 
-- [ ] **VF-167 — Add "resume session" capability from stored artifacts**
+- [x] **VF-167 — Add "resume session" capability from stored artifacts**
   - Enable restarting the API and resuming an in-progress session from artifacts/event log (initially limited scope), improving robustness and developer ergonomics.
+  - **Files:**
+    - `apps/api/vibeforge_api/core/session.py` (to_dict, from_dict methods)
+    - `orchestration/coordinator/session_coordinator.py` (save_session_state, resume_session, list_resumable_sessions)
+    - `apps/api/tests/test_phase_transition_integration.py::TestVF167_SessionResume` (9 tests)
+  - **Implementation:**
+    - Session.to_dict(): Serializes full session state to JSON-compatible dict
+    - Session.from_dict(): Restores session from serialized state
+    - save_session_state(): Persists session to artifacts/session_state.json
+    - resume_session(): Loads session from artifacts, handles terminal phases, warns about active tasks
+    - list_resumable_sessions(): Scans workspace for resumable sessions
+    - Documented phase-specific resume limitations and next actions
+  - **Verify:** `cd apps/api && pytest tests/test_phase_transition_integration.py::TestVF167_SessionResume -v` (9 passed)
 
 
 ### 17 Agent Control & Monitoring UI (Post-MVP)

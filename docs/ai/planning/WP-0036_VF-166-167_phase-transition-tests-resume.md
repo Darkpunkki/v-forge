@@ -1,7 +1,7 @@
 # WP-0036 — Phase transition tests + session resume
 
 ## Status
-- Queued
+- Done (2026-01-12)
 
 ## Context
 - Chapter(s): 16 State Machine: MVP Phases (State Diagram)
@@ -14,9 +14,9 @@
 - Add integration tests for phase transitions and implement a minimal resume-from-artifacts capability.
 
 ## VF Tasks (canonical)
-- [ ] **VF-166 — Add integration tests for phase transitions**
+- [x] **VF-166 — Add integration tests for phase transitions**
   - Write tests that simulate the main state transitions and assert the system rejects illegal transitions, emits expected events, and persists expected artifacts.
-- [ ] **VF-167 — Add "resume session" capability from stored artifacts**
+- [x] **VF-167 — Add "resume session" capability from stored artifacts**
   - Enable restarting the API and resuming an in-progress session from artifacts/event log (initially limited scope), improving robustness and developer ergonomics.
 
 ## Plan
