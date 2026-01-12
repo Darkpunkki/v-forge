@@ -85,5 +85,5 @@ class ClarificationResponse(BaseModel):
     """Response containing clarification question from gates/agents."""
 
     question: str
-    context: Optional[str] = None
+    context: Optional[str | dict[str, Any]] = None
     options: list[ClarificationOption]
