@@ -44,6 +44,16 @@ export function ClarificationScreen() {
     return String(err);
   }
 
+  function formatContext(context: ClarificationResponse["context"]): string {
+    if (!context) {
+      return "";
+    }
+    if (typeof context === "string") {
+      return context;
+    }
+    return JSON.stringify(context, null, 2);
+  }
+
   async function routeFromPhase() {
     if (!sessionId) return;
     const p = await getProgress(sessionId);
@@ -183,7 +193,7 @@ export function ClarificationScreen() {
         </h2>
 
         {/* Context (if provided) */}
-        {clarification.context && (
+        {formatContext(clarification.context) && (
           <div
             style={{
               background: "#f0f7ff",
@@ -194,7 +204,7 @@ export function ClarificationScreen() {
             }}
           >
             <p style={{ margin: 0, fontSize: 14, color: "#0056b3" }}>
-              {clarification.context}
+              {formatContext(clarification.context)}
             </p>
           </div>
         )}
