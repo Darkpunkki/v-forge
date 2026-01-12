@@ -22,7 +22,7 @@ Solidify the repository layout and add a minimal-yet-reliable test harness/CI sk
 ### 3. Implement CI/test runner skeleton
 - Add minimal CI workflow (GitHub Actions) that runs unit tests for available packages (start with API).
 - Provide developer scripts in repo root (`make test`, or `justfile`/npm scripts) to mirror CI steps locally.
-- Document how to run tests locally in root README or dedicated `docs/ai/testing/` note.
+- Document how to run tests locally in the root README.
 
 ### 4. Seed initial tests and guardrails
 - Add smoke/unit tests validating current repo layout invariants (folders present, configs readable).

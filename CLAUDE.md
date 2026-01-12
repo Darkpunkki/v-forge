@@ -111,13 +111,8 @@ VF tasks in the checklist are structured as markdown checkbox items:
 
 ## Documentation Structure
 
-- `docs/ai/requirements/` - Problem understanding and requirements
 - `docs/ai/design/` - System architecture and design decisions (include mermaid diagrams)
 - `docs/ai/planning/` - Work Packages and planning docs
-- `docs/ai/implementation/` - Implementation guides and notes
-- `docs/ai/testing/` - Testing strategy and test cases
-- `docs/ai/deployment/` - Deployment and infrastructure docs
-- `docs/ai/monitoring/` - Monitoring and observability setup
 - `docs/ai/forge/` - Forge pipeline outputs (idea → concept → backlog)
 
 ---
@@ -219,11 +214,11 @@ VF tasks in the checklist are structured as markdown checkbox items:
 ## Testing & Quality
 
 - Write tests alongside implementation when appropriate
-- Follow `docs/ai/testing/` strategy
+- Follow the repository testing strategy documentation
 - Ensure verification commands pass before marking:
   - a task/VF item “Done”
   - a WP “Done”
-- If full coverage is not practical, record gaps in `docs/ai/testing/`
+- If full coverage is not practical, record gaps in the relevant documentation
 
 ---
 
