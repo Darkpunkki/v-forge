@@ -251,7 +251,6 @@ Implement in `apps/api/vibeforge_api/routers/control.py`, using `session_store.u
 
 - Record any new workflow schemas, tick semantics, and orchestration decisions in:
   - `docs/ai/design/`
-  - `docs/ai/implementation/`
 - Add a brief “Simulation contract” section documenting:
   - what a tick means
   - what “blocked” means
