@@ -185,9 +185,54 @@ ENTRY_ACTIONS: dict[SessionPhase, EntryAction] = {
     ),
     SessionPhase.FAILED: EntryAction(
         phase=SessionPhase.FAILED,
-        description="Record failure reason, emit failure event, cleanup resources"
+        description="Record failure reason, emit failure event, persist failure artifact, offer recovery options"
     ),
 }
+
+
+# =============================================================================
+# VF-164: Fix loop guardrails
+# =============================================================================
+
+MAX_FIX_LOOPS = 3  # Maximum number of VERIFICATION → EXECUTION cycles
+
+
+def can_return_to_execution(session: Any) -> tuple[bool, str]:
+    """Check if fix-loop return to EXECUTION is allowed.
+
+    VF-164: Implements bounded fix-loop guardrails to prevent infinite loops.
+
+    Args:
+        session: Session object with fix_loop_count attribute
+
+    Returns:
+        Tuple of (is_allowed, reason)
+    """
+    fix_loop_count = getattr(session, "fix_loop_count", 0)
+    max_loops = getattr(session, "max_fix_loops", MAX_FIX_LOOPS)
+
+    if fix_loop_count >= max_loops:
+        return False, f"Fix loop limit exceeded ({fix_loop_count}/{max_loops})"
+
+    return True, f"Fix loop allowed ({fix_loop_count + 1}/{max_loops})"
+
+
+def validate_fix_loop_transition(session: Any) -> None:
+    """Validate that a fix-loop transition (VERIFICATION → EXECUTION) is allowed.
+
+    Args:
+        session: Session object
+
+    Raises:
+        TransitionError: If fix loop limit exceeded
+    """
+    is_allowed, reason = can_return_to_execution(session)
+    if not is_allowed:
+        raise TransitionError(
+            SessionPhase.VERIFICATION,
+            SessionPhase.EXECUTION,
+            reason
+        )
 
 
 def get_entry_action(phase: SessionPhase) -> Optional[EntryAction]:

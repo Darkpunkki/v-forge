@@ -360,3 +360,110 @@ class TestCombinedValidation:
             SessionPhase.BUILD_SPEC,
             skip_exit_check=True
         )
+
+
+# =============================================================================
+# VF-164: Fix loop guardrails tests
+# =============================================================================
+
+
+class TestVF164_FixLoopGuardrails:
+    """Tests for VF-164: Fix loop transition guardrails."""
+
+    def test_can_return_to_execution_allows_within_limit(self):
+        """can_return_to_execution returns True when under limit."""
+        from orchestration.coordinator.state_machine import can_return_to_execution
+
+        session = MagicMock()
+        session.fix_loop_count = 0
+        session.max_fix_loops = 3
+
+        can_loop, reason = can_return_to_execution(session)
+
+        assert can_loop is True
+        assert "1/3" in reason  # Shows next loop number
+
+    def test_can_return_to_execution_allows_up_to_limit_minus_one(self):
+        """can_return_to_execution allows loops up to limit - 1."""
+        from orchestration.coordinator.state_machine import can_return_to_execution
+
+        session = MagicMock()
+        session.fix_loop_count = 2
+        session.max_fix_loops = 3
+
+        can_loop, reason = can_return_to_execution(session)
+
+        assert can_loop is True
+        assert "3/3" in reason
+
+    def test_can_return_to_execution_blocks_at_limit(self):
+        """can_return_to_execution returns False when at limit."""
+        from orchestration.coordinator.state_machine import can_return_to_execution
+
+        session = MagicMock()
+        session.fix_loop_count = 3
+        session.max_fix_loops = 3
+
+        can_loop, reason = can_return_to_execution(session)
+
+        assert can_loop is False
+        assert "exceeded" in reason.lower()
+
+    def test_can_return_to_execution_blocks_over_limit(self):
+        """can_return_to_execution returns False when over limit."""
+        from orchestration.coordinator.state_machine import can_return_to_execution
+
+        session = MagicMock()
+        session.fix_loop_count = 5
+        session.max_fix_loops = 3
+
+        can_loop, reason = can_return_to_execution(session)
+
+        assert can_loop is False
+
+    def test_can_return_to_execution_uses_default_limit(self):
+        """can_return_to_execution uses MAX_FIX_LOOPS when no max set."""
+        from orchestration.coordinator.state_machine import can_return_to_execution, MAX_FIX_LOOPS
+
+        session = MagicMock()
+        session.fix_loop_count = 0
+        # Don't set max_fix_loops - should use default
+        del session.max_fix_loops
+
+        can_loop, reason = can_return_to_execution(session)
+
+        assert can_loop is True
+        assert f"1/{MAX_FIX_LOOPS}" in reason
+
+    def test_validate_fix_loop_transition_raises_when_limit_exceeded(self):
+        """validate_fix_loop_transition raises TransitionError when limit exceeded."""
+        from orchestration.coordinator.state_machine import validate_fix_loop_transition
+
+        session = MagicMock()
+        session.fix_loop_count = 3
+        session.max_fix_loops = 3
+
+        with pytest.raises(TransitionError) as exc_info:
+            validate_fix_loop_transition(session)
+
+        assert exc_info.value.from_phase == SessionPhase.VERIFICATION
+        assert exc_info.value.to_phase == SessionPhase.EXECUTION
+        assert "exceeded" in str(exc_info.value).lower()
+
+    def test_validate_fix_loop_transition_passes_within_limit(self):
+        """validate_fix_loop_transition doesn't raise when within limit."""
+        from orchestration.coordinator.state_machine import validate_fix_loop_transition
+
+        session = MagicMock()
+        session.fix_loop_count = 1
+        session.max_fix_loops = 3
+
+        # Should not raise
+        validate_fix_loop_transition(session)
+
+    def test_max_fix_loops_constant_defined(self):
+        """MAX_FIX_LOOPS constant is defined and reasonable."""
+        from orchestration.coordinator.state_machine import MAX_FIX_LOOPS
+
+        assert MAX_FIX_LOOPS >= 1
+        assert MAX_FIX_LOOPS <= 10  # Reasonable upper bound

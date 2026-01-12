@@ -59,7 +59,7 @@
     "reviewer": {
       "simple": {
         "provider": "openai",
-        "model": "gpt-4o"
+        "model": "gpt-4o-mini"
       },
       "medium": {
         "provider": "openai",
@@ -85,7 +85,7 @@
       },
       {
         "min_failures": 3,
-        "max_failures": 999,
+        "max_failures": 10,
         "action": "escalate_to_gpt4o_high_temp"
       }
     ]

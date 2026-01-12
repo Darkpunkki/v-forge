@@ -16,6 +16,10 @@ from orchestration.coordinator.state_machine import (
     check_exit_criteria,
     validate_exit,
     validate_phase_transition,
+    # VF-164: Fix loop guardrails
+    MAX_FIX_LOOPS,
+    can_return_to_execution,
+    validate_fix_loop_transition,
 )
 
 __all__ = [
@@ -34,4 +38,8 @@ __all__ = [
     "check_exit_criteria",
     "validate_exit",
     "validate_phase_transition",
+    # VF-164: Fix loop guardrails
+    "MAX_FIX_LOOPS",
+    "can_return_to_execution",
+    "validate_fix_loop_transition",
 ]

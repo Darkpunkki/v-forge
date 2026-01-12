@@ -41,6 +41,16 @@ class Session:
         # Error history (VF-030: track error details, not just IDs)
         self.error_history: list[dict[str, Any]] = []
 
+        # Failure/abort state (VF-163, VF-165)
+        self.failure_reason: Optional[str] = None
+        self.failure_artifact: Optional[dict] = None
+        self.is_aborted: bool = False
+        self.abort_reason: Optional[str] = None
+
+        # Fix loop tracking (VF-164)
+        self.fix_loop_count: int = 0
+        self.max_fix_loops: int = 3  # Prevent infinite fix loops
+
     def update_phase(self, new_phase: SessionPhase):
         """Update session phase."""
         self.phase = new_phase
@@ -70,6 +80,51 @@ class Session:
             "phase": (phase or self.phase).value,
         }
         self.error_history.append(error_entry)
+        self.updated_at = datetime.now(timezone.utc)
+
+    def get_recovery_options(self) -> list[dict[str, str]]:
+        """Get available recovery options for a failed/aborted session.
+
+        Returns:
+            List of recovery options with value and label
+        """
+        options = []
+
+        if self.phase == SessionPhase.FAILED or self.is_aborted:
+            options.append({
+                "value": "restart_session",
+                "label": "Start a new session",
+                "description": "Abandon this session and start fresh"
+            })
+            options.append({
+                "value": "export_logs",
+                "label": "Export session logs",
+                "description": "Download logs and artifacts for debugging"
+            })
+
+            # Only offer reduce_scope if we got past planning
+            if self.task_graph or self.concept:
+                options.append({
+                    "value": "reduce_scope",
+                    "label": "Retry with reduced scope",
+                    "description": "Start new session with simpler requirements"
+                })
+
+        return options
+
+    def increment_fix_loop(self) -> bool:
+        """Increment fix loop counter and check if limit exceeded.
+
+        Returns:
+            True if fix loops still allowed, False if max reached
+        """
+        self.fix_loop_count += 1
+        self.updated_at = datetime.now(timezone.utc)
+        return self.fix_loop_count < self.max_fix_loops
+
+    def reset_fix_loop(self) -> None:
+        """Reset fix loop counter (called on successful task completion)."""
+        self.fix_loop_count = 0
         self.updated_at = datetime.now(timezone.utc)
 
 

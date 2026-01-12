@@ -47,6 +47,9 @@ from orchestration.coordinator.state_machine import (
     check_exit_criteria,
     TransitionError,
     ExitCriteriaNotMet,
+    # VF-164: Fix loop guardrails
+    can_return_to_execution,
+    validate_fix_loop_transition,
 )
 
 
@@ -1291,6 +1294,7 @@ class SessionCoordinator:
             session.completed_task_ids.append(task.task_id)
             session.active_task_id = None
             session.clarification_answer = None
+            session.reset_fix_loop()  # VF-164: Reset fix loop counter on success
             session.add_log(f"Task {task.task_id} completed successfully")
             self._emit_event(
                 Event(
@@ -1495,21 +1499,160 @@ class SessionCoordinator:
         session.add_log(f"Phase transition: {old_phase.value} → EXECUTION")
         self.session_store.update_session(session)
 
-    def fail_session(self, session_id: str, reason: str, task_id: str = "session") -> None:
-        """Transition a session to FAILED with a reason."""
+    def trigger_fix_loop(self, session_id: str, reason: str) -> dict[str, Any]:
+        """Trigger a fix-loop return from VERIFICATION to EXECUTION (VF-164).
+
+        This implements bounded fix-loop transitions with guardrails to prevent
+        infinite verification-execution cycles.
+
+        Args:
+            session_id: ID of the session
+            reason: Reason for the fix loop (e.g., verification failure)
+
+        Returns:
+            dict: Status of fix loop trigger
+
+        Raises:
+            ValueError: If session not found or wrong phase
+            TransitionError: If fix loop limit exceeded
+        """
         session = self._get_session_or_raise(session_id)
+
+        # Validate we're in a state where fix-loop makes sense
+        if session.phase not in {SessionPhase.VERIFICATION, SessionPhase.EXECUTION}:
+            raise ValueError(
+                f"Cannot trigger fix loop: session {session_id} is in phase {session.phase.value}, "
+                f"expected VERIFICATION or EXECUTION"
+            )
+
+        # Check fix-loop guardrails (VF-164)
+        can_loop, loop_reason = can_return_to_execution(session)
+
+        if not can_loop:
+            # Fix loop limit exceeded - fail the session
+            session.add_log(f"Fix loop limit exceeded: {loop_reason}")
+            return self.fail_session(
+                session_id,
+                f"Fix loop limit exceeded after {session.fix_loop_count} attempts: {reason}",
+                task_id="fix_loop",
+            )
+
+        # Increment fix loop counter
+        session.increment_fix_loop()
+        session.add_log(f"Fix loop triggered ({session.fix_loop_count}/{session.max_fix_loops}): {reason}")
+
+        # Emit fix loop event
+        self._emit_event(
+            Event(
+                event_type=EventType.INFO,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message=f"Fix loop triggered: {reason}",
+                phase=session.phase.value,
+                metadata={
+                    "fix_loop_count": session.fix_loop_count,
+                    "max_fix_loops": session.max_fix_loops,
+                    "reason": reason,
+                },
+            )
+        )
+
+        # Transition back to EXECUTION if we were in VERIFICATION
         old_phase = session.phase
-        session.add_error(task_id=task_id, error_message=reason)
-        session.active_task_id = None
-        session.pending_clarification = None
-        self._transition_phase(session, SessionPhase.FAILED, reason)
-        session.add_log(f"Phase transition: {old_phase.value} → FAILED")
+        if old_phase == SessionPhase.VERIFICATION:
+            self._transition_phase(session, SessionPhase.EXECUTION, f"Fix loop: {reason}")
+            session.add_log(f"Phase transition: VERIFICATION → EXECUTION (fix loop)")
+
         self.session_store.update_session(session)
 
-    def abort_session(self, session_id: str, reason: str = "User aborted") -> dict[str, str]:
-        """Abort session and preserve artifacts.
+        return {
+            "status": "fix_loop_triggered",
+            "fix_loop_count": session.fix_loop_count,
+            "max_fix_loops": session.max_fix_loops,
+            "reason": reason,
+        }
 
-        Safely stops execution and transitions to terminal state.
+    def fail_session(self, session_id: str, reason: str, task_id: str = "session") -> dict[str, Any]:
+        """Transition a session to FAILED with a reason (VF-163).
+
+        Creates a failure artifact with error details and recovery options.
+
+        Args:
+            session_id: ID of the session
+            reason: Reason for failure
+            task_id: ID of the task that caused failure (default: "session")
+
+        Returns:
+            dict: Failure details with recovery options
+        """
+        session = self._get_session_or_raise(session_id)
+        old_phase = session.phase
+
+        # Record the error
+        session.add_error(task_id=task_id, error_message=reason)
+        session.failure_reason = reason
+        session.active_task_id = None
+        session.pending_clarification = None
+
+        # Create failure artifact (VF-163)
+        failure_artifact = {
+            "session_id": session_id,
+            "failure_reason": reason,
+            "failure_task_id": task_id,
+            "failed_at": datetime.now(timezone.utc).isoformat(),
+            "phase_at_failure": old_phase.value,
+            "error_history": session.error_history,
+            "completed_tasks": session.completed_task_ids,
+            "failed_tasks": session.failed_task_ids,
+            "fix_loop_count": session.fix_loop_count,
+        }
+        session.failure_artifact = failure_artifact
+
+        # Persist failure artifact
+        try:
+            workspace_path = self.workspace_manager.workspace_root / session_id
+            artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
+            artifact_store.save_artifact("failure_report.json", failure_artifact)
+            session.add_log("Failure artifact persisted to artifacts/failure_report.json")
+        except Exception as e:
+            session.add_log(f"Failed to persist failure artifact: {str(e)}")
+
+        # Emit failure event
+        self._emit_event(
+            Event(
+                event_type=EventType.SESSION_FAILED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message=f"Session failed: {reason}",
+                phase=old_phase.value,
+                task_id=task_id,
+                metadata={
+                    "failure_reason": reason,
+                    "error_count": len(session.error_history),
+                },
+            )
+        )
+
+        # Transition to FAILED
+        self._transition_phase(session, SessionPhase.FAILED, reason)
+        session.add_log(f"Phase transition: {old_phase.value} → FAILED")
+
+        self.session_store.update_session(session)
+
+        # Return failure details with recovery options (VF-163)
+        return {
+            "status": "failed",
+            "reason": reason,
+            "task_id": task_id,
+            "failure_artifact": failure_artifact,
+            "recovery_options": session.get_recovery_options(),
+            "artifacts_location": str(self.workspace_manager.workspace_root / session_id / "artifacts"),
+        }
+
+    def abort_session(self, session_id: str, reason: str = "User aborted") -> dict[str, Any]:
+        """Abort session and preserve artifacts (VF-165).
+
+        Safely stops execution, cleans up resources, and transitions to terminal state.
         Can be called from any non-terminal phase.
 
         Args:
@@ -1517,7 +1660,7 @@ class SessionCoordinator:
             reason: Reason for abort (for logging)
 
         Returns:
-            dict: Confirmation with preserved artifacts location
+            dict: Confirmation with preserved artifacts location and recovery options
 
         Raises:
             ValueError: If session not found or already in terminal state
@@ -1531,34 +1674,85 @@ class SessionCoordinator:
                 f"Cannot abort: session {session_id} already in terminal state {session.phase.value}"
             )
 
+        old_phase = session.phase
+
+        # Mark session as aborted (VF-165)
+        session.is_aborted = True
+        session.abort_reason = reason
+
         # Stop running task if any
         if session.active_task_id:
             session.add_log(f"Aborting active task: {session.active_task_id}")
             if session_id in self._task_masters:
                 task_master = self._task_masters[session_id]
-                task_master.markFailed(
-                    session.active_task_id, f"Aborted by user: {reason}"
-                )
+                try:
+                    task_master.markFailed(
+                        session.active_task_id, f"Aborted by user: {reason}"
+                    )
+                except Exception as e:
+                    session.add_log(f"Warning: failed to mark task as failed: {str(e)}")
             session.active_task_id = None
+
+        # Clear any pending clarification
+        session.pending_clarification = None
+        session.clarification_answer = None
+        session.clarification_context = None
 
         # Log abort
         session.add_log(f"Session aborted: {reason}")
         session.add_error(task_id="session", error_message=f"Aborted: {reason}")
 
-        # Preserve current phase for reference
+        # Create abort artifact (similar to failure artifact but marked as abort)
+        abort_artifact = {
+            "session_id": session_id,
+            "abort_reason": reason,
+            "aborted_at": datetime.now(timezone.utc).isoformat(),
+            "phase_at_abort": old_phase.value,
+            "completed_tasks": session.completed_task_ids,
+            "failed_tasks": session.failed_task_ids,
+            "active_task_at_abort": session.active_task_id,
+            "is_user_initiated": True,
+        }
+        session.failure_artifact = abort_artifact
+        session.failure_reason = f"Aborted: {reason}"
+
+        # Persist abort artifact
+        workspace_path = self.workspace_manager.workspace_root / session_id
+        try:
+            artifact_store = ArtifactStore(str(workspace_path / "artifacts"))
+            artifact_store.save_artifact("abort_report.json", abort_artifact)
+            session.add_log("Abort artifact persisted to artifacts/abort_report.json")
+        except Exception as e:
+            session.add_log(f"Warning: failed to persist abort artifact: {str(e)}")
+
+        # Emit abort event
+        self._emit_event(
+            Event(
+                event_type=EventType.SESSION_ABORTED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session_id,
+                message=f"Session aborted: {reason}",
+                phase=old_phase.value,
+                metadata={
+                    "abort_reason": reason,
+                    "phase_at_abort": old_phase.value,
+                    "completed_task_count": len(session.completed_task_ids),
+                },
+            )
+        )
+
         # Transition to FAILED (using FAILED to indicate aborted state)
-        old_phase = session.phase
-        self._transition_phase(session, SessionPhase.FAILED, reason)
+        self._transition_phase(session, SessionPhase.FAILED, f"Aborted: {reason}")
         session.add_log(f"Phase transition: {old_phase.value} → FAILED (aborted)")
 
         # Update session
         self.session_store.update_session(session)
 
-        workspace_path = self.workspace_manager.workspace_root / session_id
-
         return {
             "status": "aborted",
             "message": f"Session aborted: {reason}",
+            "abort_artifact": abort_artifact,
+            "recovery_options": session.get_recovery_options(),
             "artifacts_preserved": str(workspace_path / "artifacts"),
             "workspace_preserved": str(workspace_path / "repo"),
         }

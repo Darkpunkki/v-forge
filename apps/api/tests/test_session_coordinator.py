@@ -1,4 +1,4 @@
-"""Tests for SessionCoordinator (VF-032, VF-033, VF-034, VF-035, VF-036)."""
+"""Tests for SessionCoordinator (VF-032, VF-033, VF-034, VF-035, VF-036, VF-163, VF-164, VF-165)."""
 
 import pytest
 from pathlib import Path
@@ -7,6 +7,7 @@ from unittest.mock import Mock, MagicMock, AsyncMock
 from orchestration.coordinator import SessionCoordinator
 from orchestration.models import ConceptDoc, TaskGraph
 from orchestration.models import Task as TaskModel
+from orchestration.orchestrator import Orchestrator
 from vibeforge_api.core.event_log import EventLog, EventType
 from vibeforge_api.core.session import Session, SessionStore
 from vibeforge_api.core.workspace import WorkspaceManager
@@ -1867,3 +1868,521 @@ class TestSessionCoordinatorAbort:
         assert "workspace_preserved" in result
         session = session_store.get_session(session_id)
         assert any("Session aborted" in log for log in session.logs)
+
+
+# =============================================================================
+# VF-163: FAILED terminal behavior tests
+# =============================================================================
+
+
+class TestVF163_FailedTerminalBehavior:
+    """Tests for VF-163: FAILED terminal behavior + recovery options."""
+
+    def test_fail_session_creates_failure_artifact(self, tmp_path):
+        """fail_session creates and persists a failure artifact."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        result = coordinator.fail_session(session_id, "Test failure", task_id="test-task")
+
+        assert result["status"] == "failed"
+        assert result["reason"] == "Test failure"
+        assert result["task_id"] == "test-task"
+        assert "failure_artifact" in result
+        assert result["failure_artifact"]["failure_reason"] == "Test failure"
+
+    def test_fail_session_persists_failure_artifact_to_disk(self, tmp_path):
+        """fail_session persists failure artifact to artifacts/failure_report.json."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        coordinator.fail_session(session_id, "Test failure")
+
+        failure_report = tmp_path / session_id / "artifacts" / "failure_report.json"
+        assert failure_report.exists()
+
+        import json
+        artifact_data = json.loads(failure_report.read_text())
+        assert artifact_data["failure_reason"] == "Test failure"
+
+    def test_fail_session_returns_recovery_options(self, tmp_path):
+        """fail_session returns recovery options for the user."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        result = coordinator.fail_session(session_id, "Test failure")
+
+        assert "recovery_options" in result
+        options = result["recovery_options"]
+        assert any(opt["value"] == "restart_session" for opt in options)
+        assert any(opt["value"] == "export_logs" for opt in options)
+
+    def test_fail_session_transitions_to_failed_phase(self, tmp_path):
+        """fail_session transitions session to FAILED phase."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        coordinator.fail_session(session_id, "Test failure")
+
+        session = session_store.get_session(session_id)
+        assert session.phase == SessionPhase.FAILED
+        assert session.failure_reason == "Test failure"
+
+    def test_fail_session_records_error_history(self, tmp_path):
+        """fail_session records error in error_history."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        coordinator.fail_session(session_id, "Test failure", task_id="task-123")
+
+        session = session_store.get_session(session_id)
+        assert len(session.error_history) > 0
+        error = session.error_history[-1]
+        assert error["task_id"] == "task-123"
+        assert error["error_message"] == "Test failure"
+
+
+# =============================================================================
+# VF-164: Fix loop guardrails tests
+# =============================================================================
+
+
+class TestVF164_FixLoopGuardrails:
+    """Tests for VF-164: Controlled fix-loop return transitions."""
+
+    def test_trigger_fix_loop_increments_counter(self, tmp_path):
+        """trigger_fix_loop increments the fix loop counter."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        result = coordinator.trigger_fix_loop(session_id, "Verification failed")
+
+        assert result["status"] == "fix_loop_triggered"
+        assert result["fix_loop_count"] == 1
+
+        session = session_store.get_session(session_id)
+        assert session.fix_loop_count == 1
+
+    def test_trigger_fix_loop_fails_when_limit_exceeded(self, tmp_path):
+        """trigger_fix_loop fails session when max loops exceeded."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session.fix_loop_count = 3  # At limit
+        session_store.update_session(session)
+
+        result = coordinator.trigger_fix_loop(session_id, "Verification failed again")
+
+        assert result["status"] == "failed"
+        assert "Fix loop limit exceeded" in result["reason"]
+
+        session = session_store.get_session(session_id)
+        assert session.phase == SessionPhase.FAILED
+
+    def test_fix_loop_resets_on_task_success(self, tmp_path):
+        """fix_loop_count resets to 0 on successful task completion."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.fix_loop_count = 2
+        session.reset_fix_loop()
+
+        assert session.fix_loop_count == 0
+
+    def test_can_return_to_execution_checks_limit(self, tmp_path):
+        """can_return_to_execution returns False when limit reached."""
+        from orchestration.coordinator.state_machine import can_return_to_execution
+
+        session = MagicMock()
+        session.fix_loop_count = 3
+        session.max_fix_loops = 3
+
+        can_loop, reason = can_return_to_execution(session)
+
+        assert can_loop is False
+        assert "exceeded" in reason.lower()
+
+    def test_can_return_to_execution_allows_within_limit(self, tmp_path):
+        """can_return_to_execution returns True when under limit."""
+        from orchestration.coordinator.state_machine import can_return_to_execution
+
+        session = MagicMock()
+        session.fix_loop_count = 1
+        session.max_fix_loops = 3
+
+        can_loop, reason = can_return_to_execution(session)
+
+        assert can_loop is True
+        assert "allowed" in reason.lower()
+
+    def test_trigger_fix_loop_transitions_from_verification(self, tmp_path):
+        """trigger_fix_loop transitions from VERIFICATION to EXECUTION."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+
+        # Set up for VERIFICATION phase - need answers and task_graph
+        session.answers = {"q1": "answer1"}
+        session.intent_profile = {"app_type": "web"}
+        session.build_spec = {"stack": "vite-react"}
+        session.concept = {"description": "test"}
+        session.task_graph = {"tasks": []}
+
+        # Allow EXECUTION → VERIFICATION transition first
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        # Manually transition to VERIFICATION (normally done by finalize flow)
+        from orchestration.coordinator.state_machine import validate_transition
+        validate_transition(SessionPhase.EXECUTION, SessionPhase.VERIFICATION)
+        session.update_phase(SessionPhase.VERIFICATION)
+        session_store.update_session(session)
+
+        result = coordinator.trigger_fix_loop(session_id, "Global verification failed")
+
+        assert result["status"] == "fix_loop_triggered"
+        session = session_store.get_session(session_id)
+        assert session.phase == SessionPhase.EXECUTION
+
+    def test_trigger_fix_loop_requires_execution_or_verification_phase(self, tmp_path):
+        """trigger_fix_loop raises ValueError if not in EXECUTION or VERIFICATION phase."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        # Session is in QUESTIONNAIRE phase by default
+
+        with pytest.raises(ValueError) as exc_info:
+            coordinator.trigger_fix_loop(session_id, "Should fail")
+
+        assert "QUESTIONNAIRE" in str(exc_info.value)
+
+
+# =============================================================================
+# VF-165: Safe abort cleanup tests
+# =============================================================================
+
+
+class TestVF165_SafeAbortCleanup:
+    """Tests for VF-165: Safe abort and cleanup behavior."""
+
+    def test_abort_session_sets_aborted_flag(self, tmp_path):
+        """abort_session sets is_aborted=True on session."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        coordinator.abort_session(session_id, "User cancelled")
+
+        session = session_store.get_session(session_id)
+        assert session.is_aborted is True
+        assert session.abort_reason == "User cancelled"
+
+    def test_abort_session_creates_abort_artifact(self, tmp_path):
+        """abort_session creates and persists abort artifact."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        result = coordinator.abort_session(session_id, "User cancelled")
+
+        assert "abort_artifact" in result
+        assert result["abort_artifact"]["abort_reason"] == "User cancelled"
+        assert result["abort_artifact"]["is_user_initiated"] is True
+
+        # Check persisted file
+        abort_report = tmp_path / session_id / "artifacts" / "abort_report.json"
+        assert abort_report.exists()
+
+    def test_abort_session_clears_clarification_state(self, tmp_path):
+        """abort_session clears pending clarification state."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.CLARIFICATION)
+        session.pending_clarification = {"question": "test?"}
+        session.clarification_answer = "yes"
+        session.clarification_context = {"type": "test"}
+        session_store.update_session(session)
+
+        coordinator.abort_session(session_id, "User cancelled")
+
+        session = session_store.get_session(session_id)
+        assert session.pending_clarification is None
+        assert session.clarification_answer is None
+        assert session.clarification_context is None
+
+    def test_abort_session_returns_recovery_options(self, tmp_path):
+        """abort_session returns recovery options for the user."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        result = coordinator.abort_session(session_id, "User cancelled")
+
+        assert "recovery_options" in result
+        options = result["recovery_options"]
+        assert any(opt["value"] == "restart_session" for opt in options)
+
+    def test_abort_session_preserves_workspace(self, tmp_path):
+        """abort_session preserves workspace files for inspection."""
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orchestrator = MagicMock(spec=Orchestrator)
+
+        coordinator = SessionCoordinator(
+            session_store=session_store,
+            workspace_manager=workspace_manager,
+            questionnaire_engine=questionnaire_engine,
+            spec_builder=spec_builder,
+            orchestrator=mock_orchestrator,
+        )
+
+        session_id = coordinator.start_session()
+        session = session_store.get_session(session_id)
+        session.update_phase(SessionPhase.EXECUTION)
+        session_store.update_session(session)
+
+        # Create some workspace files
+        repo_path = tmp_path / session_id / "repo"
+        test_file = repo_path / "test.txt"
+        test_file.write_text("test content")
+
+        result = coordinator.abort_session(session_id, "User cancelled")
+
+        # Files should still exist
+        assert test_file.exists()
+        assert "workspace_preserved" in result
+
+    def test_session_get_recovery_options_includes_reduce_scope_for_planned_sessions(self, tmp_path):
+        """get_recovery_options includes reduce_scope if session has concept/task_graph."""
+        session_store = SessionStore()
+
+        session = session_store.create_session()
+        session.update_phase(SessionPhase.FAILED)
+        session.task_graph = {"tasks": []}
+
+        options = session.get_recovery_options()
+
+        assert any(opt["value"] == "reduce_scope" for opt in options)
+
+    def test_session_get_recovery_options_basic_for_early_failures(self, tmp_path):
+        """get_recovery_options returns basic options for early-phase failures."""
+        session_store = SessionStore()
+
+        session = session_store.create_session()
+        session.update_phase(SessionPhase.FAILED)
+        # No task_graph or concept set
+
+        options = session.get_recovery_options()
+
+        assert any(opt["value"] == "restart_session" for opt in options)
+        assert any(opt["value"] == "export_logs" for opt in options)
+        assert not any(opt["value"] == "reduce_scope" for opt in options)

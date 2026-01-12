@@ -833,13 +833,34 @@ Use WPs to run an iterative loop: plan → implement → verify → update docs 
   - `apps/api/tests/test_sessions.py` (fixed test_submit_clarification_valid_answer)
 
 ## WP-0035 — Failure recovery + fix loop transitions
-- **Status:** Queued
-- **VF Tasks:** VF-163, VF-164, VF-165
+- **Status:** Done
+- **Started:** 2026-01-12 (local)
+- **Completed:** 2026-01-12 (local)
+- **Branch:** master
+- **VF Tasks:** VF-163 ✓, VF-164 ✓, VF-165 ✓
 - **Goal:** Define failed terminal behavior, controlled fix-loop return transitions, and safe abort cleanup flows.
 - **Dependencies:** WP-0034 (state machine rules)
 - **Plan Doc:** docs/ai/planning/WP-0035_VF-163-165_failure-recovery-transitions.md
-- **Verify:**
-  - `pytest`
+- **Verified:**
+  - `cd apps/api && pytest tests/test_state_machine.py tests/test_session_coordinator.py -v` (112 passed)
+  - `cd apps/api && pytest -v` (549 passed, 1 skipped)
+- **Files touched:**
+  - **VF-163 (FAILED terminal behavior):**
+    - `apps/api/vibeforge_api/core/session.py` (failure_reason, failure_artifact, get_recovery_options)
+    - `orchestration/coordinator/session_coordinator.py:1501` (fail_session enhanced)
+    - `apps/api/vibeforge_api/core/event_log.py` (SESSION_FAILED event type)
+    - `apps/api/tests/test_session_coordinator.py::TestVF163_FailedTerminalBehavior` (5 tests)
+  - **VF-164 (fix loop guardrails):**
+    - `orchestration/coordinator/state_machine.py:197` (MAX_FIX_LOOPS, can_return_to_execution, validate_fix_loop_transition)
+    - `orchestration/coordinator/session_coordinator.py:1501` (trigger_fix_loop method)
+    - `apps/api/vibeforge_api/core/session.py` (fix_loop_count, increment_fix_loop, reset_fix_loop)
+    - `apps/api/tests/test_state_machine.py::TestVF164_FixLoopGuardrails` (8 tests)
+    - `apps/api/tests/test_session_coordinator.py::TestVF164_FixLoopGuardrails` (7 tests)
+  - **VF-165 (abort cleanup):**
+    - `apps/api/vibeforge_api/core/session.py` (is_aborted, abort_reason)
+    - `orchestration/coordinator/session_coordinator.py:1578` (abort_session enhanced)
+    - `apps/api/vibeforge_api/core/event_log.py` (SESSION_ABORTED event type)
+    - `apps/api/tests/test_session_coordinator.py::TestVF165_SafeAbortCleanup` (7 tests)
 
 ## WP-0036 — Phase transition tests + session resume
 - **Status:** Queued

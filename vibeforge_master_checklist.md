@@ -992,14 +992,52 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
   - **Files:** `orchestration/coordinator/session_coordinator.py` (_transition_phase updated to enforce validation)
   - **Tests:** 12 tests in `apps/api/tests/test_state_machine.py::TestVF162_ExitCriteria`
 
-- [ ] **VF-163 — Implement FAILED terminal behavior + recovery options**
+- [x] **VF-163 — Implement FAILED terminal behavior + recovery options**
   - Define what constitutes unrecoverable failure; ensure the system transitions to FAILED cleanly, emits a final error artifact, and offers safe recovery options (restart session, reduce scope, export logs).
+  - **Files:**
+    - `apps/api/vibeforge_api/core/session.py` (failure_reason, failure_artifact, get_recovery_options)
+    - `orchestration/coordinator/session_coordinator.py:1501` (fail_session returns failure_artifact + recovery_options)
+    - `apps/api/vibeforge_api/core/event_log.py` (SESSION_FAILED event type)
+  - **Implementation:**
+    - Session stores failure_reason, failure_artifact with detailed error context
+    - fail_session() creates failure artifact with error history, phase, completed/failed tasks
+    - Artifact persisted to `artifacts/failure_report.json`
+    - SESSION_FAILED event emitted with metadata
+    - get_recovery_options() returns: restart_session, export_logs, reduce_scope (if planned)
+  - **Tests:** 5 tests in `apps/api/tests/test_session_coordinator.py::TestVF163_FailedTerminalBehavior`
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestVF163_FailedTerminalBehavior -v` (5 passed)
 
-- [ ] **VF-164 — Implement controlled “return transitions” for fix loops**
+- [x] **VF-164 — Implement controlled "return transitions" for fix loops**
   - Support the state-machine loop VERIFICATION → EXECUTION when final checks fail, with clear guardrails to avoid infinite loops.
+  - **Files:**
+    - `orchestration/coordinator/state_machine.py:197` (MAX_FIX_LOOPS, can_return_to_execution, validate_fix_loop_transition)
+    - `orchestration/coordinator/session_coordinator.py:1501` (trigger_fix_loop method)
+    - `apps/api/vibeforge_api/core/session.py` (fix_loop_count, max_fix_loops, increment_fix_loop, reset_fix_loop)
+  - **Implementation:**
+    - MAX_FIX_LOOPS constant (default 3)
+    - can_return_to_execution() checks if fix loop allowed
+    - validate_fix_loop_transition() raises TransitionError if limit exceeded
+    - trigger_fix_loop() increments counter, fails session if limit exceeded
+    - Fix loop counter resets to 0 on successful task completion
+  - **Tests:** 8 tests in `apps/api/tests/test_state_machine.py::TestVF164_FixLoopGuardrails` + 7 tests in `test_session_coordinator.py::TestVF164_FixLoopGuardrails`
+  - **Verify:** `cd apps/api && pytest tests/test_state_machine.py::TestVF164_FixLoopGuardrails tests/test_session_coordinator.py::TestVF164_FixLoopGuardrails -v` (15 passed)
 
-- [ ] **VF-165 — Implement session abort and cleanup behavior**
+- [x] **VF-165 — Implement session abort and cleanup behavior**
   - Allow user to abort; stop active execution safely, mark session as FAILED (or ABORTED if you add it), and preserve artifacts/logs for inspection.
+  - **Files:**
+    - `apps/api/vibeforge_api/core/session.py` (is_aborted, abort_reason)
+    - `orchestration/coordinator/session_coordinator.py:1578` (abort_session enhanced)
+    - `apps/api/vibeforge_api/core/event_log.py` (SESSION_ABORTED event type)
+  - **Implementation:**
+    - Session tracks is_aborted flag and abort_reason
+    - abort_session() creates abort_artifact with context
+    - Clears pending clarification state
+    - Stops active task safely (marks as failed)
+    - Artifact persisted to `artifacts/abort_report.json`
+    - SESSION_ABORTED event emitted
+    - Returns recovery_options for user
+  - **Tests:** 7 tests in `apps/api/tests/test_session_coordinator.py::TestVF165_SafeAbortCleanup`
+  - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py::TestVF165_SafeAbortCleanup -v` (7 passed)
 
 - [ ] **VF-166 — Add integration tests for phase transitions**
   - Write tests that simulate the main state transitions and assert the system rejects illegal transitions, emits expected events, and persists expected artifacts.

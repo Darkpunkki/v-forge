@@ -1,7 +1,7 @@
 # WP-0035 — Failure recovery + fix loop transitions
 
 ## Status
-- Queued
+- Done (2026-01-12)
 
 ## Context
 - Chapter(s): 16 State Machine: MVP Phases (State Diagram)
@@ -14,11 +14,11 @@
 - Define and implement failure, fix-loop return, and abort behaviors within the session phase state machine.
 
 ## VF Tasks (canonical)
-- [ ] **VF-163 — Implement FAILED terminal behavior + recovery options**
+- [x] **VF-163 — Implement FAILED terminal behavior + recovery options**
   - Define what constitutes unrecoverable failure; ensure the system transitions to FAILED cleanly, emits a final error artifact, and offers safe recovery options (restart session, reduce scope, export logs).
-- [ ] **VF-164 — Implement controlled “return transitions” for fix loops**
+- [x] **VF-164 — Implement controlled "return transitions" for fix loops**
   - Support the state-machine loop VERIFICATION → EXECUTION when final checks fail, with clear guardrails to avoid infinite loops.
-- [ ] **VF-165 — Implement session abort and cleanup behavior**
+- [x] **VF-165 — Implement session abort and cleanup behavior**
   - Allow user to abort; stop active execution safely, mark session as FAILED (or ABORTED if you add it), and preserve artifacts/logs for inspection.
 
 ## Plan

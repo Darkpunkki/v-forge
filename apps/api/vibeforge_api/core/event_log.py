@@ -32,6 +32,9 @@ class EventType(str, Enum):
     MODEL_ROUTED = "model_routed"
     GATE_EVALUATED = "gate_evaluated"
     INFO = "info"
+    # VF-163, VF-165: Failure and abort events
+    SESSION_FAILED = "session_failed"
+    SESSION_ABORTED = "session_aborted"
 
 
 @dataclass
