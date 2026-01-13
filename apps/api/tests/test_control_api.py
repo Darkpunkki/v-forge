@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+from fastapi import HTTPException
 
 from vibeforge_api.core.event_log import EventLog, Event, EventType
 from vibeforge_api.core.workspace import WorkspaceManager
@@ -408,3 +409,237 @@ class TestControlLlmTrace:
         trace = response["traces"][0]
         assert trace["response"] == "Here is the function..."
         assert "add two numbers" in trace["prompt"]
+
+
+class TestWorkflowEndpoints:
+    """Tests for VF-193: Agent workflow API endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_initialize_agents(self):
+        """Test POST /control/sessions/{id}/agents/init."""
+        from vibeforge_api.routers.control import initialize_agents
+        from vibeforge_api.models import InitializeAgentsRequest
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        request = InitializeAgentsRequest(agent_count=3)
+
+        response = await initialize_agents(session.session_id, request)
+
+        assert len(response.agent_ids) == 3
+        assert response.agent_ids == ["agent-1", "agent-2", "agent-3"]
+        assert "Initialized 3 agents" in response.message
+
+        # Verify session was updated
+        updated_session = session_store.get_session(session.session_id)
+        assert len(updated_session.agents) == 3
+        assert updated_session.agents[0]["agent_id"] == "agent-1"
+
+    @pytest.mark.asyncio
+    async def test_initialize_agents_session_not_found(self):
+        """Test initialize_agents with non-existent session."""
+        from vibeforge_api.routers.control import initialize_agents
+        from vibeforge_api.models import InitializeAgentsRequest
+
+        request = InitializeAgentsRequest(agent_count=2)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await initialize_agents("nonexistent", request)
+
+        assert exc_info.value.status_code == 404
+        assert "not found" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_initialize_agents_terminal_phase(self):
+        """Test initialize_agents rejects terminal phases."""
+        from vibeforge_api.routers.control import initialize_agents
+        from vibeforge_api.models import InitializeAgentsRequest
+        from vibeforge_api.core.session import session_store
+        from vibeforge_api.models.types import SessionPhase
+
+        session = session_store.create_session()
+        session.phase = SessionPhase.COMPLETE
+        session_store.update_session(session)
+
+        request = InitializeAgentsRequest(agent_count=2)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await initialize_agents(session.session_id, request)
+
+        assert exc_info.value.status_code == 400
+        assert "Cannot initialize agents" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_assign_agent_role(self):
+        """Test POST /control/sessions/{id}/agents/assign."""
+        from vibeforge_api.routers.control import initialize_agents, assign_agent_role
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            AssignAgentRoleRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        # Setup: create session with agents
+        session = session_store.create_session()
+        init_req = InitializeAgentsRequest(agent_count=2)
+        await initialize_agents(session.session_id, init_req)
+
+        # Assign role and model
+        assign_req = AssignAgentRoleRequest(
+            agent_id="agent-1", role="worker", model_id="gpt-4"
+        )
+        response = await assign_agent_role(session.session_id, assign_req)
+
+        assert response.agent_id == "agent-1"
+        assert response.role == "worker"
+        assert response.model_id == "gpt-4"
+
+        # Verify session was updated
+        updated_session = session_store.get_session(session.session_id)
+        assert updated_session.agent_roles["agent-1"] == "worker"
+        assert updated_session.agent_models["agent-1"] == "gpt-4"
+
+    @pytest.mark.asyncio
+    async def test_assign_agent_role_unknown_agent(self):
+        """Test assign_agent_role with unknown agent."""
+        from vibeforge_api.routers.control import assign_agent_role
+        from vibeforge_api.models import AssignAgentRoleRequest
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        request = AssignAgentRoleRequest(agent_id="unknown", role="worker")
+
+        with pytest.raises(HTTPException) as exc_info:
+            await assign_agent_role(session.session_id, request)
+
+        assert exc_info.value.status_code == 404
+        assert "not found" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_set_main_task(self):
+        """Test POST /control/sessions/{id}/task."""
+        from vibeforge_api.routers.control import set_main_task
+        from vibeforge_api.models import SetMainTaskRequest
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        request = SetMainTaskRequest(main_task="Build a web app")
+
+        response = await set_main_task(session.session_id, request)
+
+        assert response.main_task == "Build a web app"
+        assert "successfully" in response.message
+
+        # Verify session was updated
+        updated_session = session_store.get_session(session.session_id)
+        assert updated_session.main_task == "Build a web app"
+
+    @pytest.mark.asyncio
+    async def test_configure_agent_flow(self):
+        """Test POST /control/sessions/{id}/flows."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            configure_agent_flow,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            ConfigureAgentFlowRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        # Setup: create session with agents
+        session = session_store.create_session()
+        init_req = InitializeAgentsRequest(agent_count=3)
+        await initialize_agents(session.session_id, init_req)
+
+        # Configure flow
+        flow_req = ConfigureAgentFlowRequest(
+            edges=[
+                {"from_agent": "agent-1", "to_agent": "agent-2"},
+                {"from_agent": "agent-2", "to_agent": "agent-3"},
+            ]
+        )
+        response = await configure_agent_flow(session.session_id, flow_req)
+
+        assert response.edge_count == 2
+        assert "Configured flow" in response.message
+
+        # Verify session was updated
+        updated_session = session_store.get_session(session.session_id)
+        assert updated_session.agent_graph is not None
+        assert len(updated_session.agent_graph["edges"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_configure_agent_flow_cycle_detection(self):
+        """Test configure_agent_flow rejects cycles."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            configure_agent_flow,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            ConfigureAgentFlowRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        # Setup
+        session = session_store.create_session()
+        init_req = InitializeAgentsRequest(agent_count=2)
+        await initialize_agents(session.session_id, init_req)
+
+        # Try to create cycle
+        flow_req = ConfigureAgentFlowRequest(
+            edges=[
+                {"from_agent": "agent-1", "to_agent": "agent-2"},
+                {"from_agent": "agent-2", "to_agent": "agent-1"},  # cycle!
+            ]
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await configure_agent_flow(session.session_id, flow_req)
+
+        assert exc_info.value.status_code == 400
+        assert "Cycle" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_get_workflow_config(self):
+        """Test GET /control/sessions/{id}/workflow."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            assign_agent_role,
+            set_main_task,
+            get_workflow_config,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            AssignAgentRoleRequest,
+            SetMainTaskRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        # Setup: create full workflow config
+        session = session_store.create_session()
+
+        # Initialize agents
+        await initialize_agents(
+            session.session_id, InitializeAgentsRequest(agent_count=2)
+        )
+
+        # Assign roles
+        await assign_agent_role(
+            session.session_id,
+            AssignAgentRoleRequest(agent_id="agent-1", role="worker", model_id="gpt-4"),
+        )
+
+        # Set task
+        await set_main_task(
+            session.session_id, SetMainTaskRequest(main_task="Test workflow")
+        )
+
+        # Get config
+        response = await get_workflow_config(session.session_id)
+
+        assert len(response.agents) == 2
+        assert response.agent_roles == {"agent-1": "worker"}
+        assert response.agent_models == {"agent-1": "gpt-4"}
+        assert response.main_task == "Test workflow"

@@ -2386,3 +2386,142 @@ class TestVF165_SafeAbortCleanup:
         assert any(opt["value"] == "restart_session" for opt in options)
         assert any(opt["value"] == "export_logs" for opt in options)
         assert not any(opt["value"] == "reduce_scope" for opt in options)
+
+
+class TestVF194_WorkflowConfiguration:
+    """Tests for VF-194: Wire workflow configuration into SessionCoordinator."""
+
+    def _create_coordinator(self, tmp_path):
+        """Helper to create SessionCoordinator with minimal dependencies."""
+        from apps.api.vibeforge_api.core.session import SessionStore
+        from apps.api.vibeforge_api.core.workspace import WorkspaceManager
+        from apps.api.vibeforge_api.core.questionnaire import QuestionnaireEngine
+        from apps.api.vibeforge_api.core.spec_builder import SpecBuilder
+        from orchestration.orchestrator import Orchestrator
+        from unittest.mock import Mock
+
+        session_store = SessionStore()
+        workspace_manager = WorkspaceManager(workspace_root=tmp_path)
+        questionnaire_engine = QuestionnaireEngine()
+        spec_builder = SpecBuilder()
+        mock_orch = Mock()
+
+        coordinator = SessionCoordinator(
+            session_store,
+            workspace_manager,
+            questionnaire_engine,
+            spec_builder,
+            mock_orch,
+        )
+        return coordinator, session_store
+
+    def test_get_agent_config(self, tmp_path):
+        """Coordinator can retrieve agent config by ID."""
+        from orchestration.models import AgentConfig, AgentRole
+
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agents = [
+            AgentConfig(agent_id="agent-1", role=AgentRole.WORKER).model_dump(),
+            AgentConfig(agent_id="agent-2", role=AgentRole.REVIEWER).model_dump(),
+        ]
+
+        agent = coordinator.get_agent_config(session, "agent-1")
+        assert agent is not None
+        assert agent["role"] == "worker"
+
+    def test_get_agent_config_not_found(self, tmp_path):
+        """Returns None if agent not found."""
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agents = []
+
+        agent = coordinator.get_agent_config(session, "nonexistent")
+        assert agent is None
+
+    def test_get_forced_model(self, tmp_path):
+        """Coordinator returns forced model if configured."""
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agent_models = {"agent-1": "gpt-4-turbo"}
+
+        model = coordinator.get_forced_model(session, "agent-1")
+        assert model == "gpt-4-turbo"
+
+    def test_get_forced_model_not_configured(self, tmp_path):
+        """Returns None if forced model not configured."""
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agent_models = {}
+
+        model = coordinator.get_forced_model(session, "agent-1")
+        assert model is None
+
+    def test_get_agent_for_role(self, tmp_path):
+        """Find agent assigned to role."""
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agent_roles = {"agent-1": "worker", "agent-2": "reviewer"}
+
+        agent_id = coordinator.get_agent_for_role(session, "worker")
+        assert agent_id == "agent-1"
+
+    def test_get_agent_for_role_not_found(self, tmp_path):
+        """Returns None if role not assigned."""
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agent_roles = {}
+
+        agent_id = coordinator.get_agent_for_role(session, "worker")
+        assert agent_id is None
+
+    def test_is_workflow_configured_true(self, tmp_path):
+        """Workflow is configured when agents, roles, and task set."""
+        from orchestration.models import AgentConfig
+
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+
+        # Not configured initially
+        assert not coordinator.is_workflow_configured(session)
+
+        # Configure workflow
+        session.agents = [AgentConfig(agent_id="agent-1").model_dump()]
+        session.agent_roles = {"agent-1": "worker"}
+        session.main_task = "Build a todo app"
+
+        assert coordinator.is_workflow_configured(session)
+
+    def test_is_workflow_configured_false_missing_agents(self, tmp_path):
+        """Workflow not configured if agents missing."""
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agents = []  # Missing agents
+        session.agent_roles = {"agent-1": "worker"}
+        session.main_task = "Build a todo app"
+
+        assert not coordinator.is_workflow_configured(session)
+
+    def test_is_workflow_configured_false_missing_roles(self, tmp_path):
+        """Workflow not configured if roles missing."""
+        from orchestration.models import AgentConfig
+
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agents = [AgentConfig(agent_id="agent-1").model_dump()]
+        session.agent_roles = {}  # Missing roles
+        session.main_task = "Build a todo app"
+
+        assert not coordinator.is_workflow_configured(session)
+
+    def test_is_workflow_configured_false_missing_main_task(self, tmp_path):
+        """Workflow not configured if main_task missing."""
+        from orchestration.models import AgentConfig
+
+        coordinator, session_store = self._create_coordinator(tmp_path)
+        session = session_store.create_session()
+        session.agents = [AgentConfig(agent_id="agent-1").model_dump()]
+        session.agent_roles = {"agent-1": "worker"}
+        session.main_task = None  # Missing main_task
+
+        assert not coordinator.is_workflow_configured(session)

@@ -18,11 +18,13 @@ class RoutingContext:
         role: Agent role (orchestrator, worker, foreman, fixer, reviewer)
         complexity: Task complexity (simple, medium, complex)
         failure_count: Number of previous failures (for escalation)
+        forced_model: Optional model override for workflow simulation mode (VF-194)
         metadata: Optional additional context
     """
     role: str
     complexity: str = "medium"
     failure_count: int = 0
+    forced_model: Optional[str] = None
     metadata: Optional[dict] = None
 
 
@@ -112,6 +114,13 @@ class ModelRouter:
         Returns:
             Tuple of (provider_name, model_name)
         """
+        # VF-194: Check for forced model override (workflow simulation mode)
+        if context.forced_model:
+            validated = self._validate_forced_model(context.forced_model)
+            if validated:
+                return validated
+            # If validation fails, fall through to normal routing
+
         # Check for escalation due to failures
         if context.failure_count > 0:
             escalated = self._apply_escalation(context)
@@ -129,6 +138,75 @@ class ModelRouter:
 
         # Fallback to default
         return (self.default_provider, self.default_model)
+
+    def _validate_forced_model(self, forced_model: str) -> Optional[tuple[str, str]]:
+        """Validate and parse forced model string (VF-194).
+
+        Args:
+            forced_model: Model string (format: "provider:model" or "model")
+
+        Returns:
+            Tuple of (provider, model) if valid, None if invalid
+        """
+        if not forced_model or not forced_model.strip():
+            return None
+
+        # Parse provider:model format
+        if ":" in forced_model:
+            parts = forced_model.split(":", 1)
+            provider = parts[0].strip()
+            model = parts[1].strip()
+        else:
+            # No provider specified, infer from model name
+            model = forced_model.strip()
+            provider = self._infer_provider(model)
+
+        # Validate the model name exists in known models
+        if self._is_valid_model(provider, model):
+            return (provider, model)
+
+        # Invalid model - return None to fall through to normal routing
+        return None
+
+    def _infer_provider(self, model: str) -> str:
+        """Infer provider from model name (VF-194).
+
+        Args:
+            model: Model name (e.g., "gpt-4", "claude-3-opus")
+
+        Returns:
+            Provider name
+        """
+        model_lower = model.lower()
+        if model_lower.startswith("gpt-") or model_lower.startswith("o1-"):
+            return "openai"
+        elif model_lower.startswith("claude-"):
+            return "anthropic"
+        elif "llama" in model_lower or "mixtral" in model_lower or "local" in model_lower:
+            return "local"
+        else:
+            # Default fallback
+            return self.default_provider
+
+    def _is_valid_model(self, provider: str, model: str) -> bool:
+        """Check if provider:model combination is valid (VF-194).
+
+        Args:
+            provider: Provider name
+            model: Model name
+
+        Returns:
+            True if valid, False otherwise
+        """
+        # Common known models
+        known_models = {
+            "openai": ["gpt-4", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo", "o1-preview", "o1-mini"],
+            "anthropic": ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku", "claude-3-5-sonnet"],
+            "local": ["local-llama", "local-mixtral", "llama-3", "llama-2", "mixtral-8x7b"],
+        }
+
+        provider_models = known_models.get(provider, [])
+        return model in provider_models
 
     def _apply_escalation(self, context: RoutingContext) -> Optional[tuple[str, str]]:
         """Apply escalation rules based on failure count.

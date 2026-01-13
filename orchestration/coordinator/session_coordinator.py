@@ -105,6 +105,63 @@ class SessionCoordinator:
             # Observability should not break execution; errors are logged via session logs.
             pass
 
+    def get_agent_config(self, session: Session, agent_id: str) -> Optional[dict]:
+        """Get configuration for a specific agent (VF-194).
+
+        Args:
+            session: Session with agent configuration
+            agent_id: Agent identifier
+
+        Returns:
+            Agent config dict if found, None otherwise
+        """
+        for agent in session.agents:
+            if agent.get("agent_id") == agent_id:
+                return agent
+        return None
+
+    def get_forced_model(self, session: Session, agent_id: str) -> Optional[str]:
+        """Get forced model for agent if configured (VF-194).
+
+        Args:
+            session: Session with agent model mappings
+            agent_id: Agent identifier
+
+        Returns:
+            Model name/ID if configured, None otherwise
+        """
+        return session.agent_models.get(agent_id)
+
+    def get_agent_for_role(self, session: Session, role: str) -> Optional[str]:
+        """Find agent ID assigned to the given role (VF-194).
+
+        Args:
+            session: Session with agent role mappings
+            role: Role name (e.g., "worker", "reviewer")
+
+        Returns:
+            Agent ID if found, None otherwise
+        """
+        for agent_id, assigned_role in session.agent_roles.items():
+            if assigned_role == role:
+                return agent_id
+        return None
+
+    def is_workflow_configured(self, session: Session) -> bool:
+        """Check if simulation workflow is configured (VF-194).
+
+        Args:
+            session: Session to check
+
+        Returns:
+            True if workflow configured (agents, roles, main_task set)
+        """
+        return (
+            len(session.agents) > 0
+            and len(session.agent_roles) > 0
+            and session.main_task is not None
+        )
+
     def _transition_phase(
         self,
         session: Session,
@@ -951,6 +1008,32 @@ class SessionCoordinator:
                 )
             )
 
+            # VF-194: Get forced model for workflow simulation mode
+            forced_model = None
+            assigned_agent_id = None
+            if self.is_workflow_configured(session):
+                assigned_agent_id = self.get_agent_for_role(session, agent_role.role)
+                if assigned_agent_id:
+                    forced_model = self.get_forced_model(session, assigned_agent_id)
+
+            # VF-194: Build metadata with workflow configuration
+            agent_invoked_metadata = {
+                "agent_role": agent_role.role,
+                "model_tier": agent_role.model_tier,
+                "routing_reason": agent_role.reason,
+                "failure_count": failure_count,
+                "task_description": task.description,
+            }
+            # VF-194: Add workflow metadata if configured
+            if self.is_workflow_configured(session):
+                agent_invoked_metadata["workflow_mode"] = "simulation"
+                agent_invoked_metadata["main_task"] = session.main_task
+                agent_invoked_metadata["configured_agents"] = len(session.agents)
+            if assigned_agent_id:
+                agent_invoked_metadata["agent_id"] = assigned_agent_id
+            if forced_model:
+                agent_invoked_metadata["forced_model"] = forced_model
+
             self._emit_event(
                 Event(
                     event_type=EventType.AGENT_INVOKED,
@@ -959,13 +1042,7 @@ class SessionCoordinator:
                     message=f"Agent {agent_role.role} invoked for task {task.task_id}",
                     phase=session.phase.value,
                     task_id=task.task_id,
-                    metadata={
-                        "agent_role": agent_role.role,
-                        "model_tier": agent_role.model_tier,
-                        "routing_reason": agent_role.reason,
-                        "failure_count": failure_count,
-                        "task_description": task.description,
-                    },
+                    metadata=agent_invoked_metadata,
                 )
             )
 
@@ -992,6 +1069,15 @@ class SessionCoordinator:
                 "concept": session.concept,
                 "repo_context": repo_context,
             }
+            # VF-194: Add workflow configuration to context
+            if forced_model:
+                context["forced_model"] = forced_model
+            if assigned_agent_id:
+                context["agent_id"] = assigned_agent_id
+            if self.is_workflow_configured(session):
+                context["workflow_mode"] = "simulation"
+                context["main_task"] = session.main_task
+
             exec_state = task_master.executions.get(task.task_id)
             if exec_state and exec_state.error_message:
                 context["previous_error"] = exec_state.error_message

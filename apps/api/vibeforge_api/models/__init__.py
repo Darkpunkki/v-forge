@@ -11,6 +11,14 @@ from vibeforge_api.models.requests import (
     SubmitAnswerRequest,
     PlanDecisionRequest,
     ClarificationAnswerRequest,
+    # VF-192: Agent workflow requests
+    InitializeAgentsRequest,
+    AssignAgentRoleRequest,
+    SetMainTaskRequest,
+    ConfigureAgentFlowRequest,
+    # VF-192: Simulation requests
+    SimulationConfigRequest,
+    TickRequest,
 )
 from vibeforge_api.models.responses import (
     SessionResponse,
@@ -19,6 +27,17 @@ from vibeforge_api.models.responses import (
     ProgressResponse,
     ClarificationResponse,
     ClarificationOption,
+    # VF-192: Agent workflow responses
+    InitializeAgentsResponse,
+    AssignAgentRoleResponse,
+    SetMainTaskResponse,
+    ConfigureAgentFlowResponse,
+    WorkflowConfigResponse,
+    # VF-192: Simulation responses
+    SimulationConfigResponse,
+    SimulationStartResponse,
+    TickResponse,
+    SimulationStateResponse,
 )
 
 __all__ = [
@@ -40,4 +59,21 @@ __all__ = [
     "ProgressResponse",
     "ClarificationResponse",
     "ClarificationOption",
+    # VF-192: Agent workflow
+    "InitializeAgentsRequest",
+    "AssignAgentRoleRequest",
+    "SetMainTaskRequest",
+    "ConfigureAgentFlowRequest",
+    "InitializeAgentsResponse",
+    "AssignAgentRoleResponse",
+    "SetMainTaskResponse",
+    "ConfigureAgentFlowResponse",
+    "WorkflowConfigResponse",
+    # VF-192: Simulation
+    "SimulationConfigRequest",
+    "TickRequest",
+    "SimulationConfigResponse",
+    "SimulationStartResponse",
+    "TickResponse",
+    "SimulationStateResponse",
 ]

@@ -11,6 +11,14 @@ import asyncio
 import json
 from datetime import datetime, timezone
 
+# VF-193: Import workflow request/response models
+from vibeforge_api.models import (
+    InitializeAgentsRequest,
+    AssignAgentRoleRequest,
+    SetMainTaskRequest,
+    ConfigureAgentFlowRequest,
+)
+
 router = APIRouter(prefix="/control", tags=["control"])
 
 
@@ -290,3 +298,211 @@ async def get_active_sessions():
         "active_sessions": active,
         "total": len(active),
     }
+
+
+# VF-193: Agent workflow API endpoints
+
+
+@router.post("/sessions/{session_id}/agents/init")
+async def initialize_agents(session_id: str, request: InitializeAgentsRequest):
+    """Initialize N agents for a session (VF-193).
+
+    Validates:
+    - Session exists
+    - Session phase allows agent initialization (e.g., not COMPLETE/FAILED)
+    - Agent count is within limits
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import InitializeAgentsRequest, InitializeAgentsResponse
+    from vibeforge_api.models.types import SessionPhase
+    from orchestration.models import AgentConfig
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Phase guardrail: don't allow agent initialization if session is terminal
+    terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+    if session.phase in terminal_phases:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot initialize agents in {session.phase.value} phase"
+        )
+
+    # Initialize agents
+    agent_ids = [f"agent-{i+1}" for i in range(request.agent_count)]
+    agents = [
+        AgentConfig(agent_id=aid).model_dump() for aid in agent_ids
+    ]
+
+    session.agents = agents
+    session.agent_roles = {}
+    session.agent_models = {}
+    session_store.update_session(session)
+
+    return InitializeAgentsResponse(
+        agent_ids=agent_ids,
+        message=f"Initialized {request.agent_count} agents"
+    )
+
+
+@router.post("/sessions/{session_id}/agents/assign")
+async def assign_agent_role(session_id: str, request: AssignAgentRoleRequest):
+    """Assign role and model to an agent (VF-193).
+
+    Validates:
+    - Session exists
+    - Agent exists in session
+    - Role is valid (if provided)
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import AssignAgentRoleRequest, AssignAgentRoleResponse
+    from vibeforge_api.models.types import SessionPhase
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Phase guardrail
+    terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+    if session.phase in terminal_phases:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot assign roles in {session.phase.value} phase"
+        )
+
+    # Check agent exists
+    agent_ids = [a.get("agent_id") for a in session.agents]
+    if request.agent_id not in agent_ids:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Agent {request.agent_id} not found in session"
+        )
+
+    # Assign role and model
+    if request.role:
+        session.agent_roles[request.agent_id] = request.role
+    if request.model_id:
+        session.agent_models[request.agent_id] = request.model_id
+
+    session_store.update_session(session)
+
+    return AssignAgentRoleResponse(
+        agent_id=request.agent_id,
+        role=request.role,
+        model_id=request.model_id,
+        message=f"Assigned role/model to {request.agent_id}"
+    )
+
+
+@router.post("/sessions/{session_id}/task")
+async def set_main_task(session_id: str, request: SetMainTaskRequest):
+    """Set the main orchestration task (VF-193).
+
+    Validates:
+    - Session exists
+    - Task is non-empty
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import SetMainTaskRequest, SetMainTaskResponse
+    from vibeforge_api.models.types import SessionPhase
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Phase guardrail
+    terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+    if session.phase in terminal_phases:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot set task in {session.phase.value} phase"
+        )
+
+    session.main_task = request.main_task
+    session_store.update_session(session)
+
+    return SetMainTaskResponse(
+        main_task=request.main_task,
+        message="Main task set successfully"
+    )
+
+
+@router.post("/sessions/{session_id}/flows")
+async def configure_agent_flow(session_id: str, request: ConfigureAgentFlowRequest):
+    """Configure agent-to-agent communication flow (VF-193).
+
+    Validates:
+    - Session exists
+    - All referenced agents exist
+    - Flow graph is acyclic
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import ConfigureAgentFlowRequest, ConfigureAgentFlowResponse
+    from vibeforge_api.models.types import SessionPhase
+    from orchestration.models import AgentFlowGraph, AgentFlowEdge
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Phase guardrail
+    terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+    if session.phase in terminal_phases:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot configure flow in {session.phase.value} phase"
+        )
+
+    # Build flow graph
+    edges = [
+        AgentFlowEdge(from_agent=e["from_agent"], to_agent=e["to_agent"])
+        for e in request.edges
+    ]
+    flow_graph = AgentFlowGraph(edges=edges)
+
+    # Validate graph
+    agent_ids = [a.get("agent_id") for a in session.agents]
+    is_valid, error = flow_graph.validate_dag(agent_ids)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=f"Invalid flow graph: {error}")
+
+    session.agent_graph = flow_graph.model_dump()
+    session_store.update_session(session)
+
+    return ConfigureAgentFlowResponse(
+        edge_count=len(request.edges),
+        message=f"Configured flow with {len(request.edges)} edges"
+    )
+
+
+@router.get("/sessions/{session_id}/workflow")
+async def get_workflow_config(session_id: str):
+    """Get current workflow configuration (VF-193).
+
+    Returns:
+    - All agent configs
+    - Agent role assignments
+    - Agent model assignments
+    - Agent flow graph
+    - Main task
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import WorkflowConfigResponse
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return WorkflowConfigResponse(
+        agents=session.agents,
+        agent_roles=session.agent_roles,
+        agent_models=session.agent_models,
+        agent_graph=session.agent_graph,
+        main_task=session.main_task,
+    )

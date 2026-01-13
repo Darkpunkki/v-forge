@@ -1000,34 +1000,45 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/api/tests/test_orchestration_models.py` (VF-191: TestAgentWorkflowModels class)
 
 ## WP-0044 — Agent workflow API endpoints
-- **Status:** Queued
-- **VF Tasks:** VF-192, VF-193
+- **Status:** Done
+- **Started:** 2026-01-12 (local)
+- **Completed:** 2026-01-12 (local)
+- **Branch:** master
+- **VF Tasks:** VF-192 ✓, VF-193 ✓
 - **Goal:** Add Pydantic schemas and 5 control API endpoints for agent initialization, role assignment, task setting, flow configuration, and workflow retrieval.
-- **Dependencies:** WP-0043 (agent workflow models)
+- **Dependencies:** WP-0043 ✓ (agent workflow models)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0044_VF-192-193_agent-workflow-endpoints.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_control_api.py -v`
-  - `cd apps/api && python -c "from vibeforge_api.models import InitializeAgentsRequest, WorkflowConfigResponse"`
-- **Files to touch:**
-  - `apps/api/vibeforge_api/models/requests.py` (add workflow request schemas)
-  - `apps/api/vibeforge_api/models/responses.py` (add workflow response schemas)
-  - `apps/api/vibeforge_api/models/__init__.py` (export new models)
-  - `apps/api/vibeforge_api/routers/control.py` (add 5 endpoints)
-  - `apps/api/tests/test_control_api.py` (add endpoint tests)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_control_api.py::TestWorkflowEndpoints -v` - 9 passed, 3 warnings
+  - `cd apps/api && python -c "from vibeforge_api.models import InitializeAgentsRequest, WorkflowConfigResponse"` - OK
+  - Created 6 request schemas + 9 response schemas with validation
+  - Implemented 5 workflow endpoints with phase guardrails
+  - All endpoints validate session existence and reject terminal phases
+- **Files touched:**
+  - `apps/api/vibeforge_api/models/requests.py` (VF-192: 6 request schemas)
+  - `apps/api/vibeforge_api/models/responses.py` (VF-192: 9 response schemas)
+  - `apps/api/vibeforge_api/models/__init__.py` (VF-192: exported all new schemas)
+  - `apps/api/vibeforge_api/routers/control.py` (VF-193: 5 workflow endpoints)
+  - `apps/api/tests/test_control_api.py` (VF-193: TestWorkflowEndpoints with 9 tests)
 
 ## WP-0045 — Wire workflow config into orchestration
-- **Status:** Queued
-- **VF Tasks:** VF-194
+- **Status:** Done
+- **Started:** 2026-01-13 (local)
+- **Completed:** 2026-01-13 (local)
+- **Branch:** master
+- **VF Tasks:** VF-194 ✓
 - **Goal:** Update SessionCoordinator to consume AgentConfig and add forced model override to ModelRouter for per-agent model enforcement.
 - **Dependencies:** WP-0043 (models), WP-0044 (endpoints to set config)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0045_VF-194_workflow-orchestration-wiring.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_session_coordinator.py tests/test_model_router.py -v`
-- **Files to touch:**
-  - `orchestration/coordinator/session_coordinator.py` (consume AgentConfig)
-  - `models/router.py` (add forced_model parameter)
-  - `apps/api/tests/test_session_coordinator.py` (add workflow config tests)
-  - `apps/api/tests/test_model_router.py` (add forced model tests)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_model_router.py -v` - 31 passed (14 new forced_model tests)
+  - `cd apps/api && pytest tests/test_session_coordinator.py::TestVF194_WorkflowConfiguration -v` - 10 passed
+- **Files touched:**
+  - `models/router.py` (added forced_model to RoutingContext, validation methods)
+  - `orchestration/coordinator/session_coordinator.py` (added workflow helper methods, context enrichment, metadata)
+  - `models/agent_framework.py` (DirectLlmAdapter consumes forced_model from context)
+  - `apps/api/tests/test_model_router.py` (added TestForcedModelRouting class with 14 tests)
+  - `apps/api/tests/test_session_coordinator.py` (added TestVF194_WorkflowConfiguration class with 10 tests)
 
 ## WP-0046 — Agent workflow UI widgets
 - **Status:** Queued

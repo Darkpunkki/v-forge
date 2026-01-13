@@ -249,7 +249,55 @@ cd apps/api && pytest tests/test_session_coordinator.py tests/test_model_router.
 
 ## Done When
 
-- [ ] ModelRouter respects forced_model override
-- [ ] SessionCoordinator retrieves agent config for tasks
-- [ ] Events include workflow_mode and agent metadata
-- [ ] Tests cover forced model and workflow configuration
+- [x] ModelRouter respects forced_model override
+- [x] SessionCoordinator retrieves agent config for tasks
+- [x] Events include workflow_mode and agent metadata
+- [x] Tests cover forced model and workflow configuration
+
+## Completion Summary
+
+**Status:** Complete ✓
+**Date:** 2026-01-13
+
+### Implementation Details:
+
+1. **ModelRouter forced_model (VF-194)**
+   - Added `forced_model: Optional[str]` to `RoutingContext` dataclass
+   - Implemented `_validate_forced_model()` with provider:model parsing
+   - Implemented `_infer_provider()` to detect provider from model name
+   - Implemented `_is_valid_model()` with known model catalog
+   - Updated `select_model()` to check forced_model first
+   - Added 14 comprehensive tests in TestForcedModelRouting class
+   - All 31 ModelRouter tests pass
+
+2. **SessionCoordinator workflow configuration (VF-194)**
+   - Added `get_agent_config(session, agent_id)` helper method
+   - Added `get_forced_model(session, agent_id)` helper method
+   - Added `get_agent_for_role(session, role)` helper method
+   - Added `is_workflow_configured(session)` helper method
+   - Updated `execute_next_task()` to detect workflow mode and retrieve forced_model
+   - Added workflow metadata to context: forced_model, agent_id, workflow_mode, main_task
+   - Enhanced AGENT_INVOKED event metadata with workflow configuration
+   - Added 10 comprehensive tests in TestVF194_WorkflowConfiguration class
+
+3. **DirectLlmAdapter integration (VF-194)**
+   - Updated `runTask()` to extract forced_model from context
+   - Pass forced_model to RoutingContext when calling select_model()
+
+### Verification Results:
+
+```bash
+cd apps/api && pytest tests/test_model_router.py -v
+# 31 passed (17 existing + 14 new forced_model tests)
+
+cd apps/api && pytest tests/test_session_coordinator.py::TestVF194_WorkflowConfiguration -v
+# 10 passed (all new workflow configuration tests)
+```
+
+### Files Modified:
+
+- `models/router.py` - added forced_model parameter + validation (70 lines)
+- `orchestration/coordinator/session_coordinator.py` - added workflow helpers + metadata (65 lines)
+- `models/agent_framework.py` - consume forced_model from context (3 lines)
+- `apps/api/tests/test_model_router.py` - added TestForcedModelRouting (218 lines, 14 tests)
+- `apps/api/tests/test_session_coordinator.py` - added TestVF194_WorkflowConfiguration (138 lines, 10 tests)

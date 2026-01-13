@@ -87,3 +87,86 @@ class ClarificationResponse(BaseModel):
     question: str
     context: Optional[str | dict[str, Any]] = None
     options: list[ClarificationOption]
+
+
+# VF-192: Agent workflow response schemas
+
+
+class InitializeAgentsResponse(BaseModel):
+    """Response from agent initialization (VF-192)."""
+
+    agent_ids: list[str]
+    message: str
+
+
+class AssignAgentRoleResponse(BaseModel):
+    """Response from role/model assignment (VF-192)."""
+
+    agent_id: str
+    role: Optional[str]
+    model_id: Optional[str]
+    message: str
+
+
+class SetMainTaskResponse(BaseModel):
+    """Response from setting main task (VF-192)."""
+
+    main_task: str
+    message: str
+
+
+class ConfigureAgentFlowResponse(BaseModel):
+    """Response from configuring agent flow (VF-192)."""
+
+    edge_count: int
+    message: str
+
+
+class WorkflowConfigResponse(BaseModel):
+    """Response containing current workflow configuration (VF-192)."""
+
+    agents: list[dict[str, Any]]
+    agent_roles: dict[str, str]
+    agent_models: dict[str, str]
+    agent_graph: Optional[dict[str, Any]]
+    main_task: Optional[str]
+
+
+# VF-192: Simulation control response schemas
+
+
+class SimulationConfigResponse(BaseModel):
+    """Response from simulation configuration (VF-192)."""
+
+    simulation_mode: str
+    auto_delay_ms: Optional[int]
+    tick_budget: Optional[int]
+    message: str
+
+
+class SimulationStartResponse(BaseModel):
+    """Response from starting simulation (VF-192)."""
+
+    tick_index: int
+    tick_status: str
+    message: str
+
+
+class TickResponse(BaseModel):
+    """Response from executing tick(s) (VF-192)."""
+
+    tick_index: int
+    tick_status: str
+    events_processed: int
+    message: str
+
+
+class SimulationStateResponse(BaseModel):
+    """Response containing current simulation state (VF-192)."""
+
+    simulation_mode: str
+    tick_index: int
+    tick_status: str
+    auto_delay_ms: Optional[int]
+    tick_budget: Optional[int]
+    pending_work_summary: Optional[str]

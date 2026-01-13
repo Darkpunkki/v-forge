@@ -131,9 +131,12 @@ class DirectLlmAdapter(AgentFramework):
         )
 
         # Select model based on role
+        # VF-194: Use forced_model from context if configured (workflow simulation mode)
+        forced_model = context.get("forced_model")
         routing_ctx = RoutingContext(
             role=role,
             complexity="simple",  # Default for MVP
+            forced_model=forced_model,
             metadata={"task_id": task.task_id},
         )
         provider, model = self.router.select_model(routing_ctx)

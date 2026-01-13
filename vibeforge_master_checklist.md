@@ -1319,16 +1319,22 @@ This section covers the capabilities for admins to configure and run custom agen
     - All tests pass (67 total: 19 session + 19 session_store + 29 orchestration)
     - Files: orchestration/models.py, apps/api/tests/test_orchestration_models.py
 
-- [ ] **VF-192 — Add Pydantic request/response schemas for agent workflow and simulation endpoints**
+- [x] **VF-192 — Add Pydantic request/response schemas for agent workflow and simulation endpoints**
   - Create request/response models in `apps/api/vibeforge_api/models/`:
     - **Workflow:** `InitializeAgentsRequest/Response`, `AssignAgentRoleRequest/Response`, `SetMainTaskRequest/Response`, `ConfigureAgentFlowRequest/Response`, `WorkflowConfigResponse`
     - **Simulation:** `SimulationConfigRequest/Response`, `SimulationStartResponse`, `TickRequest/Response`, `SimulationStateResponse`
   - Include validation for agent counts, supported roles, known model IDs, and simulation constraints.
-  - **Status:** Planned
+  - **Status:** Complete (2026-01-12)
   - **Done when:** All schemas exist with proper validation; OpenAPI docs show the new models; import/export works from models/__init__.py.
   - **Verify:** `cd apps/api && python -c "from vibeforge_api.models import InitializeAgentsRequest, SimulationConfigRequest, TickResponse"`
+  - **Implementation:**
+    - Added 6 workflow request schemas to requests.py (InitializeAgents, AssignAgentRole, SetMainTask, ConfigureAgentFlow, SimulationConfig, Tick)
+    - Added 9 workflow response schemas to responses.py (5 workflow + 4 simulation)
+    - Added validation for agent_count (1-10), role (valid enum), simulation_mode (manual/auto)
+    - Exported all new schemas from models/__init__.py
+    - Files: apps/api/vibeforge_api/models/requests.py, responses.py, __init__.py
 
-- [ ] **VF-193 — Implement control workflow API endpoints**
+- [x] **VF-193 — Implement control workflow API endpoints**
   - Add 5 new endpoints to `apps/api/vibeforge_api/routers/control.py`:
     - `POST /control/sessions/{id}/agents/init` — initialize N agents for the session
     - `POST /control/sessions/{id}/agents/assign` — assign role + model per agent
@@ -1336,15 +1342,40 @@ This section covers the capabilities for admins to configure and run custom agen
     - `POST /control/sessions/{id}/flows` — persist agent-to-agent communication graph
     - `GET /control/sessions/{id}/workflow` — return current workflow configuration
   - Include phase guardrails to reject changes if session is in incompatible state.
-  - **Status:** Planned
+  - **Status:** Complete (2026-01-12)
   - **Done when:** All 5 endpoints functional; phase validation prevents illegal state changes; OpenAPI docs complete.
   - **Verify:** `cd apps/api && pytest tests/test_control_api.py -v`
+  - **Implementation:**
+    - Added 5 workflow endpoints to control.py with phase guardrails
+    - initialize_agents: creates N agents, rejects terminal phases
+    - assign_agent_role: assigns role/model, validates agent exists
+    - set_main_task: sets orchestration goal
+    - configure_agent_flow: validates DAG structure, detects cycles
+    - get_workflow_config: returns current config
+    - Added 9 tests in test_control_api.py (TestWorkflowEndpoints class)
+    - All tests pass (9 passed, 3 warnings)
+    - Files: apps/api/vibeforge_api/routers/control.py, tests/test_control_api.py
 
-- [ ] **VF-194 — Wire workflow configuration into SessionCoordinator and ModelRouter**
+- [x] **VF-194 — Wire workflow configuration into SessionCoordinator and ModelRouter**
   - Update `orchestration/coordinator/session_coordinator.py` to accept explicit `AgentConfig` before execution. Add "forced model" option to `models/router.py` for enforcing per-agent model selection. Emit workflow config metadata in agent events.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** SessionCoordinator consumes AgentConfig; ModelRouter respects forced_model override; events include workflow metadata.
   - **Verify:** `cd apps/api && pytest tests/test_session_coordinator.py tests/test_model_router.py -v`
+  - **Implementation:**
+    - Added `forced_model` parameter to `RoutingContext` in `models/router.py`
+    - Implemented model validation with `_validate_forced_model()`, `_infer_provider()`, and `_is_valid_model()` methods
+    - Added 14 comprehensive tests for forced_model routing in `apps/api/tests/test_model_router.py` (31 tests total, all pass)
+    - Added 4 helper methods to `SessionCoordinator`: `get_agent_config()`, `get_forced_model()`, `get_agent_for_role()`, `is_workflow_configured()`
+    - Updated `execute_next_task()` to detect workflow configuration, retrieve forced_model, and add to context
+    - Enhanced event metadata to include workflow_mode, main_task, configured_agents, agent_id, forced_model
+    - Updated `DirectLlmAdapter` to consume forced_model from context and pass to RoutingContext
+    - Added 10 comprehensive tests for SessionCoordinator workflow configuration in `apps/api/tests/test_session_coordinator.py::TestVF194_WorkflowConfiguration` (all pass)
+  - **Files:**
+    - `models/router.py` (forced_model parameter + validation)
+    - `orchestration/coordinator/session_coordinator.py` (workflow helpers + context enrichment + metadata)
+    - `models/agent_framework.py` (DirectLlmAdapter uses forced_model from context)
+    - `apps/api/tests/test_model_router.py` (14 new tests)
+    - `apps/api/tests/test_session_coordinator.py` (10 new tests)
 
 - [ ] **VF-195 — Create AgentInitializer widget for control panel**
   - Add `apps/ui/src/screens/control/widgets/AgentInitializer.tsx` with agent count selection (slider or number input), initialize button, and status feedback. Wire to `POST /control/sessions/{id}/agents/init`.
