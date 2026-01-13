@@ -86,6 +86,53 @@ export interface SessionLlmTrace {
 }
 
 /**
+ * Workflow configuration types (VF-192, VF-193)
+ */
+export interface AgentConfig {
+  agent_id: string
+  role?: string
+  model_id?: string
+  display_name?: string
+}
+
+export interface AgentFlowEdge {
+  from_agent: string
+  to_agent: string
+}
+
+export interface InitializeAgentsResponse {
+  agent_ids: string[]
+  message: string
+}
+
+export interface AssignAgentRoleResponse {
+  agent_id: string
+  role?: string
+  model_id?: string
+  message: string
+}
+
+export interface SetMainTaskResponse {
+  main_task: string
+  message: string
+}
+
+export interface ConfigureAgentFlowResponse {
+  edge_count: number
+  message: string
+  is_valid?: boolean
+  validation_error?: string
+}
+
+export interface WorkflowConfigResponse {
+  agents: AgentConfig[]
+  agent_roles: Record<string, string>
+  agent_models: Record<string, string>
+  agent_graph: { edges: AgentFlowEdge[] } | null
+  main_task: string | null
+}
+
+/**
  * API client class
  */
 class ControlApiError extends Error {
@@ -179,6 +226,87 @@ export async function getSessionLlmTrace(
 ): Promise<{ traces: SessionLlmTrace[]; total: number }> {
   return fetchJson<{ traces: SessionLlmTrace[]; total: number }>(
     `/control/sessions/${sessionId}/llm-trace`
+  )
+}
+
+/**
+ * Initialize N agents for a session (VF-193)
+ */
+export async function initializeAgents(
+  sessionId: string,
+  agentCount: number
+): Promise<InitializeAgentsResponse> {
+  return fetchJson<InitializeAgentsResponse>(
+    `/control/sessions/${sessionId}/agents/init`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ agent_count: agentCount }),
+    }
+  )
+}
+
+/**
+ * Assign role and model to an agent (VF-193)
+ */
+export async function assignAgentRole(
+  sessionId: string,
+  agentId: string,
+  role?: string,
+  modelId?: string
+): Promise<AssignAgentRoleResponse> {
+  return fetchJson<AssignAgentRoleResponse>(
+    `/control/sessions/${sessionId}/agents/assign`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        agent_id: agentId,
+        role: role || null,
+        model_id: modelId || null,
+      }),
+    }
+  )
+}
+
+/**
+ * Set the main orchestration task (VF-193)
+ */
+export async function setMainTask(
+  sessionId: string,
+  mainTask: string
+): Promise<SetMainTaskResponse> {
+  return fetchJson<SetMainTaskResponse>(
+    `/control/sessions/${sessionId}/task`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ main_task: mainTask }),
+    }
+  )
+}
+
+/**
+ * Configure agent-to-agent communication flow (VF-193)
+ */
+export async function configureAgentFlow(
+  sessionId: string,
+  edges: AgentFlowEdge[]
+): Promise<ConfigureAgentFlowResponse> {
+  return fetchJson<ConfigureAgentFlowResponse>(
+    `/control/sessions/${sessionId}/flows`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ edges }),
+    }
+  )
+}
+
+/**
+ * Get current workflow configuration (VF-193)
+ */
+export async function getWorkflowConfig(
+  sessionId: string
+): Promise<WorkflowConfigResponse> {
+  return fetchJson<WorkflowConfigResponse>(
+    `/control/sessions/${sessionId}/workflow`
   )
 }
 

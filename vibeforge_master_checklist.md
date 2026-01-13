@@ -1377,29 +1377,37 @@ This section covers the capabilities for admins to configure and run custom agen
     - `apps/api/tests/test_model_router.py` (14 new tests)
     - `apps/api/tests/test_session_coordinator.py` (10 new tests)
 
-- [ ] **VF-195 — Create AgentInitializer widget for control panel**
+- [x] **VF-195 — Create AgentInitializer widget for control panel**
   - Add `apps/ui/src/screens/control/widgets/AgentInitializer.tsx` with agent count selection (slider or number input), initialize button, and status feedback. Wire to `POST /control/sessions/{id}/agents/init`.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** Widget renders in control panel; clicking init creates agents and shows success/error; count validation works.
   - **Verify:** `cd apps/ui && npm run build`
+  - **Implementation:** Created AgentInitializer.tsx with slider (1-10), init button, loading state, error handling; integrated into ControlPanel.tsx workflow section
+  - **Files:** apps/ui/src/screens/control/widgets/AgentInitializer.tsx
 
-- [ ] **VF-196 — Create AgentAssignment widget for control panel**
+- [x] **VF-196 — Create AgentAssignment widget for control panel**
   - Add `apps/ui/src/screens/control/widgets/AgentAssignment.tsx` displaying initialized agents as cards with role dropdown (worker/foreman/reviewer/fixer) and model dropdown. Wire to `POST /control/sessions/{id}/agents/assign`.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** Widget shows agent cards with dropdowns; assignments persist via API; visual feedback on save.
   - **Verify:** `cd apps/ui && npm run build`
+  - **Implementation:** Created AgentAssignment.tsx with agent cards, role/model dropdowns (5 roles, 7 models), save button per agent, loading states
+  - **Files:** apps/ui/src/screens/control/widgets/AgentAssignment.tsx
 
-- [ ] **VF-197 — Create AgentTaskInput widget for control panel**
+- [x] **VF-197 — Create AgentTaskInput widget for control panel**
   - Add `apps/ui/src/screens/control/widgets/AgentTaskInput.tsx` with structured task input (description, acceptance criteria, verification commands) or free-text option for simulation mode. Wire to `POST /control/sessions/{id}/task`.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** Widget accepts task input; validates required fields; submits to API; shows confirmation.
   - **Verify:** `cd apps/ui && npm run build`
+  - **Implementation:** Created AgentTaskInput.tsx with task description textarea, submit button, validation, current task display
+  - **Files:** apps/ui/src/screens/control/widgets/AgentTaskInput.tsx
 
-- [ ] **VF-198 — Create AgentFlowEditor widget for control panel**
+- [x] **VF-198 — Create AgentFlowEditor widget for control panel**
   - Add `apps/ui/src/screens/control/widgets/AgentFlowEditor.tsx` with visual graph editor for defining agent-to-agent communication flows. Support drag-to-connect, edge deletion, and DAG validation feedback. Wire to `POST /control/sessions/{id}/flows`.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** Widget renders agents as nodes; edges can be created/deleted; DAG cycles show validation error; saves to API.
   - **Verify:** `cd apps/ui && npm run build`
+  - **Implementation:** Created AgentFlowEditor.tsx with SVG graph visualization, from/to dropdowns, edge list, add/remove controls, DAG validation error display
+  - **Files:** apps/ui/src/screens/control/widgets/AgentFlowEditor.tsx
 
 - [ ] **VF-199 — Add API client methods and integration tests for agent workflow**
   - Extend `apps/ui/src/api/controlClient.ts` with 5 new methods: `initializeAgents()`, `assignAgentRole()`, `setMainTask()`, `configureAgentFlow()`, `getWorkflowConfig()`. Add integration tests in `apps/api/tests/test_control_api.py` covering the full workflow: init → assign → task → flows → execute.

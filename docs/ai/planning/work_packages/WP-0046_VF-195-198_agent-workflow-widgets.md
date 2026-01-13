@@ -491,9 +491,80 @@ cd apps/ui && npm run build
 
 ## Done When
 
-- [ ] AgentInitializer widget with count slider and init button
-- [ ] AgentAssignment widget with role/model dropdowns per agent
-- [ ] AgentTaskInput widget with description and criteria fields
-- [ ] AgentFlowEditor widget with visual graph and edge controls
-- [ ] All widgets integrated into ControlPanel
-- [ ] Build passes with no TypeScript errors
+- [x] AgentInitializer widget with count slider and init button
+- [x] AgentAssignment widget with role/model dropdowns per agent
+- [x] AgentTaskInput widget with description and criteria fields
+- [x] AgentFlowEditor widget with visual graph and edge controls
+- [x] All widgets integrated into ControlPanel
+- [x] Build passes with no TypeScript errors
+
+## Completion Summary
+
+**Status:** Complete ✓
+**Date:** 2026-01-13
+
+### Implementation Details:
+
+**1. controlClient.ts Extensions**
+   - Added WorkflowConfigResponse, AgentConfig, AgentFlowEdge types
+   - Added 5 workflow API methods:
+     - `initializeAgents(sessionId, agentCount)`
+     - `assignAgentRole(sessionId, agentId, role?, modelId?)`
+     - `setMainTask(sessionId, mainTask)`
+     - `configureAgentFlow(sessionId, edges)`
+     - `getWorkflowConfig(sessionId)`
+
+**2. AgentInitializer.tsx (VF-195)**
+   - Slider input (1-10 agents)
+   - Initialize button with loading state
+   - Error display
+   - Calls `controlClient.initializeAgents()`
+
+**3. AgentAssignment.tsx (VF-196)**
+   - Agent cards with role and model dropdowns
+   - 5 roles: orchestrator, foreman, worker, reviewer, fixer
+   - 7 models: gpt-4, gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo, claude-3-opus, claude-3-sonnet
+   - Per-agent save button with loading state
+   - Calls `controlClient.assignAgentRole()`
+
+**4. AgentTaskInput.tsx (VF-197)**
+   - Task description textarea (4 rows)
+   - Submit button with validation (requires non-empty description)
+   - Current task display
+   - Error handling
+   - Calls `controlClient.setMainTask()`
+
+**5. AgentFlowEditor.tsx (VF-198)**
+   - SVG graph visualization with agent nodes and directed edges
+   - From/To dropdowns for edge creation
+   - Edge list with remove buttons
+   - Add edge validation (no self-loops, no duplicates)
+   - Save button with DAG validation error display
+   - Calls `controlClient.configureAgentFlow()`
+
+**6. ControlPanel.tsx Integration**
+   - Added workflowConfig state
+   - Added refreshWorkflowConfig() handler
+   - Loads workflow config on session selection
+   - New "Workflow Configuration" section:
+     - Shows AgentInitializer if no agents configured
+     - Shows AgentAssignment, AgentTaskInput, AgentFlowEditor once initialized
+   - Added "Session Monitoring" section header for existing widgets
+
+### Verification Results:
+
+```bash
+cd apps/ui && npm run build
+# ✓ built in 1.41s
+# dist/assets/index-Dykr0DtE.js   262.80 kB │ gzip: 78.91 kB
+# No TypeScript errors
+```
+
+### Files Modified:
+
+- `apps/ui/src/api/controlClient.ts` - added 5 methods + 7 types (90 lines)
+- `apps/ui/src/screens/control/widgets/AgentInitializer.tsx` - new (60 lines)
+- `apps/ui/src/screens/control/widgets/AgentAssignment.tsx` - new (95 lines)
+- `apps/ui/src/screens/control/widgets/AgentTaskInput.tsx` - new (63 lines)
+- `apps/ui/src/screens/control/widgets/AgentFlowEditor.tsx` - new (162 lines)
+- `apps/ui/src/screens/ControlPanel.tsx` - integrated widgets (50 lines added)

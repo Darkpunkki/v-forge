@@ -1041,20 +1041,24 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/api/tests/test_session_coordinator.py` (added TestVF194_WorkflowConfiguration class with 10 tests)
 
 ## WP-0046 — Agent workflow UI widgets
-- **Status:** Queued
-- **VF Tasks:** VF-195, VF-196, VF-197, VF-198
+- **Status:** Done
+- **Started:** 2026-01-13 (local)
+- **Completed:** 2026-01-13 (local)
+- **Branch:** master
+- **VF Tasks:** VF-195 ✓, VF-196 ✓, VF-197 ✓, VF-198 ✓
 - **Goal:** Create 4 control panel widgets for agent initialization, role assignment, task input, and flow editing to enable visual workflow configuration.
 - **Dependencies:** WP-0044 (API endpoints to call)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0046_VF-195-198_agent-workflow-widgets.md
-- **Verify:**
-  - `cd apps/ui && npm run build`
-  - Visual verification: All 4 widgets render in control panel
-- **Files to touch:**
-  - `apps/ui/src/screens/control/widgets/AgentInitializer.tsx` (new)
-  - `apps/ui/src/screens/control/widgets/AgentAssignment.tsx` (new)
-  - `apps/ui/src/screens/control/widgets/AgentTaskInput.tsx` (new)
-  - `apps/ui/src/screens/control/widgets/AgentFlowEditor.tsx` (new)
-  - `apps/ui/src/screens/ControlPanel.tsx` (integrate widgets)
+- **Verified:**
+  - `cd apps/ui && npm run build` → Build succeeded (262.80 kB bundle, no errors)
+  - All 4 widgets created and integrated into ControlPanel
+- **Files touched:**
+  - `apps/ui/src/api/controlClient.ts` (added 5 workflow API methods + types)
+  - `apps/ui/src/screens/control/widgets/AgentInitializer.tsx` (new, VF-195)
+  - `apps/ui/src/screens/control/widgets/AgentAssignment.tsx` (new, VF-196)
+  - `apps/ui/src/screens/control/widgets/AgentTaskInput.tsx` (new, VF-197)
+  - `apps/ui/src/screens/control/widgets/AgentFlowEditor.tsx` (new, VF-198)
+  - `apps/ui/src/screens/ControlPanel.tsx` (integrated widgets + workflow config state)
 
 ## WP-0047 — Agent workflow API client + integration tests
 - **Status:** Queued

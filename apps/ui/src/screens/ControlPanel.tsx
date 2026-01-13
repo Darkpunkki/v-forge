@@ -4,10 +4,12 @@ import {
   getActiveSessions,
   getSessionStatus,
   streamSessionEvents,
+  getWorkflowConfig,
   type SessionListItem,
   type ActiveSessionItem,
   type SessionStatusResponse,
   type SessionEvent,
+  type WorkflowConfigResponse,
 } from "../api/controlClient";
 import AgentDashboard from "./control/widgets/AgentDashboard";
 import AgentGraph from "./control/widgets/AgentGraph";
@@ -19,6 +21,10 @@ import PromptInspector from "./control/widgets/PromptInspector";
 import SessionComparison from "./control/widgets/SessionComparison";
 import TokenVisualization from "./control/widgets/TokenVisualization";
 import CostAnalytics from "./control/widgets/CostAnalytics";
+import { AgentInitializer } from "./control/widgets/AgentInitializer";
+import { AgentAssignment } from "./control/widgets/AgentAssignment";
+import { AgentTaskInput } from "./control/widgets/AgentTaskInput";
+import { AgentFlowEditor } from "./control/widgets/AgentFlowEditor";
 
 export function ControlPanelScreen() {
   const [allSessions, setAllSessions] = useState<SessionListItem[]>([]);
@@ -33,6 +39,7 @@ export function ControlPanelScreen() {
   const [loadingSession, setLoadingSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sseError, setSseError] = useState<string | null>(null);
+  const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfigResponse | null>(null);
   const artifactKeys = ["concept", "build_spec", "task_graph"];
 
   const getArtifactCount = (session: SessionListItem, key: string) =>
@@ -65,6 +72,7 @@ export function ControlPanelScreen() {
       setSessionStatus(null);
       setSessionEvents([]);
       setSseError(null);
+      setWorkflowConfig(null);
       setLoadingSession(false);
       return;
     }
@@ -80,13 +88,17 @@ export function ControlPanelScreen() {
 
     async function loadSessionDetails() {
       try {
-        const status = await getSessionStatus(sessionId);
+        const [status, workflow] = await Promise.all([
+          getSessionStatus(sessionId),
+          getWorkflowConfig(sessionId).catch(() => null), // Workflow config is optional
+        ]);
         if (!cancelled) {
           setSessionStatus(status);
+          setWorkflowConfig(workflow);
           setLoadingSession(false);
         }
       } catch (err: any) {
-        console.error("Failed to load session status:", err);
+        console.error("Failed to load session details:", err);
         if (!cancelled) {
           setLoadingSession(false);
         }
@@ -127,6 +139,17 @@ export function ControlPanelScreen() {
       eventSource.close();
     };
   }, [selectedSessionId]);
+
+  // Handler to refresh workflow configuration
+  const refreshWorkflowConfig = async () => {
+    if (!selectedSessionId) return;
+    try {
+      const workflow = await getWorkflowConfig(selectedSessionId);
+      setWorkflowConfig(workflow);
+    } catch (err) {
+      console.error("Failed to refresh workflow config:", err);
+    }
+  };
 
   if (loading) {
     return (
@@ -436,14 +459,53 @@ export function ControlPanelScreen() {
                   </section>
                 )}
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
-                    gap: "16px",
-                  }}
-                >
-                  <AgentDashboard events={sessionEvents} />
+                {/* Workflow Configuration Section (VF-195-198) */}
+                <section style={{ marginBottom: "24px" }}>
+                  <h2>Workflow Configuration</h2>
+                  {!workflowConfig?.agents || workflowConfig.agents.length === 0 ? (
+                    <AgentInitializer
+                      sessionId={selectedSessionId}
+                      onInitialized={refreshWorkflowConfig}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
+                        gap: "16px",
+                      }}
+                    >
+                      <AgentAssignment
+                        sessionId={selectedSessionId}
+                        agents={workflowConfig.agents}
+                        onAssigned={refreshWorkflowConfig}
+                      />
+                      <AgentTaskInput
+                        sessionId={selectedSessionId}
+                        currentTask={workflowConfig.main_task || undefined}
+                        onTaskSet={refreshWorkflowConfig}
+                      />
+                      <AgentFlowEditor
+                        sessionId={selectedSessionId}
+                        agents={workflowConfig.agents}
+                        existingEdges={workflowConfig.agent_graph?.edges || []}
+                        onFlowConfigured={refreshWorkflowConfig}
+                      />
+                    </div>
+                  )}
+                </section>
+
+                {/* Monitoring Widgets */}
+                <section>
+                  <h2>Session Monitoring</h2>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
+                      gap: "16px",
+                    }}
+                  >
+                    <AgentDashboard events={sessionEvents} />
                   <TokenVisualization events={sessionEvents} />
                   <AgentGraph events={sessionEvents} />
                   <ExecutionTimeline events={sessionEvents} />
@@ -460,7 +522,8 @@ export function ControlPanelScreen() {
                   />
                   <PromptInspector sessionId={selectedSessionId} />
                   <CostAnalytics events={sessionEvents} />
-                </div>
+                  </div>
+                </section>
               </>
             )}
           </>
