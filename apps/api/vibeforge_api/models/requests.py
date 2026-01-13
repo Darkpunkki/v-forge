@@ -100,3 +100,9 @@ class TickRequest(BaseModel):
     """Request to execute one or more ticks (VF-192)."""
 
     tick_count: int = Field(1, ge=1, le=100, description="Number of ticks to execute")
+
+
+class SimulationResetRequest(BaseModel):
+    """Request to reset simulation state (VF-200)."""
+
+    preserve_workflow: bool = Field(True, description="Keep workflow config (agents/roles/graph), only reset tick state")

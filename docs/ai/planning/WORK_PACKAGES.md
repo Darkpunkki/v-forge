@@ -1077,16 +1077,22 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/api/tests/test_control_api.py` (added TestAgentWorkflowIntegration class with 6 tests)
 
 ## WP-0048 — Simulation lifecycle and tick control endpoints
-- **Status:** Queued
-- **VF Tasks:** VF-200, VF-201
+- **Status:** Done
+- **Started:** 2026-01-13 (local)
+- **Completed:** 2026-01-13 (local)
+- **Branch:** master
+- **VF Tasks:** VF-200 ✓, VF-201 ✓
 - **Goal:** Add simulation lifecycle endpoints (config, start, reset) and tick control endpoints (tick, ticks, pause, state) to enable UI-driven manual simulation progression.
 - **Dependencies:** WP-0043 (session model with simulation fields), WP-0044 (workflow endpoints)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0048_VF-200-201_simulation-tick-endpoints.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_simulation_api.py -v`
-- **Files to touch:**
-  - `apps/api/vibeforge_api/routers/control.py` (add 7 endpoints)
-  - `apps/api/tests/test_simulation_api.py` (new test file)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_simulation_api.py -v` → 27 passed
+- **Files touched:**
+  - `apps/api/vibeforge_api/routers/control.py` (added 7 simulation endpoints)
+  - `apps/api/vibeforge_api/models/requests.py` (added SimulationResetRequest)
+  - `apps/api/vibeforge_api/models/responses.py` (added SimulationResetResponse, SimulationPauseResponse)
+  - `apps/api/vibeforge_api/models/__init__.py` (exported new models)
+  - `apps/api/tests/test_simulation_api.py` (new - 27 comprehensive tests)
 
 ## WP-0049 — Tick Engine and graph-gated messaging
 - **Status:** Queued

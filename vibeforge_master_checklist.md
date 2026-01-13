@@ -1417,26 +1417,30 @@ This section covers the capabilities for admins to configure and run custom agen
   - **Implementation:** controlClient.ts methods already added in WP-0046; added workflow types to api.ts; added 6 integration tests (TestAgentWorkflowIntegration class) covering full workflow lifecycle
   - **Files:** apps/ui/src/types/api.ts (workflow types), apps/api/tests/test_control_api.py (6 integration tests)
 
-- [ ] **VF-200 — Implement simulation lifecycle API endpoints**
+- [x] **VF-200 — Implement simulation lifecycle API endpoints**
   - Add simulation control endpoints to `apps/api/vibeforge_api/routers/control.py`:
     - `POST /control/sessions/{id}/simulation/config` — set simulation_mode and auto_delay_ms
     - `POST /control/sessions/{id}/simulation/start` — validate readiness (agents+roles+models+graph+task), lock configuration
     - `POST /control/sessions/{id}/simulation/reset` — clear tick index and pending queues, optionally preserve workflow config
   - Include guardrails to reject changes if session is already running.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** All 3 endpoints functional; validation prevents start without complete config; reset clears simulation state; tests pass.
   - **Verify:** `cd apps/api && pytest tests/test_simulation_api.py -v`
+  - **Implementation:** Added 3 endpoints (config, start, reset) with full validation and guardrails; added SimulationResetRequest model
+  - **Files:** apps/api/vibeforge_api/routers/control.py, apps/api/vibeforge_api/models/requests.py, apps/api/tests/test_simulation_api.py
 
-- [ ] **VF-201 — Implement tick control API endpoints**
+- [x] **VF-201 — Implement tick control API endpoints**
   - Add tick control endpoints to `apps/api/vibeforge_api/routers/control.py`:
     - `POST /control/sessions/{id}/simulation/tick` — advance exactly one tick, return events produced + updated tick state
     - `POST /control/sessions/{id}/simulation/ticks` — advance N ticks (bounded by safety limits)
     - `POST /control/sessions/{id}/simulation/pause` — pause auto-run mode
     - `GET /control/sessions/{id}/simulation/state` — return tick_index, simulation_mode, tick_status, queued-work summary
   - Include guardrails to reject ticks unless simulation is started.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** All 4 endpoints functional; tick increments exactly once; pause works; state reflects current simulation status; tests pass.
   - **Verify:** `cd apps/api && pytest tests/test_simulation_api.py -v`
+  - **Implementation:** Added 4 endpoints (tick, ticks, pause, state) with proper guardrails; added SimulationPauseResponse model
+  - **Files:** apps/api/vibeforge_api/routers/control.py, apps/api/vibeforge_api/models/responses.py, apps/api/tests/test_simulation_api.py (27 tests)
 
 - [ ] **VF-202 — Implement Tick Engine for discrete simulation progression**
   - Add a "Tick Engine" in `orchestration/coordinator/tick_engine.py` that:

@@ -17,6 +17,10 @@ from vibeforge_api.models import (
     AssignAgentRoleRequest,
     SetMainTaskRequest,
     ConfigureAgentFlowRequest,
+    # VF-200/VF-201: Simulation request/response models
+    SimulationConfigRequest,
+    SimulationResetRequest,
+    TickRequest,
 )
 
 router = APIRouter(prefix="/control", tags=["control"])
@@ -505,4 +509,324 @@ async def get_workflow_config(session_id: str):
         agent_models=session.agent_models,
         agent_graph=session.agent_graph,
         main_task=session.main_task,
+    )
+
+
+# VF-200: Simulation lifecycle endpoints
+
+
+@router.post("/sessions/{session_id}/simulation/config")
+async def configure_simulation(session_id: str, request: SimulationConfigRequest):
+    """Configure simulation mode and parameters (VF-200).
+
+    Sets simulation_mode (manual/auto), auto_delay_ms, and tick_budget.
+    Cannot configure if simulation is already running.
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import SimulationConfigRequest, SimulationConfigResponse
+    from vibeforge_api.models.types import SessionPhase
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Phase guardrail: don't allow config in terminal phases
+    terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+    if session.phase in terminal_phases:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot configure simulation in {session.phase.value} phase"
+        )
+
+    # Running guardrail: cannot configure if simulation is already running
+    if session.tick_status == "running":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot configure simulation while it is running. Pause or reset first."
+        )
+
+    # Update simulation config
+    session.simulation_mode = request.simulation_mode
+    session.auto_delay_ms = request.auto_delay_ms
+    if request.tick_budget is not None:
+        session.tick_budget = request.tick_budget
+
+    session_store.update_session(session)
+
+    return SimulationConfigResponse(
+        simulation_mode=session.simulation_mode,
+        auto_delay_ms=session.auto_delay_ms,
+        tick_budget=session.tick_budget,
+        message="Simulation configuration updated"
+    )
+
+
+@router.post("/sessions/{session_id}/simulation/start")
+async def start_simulation(session_id: str):
+    """Start simulation - validates workflow is complete (VF-200).
+
+    Validates:
+    - Agents initialized
+    - All agents have roles assigned
+    - Agent flow graph is configured
+    - Main task is set
+
+    After validation, sets tick_status to "running" and locks configuration.
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import SimulationStartResponse
+    from vibeforge_api.models.types import SessionPhase
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Phase guardrail
+    terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+    if session.phase in terminal_phases:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot start simulation in {session.phase.value} phase"
+        )
+
+    # Already running check
+    if session.tick_status == "running":
+        raise HTTPException(
+            status_code=400,
+            detail="Simulation is already running"
+        )
+
+    # Workflow validation: agents initialized
+    if not session.agents:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot start simulation: no agents initialized. Call /agents/init first."
+        )
+
+    # Workflow validation: all agents have roles
+    agent_ids = [a.get("agent_id") for a in session.agents]
+    agents_without_roles = [aid for aid in agent_ids if aid not in session.agent_roles]
+    if agents_without_roles:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot start simulation: agents without roles: {agents_without_roles}"
+        )
+
+    # Workflow validation: agent flow graph configured
+    if not session.agent_graph or not session.agent_graph.get("edges"):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot start simulation: agent flow graph not configured. Call /flows first."
+        )
+
+    # Workflow validation: main task set
+    if not session.main_task:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot start simulation: main task not set. Call /task first."
+        )
+
+    # Start simulation
+    session.tick_status = "running"
+    session.tick_index = 0  # Reset tick index on start
+    session_store.update_session(session)
+
+    return SimulationStartResponse(
+        tick_index=session.tick_index,
+        tick_status=session.tick_status,
+        message="Simulation started"
+    )
+
+
+@router.post("/sessions/{session_id}/simulation/reset")
+async def reset_simulation(session_id: str, request: SimulationResetRequest):
+    """Reset simulation state (VF-200).
+
+    Resets tick_index to 0 and tick_status to "idle".
+    Optionally clears workflow config based on preserve_workflow flag.
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import SimulationResetRequest, SimulationResetResponse
+    from vibeforge_api.models.types import SessionPhase
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Phase guardrail
+    terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+    if session.phase in terminal_phases:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reset simulation in {session.phase.value} phase"
+        )
+
+    # Reset tick state
+    session.tick_index = 0
+    session.tick_status = "idle"
+
+    # Optionally clear workflow config
+    if not request.preserve_workflow:
+        session.agents = []
+        session.agent_roles = {}
+        session.agent_models = {}
+        session.agent_graph = None
+        session.main_task = None
+
+    session_store.update_session(session)
+
+    return SimulationResetResponse(
+        tick_index=session.tick_index,
+        tick_status=session.tick_status,
+        workflow_preserved=request.preserve_workflow,
+        message="Simulation reset" + (" (workflow preserved)" if request.preserve_workflow else " (workflow cleared)")
+    )
+
+
+# VF-201: Tick control endpoints
+
+
+@router.post("/sessions/{session_id}/simulation/tick")
+async def advance_tick(session_id: str):
+    """Advance simulation by exactly one tick (VF-201).
+
+    Validates simulation is started (tick_status != "idle").
+    Increments tick_index by 1.
+    Returns events produced (placeholder for now - actual tick engine is VF-202).
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import TickResponse
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Must be started to tick
+    if session.tick_status == "idle":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot advance tick: simulation not started. Call /simulation/start first."
+        )
+
+    # Advance tick
+    session.tick_index += 1
+
+    # TODO (VF-202): Actual tick engine processing goes here
+    # For now, just increment the counter
+    events_processed = 0
+
+    session_store.update_session(session)
+
+    return TickResponse(
+        tick_index=session.tick_index,
+        tick_status=session.tick_status,
+        events_processed=events_processed,
+        message=f"Advanced to tick {session.tick_index}"
+    )
+
+
+@router.post("/sessions/{session_id}/simulation/ticks")
+async def advance_ticks(session_id: str, request: TickRequest):
+    """Advance simulation by N ticks (VF-201).
+
+    Validates simulation is started.
+    Advances tick_index by N (with safety limit of 100).
+    Returns aggregated events produced.
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import TickRequest, TickResponse
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Must be started to tick
+    if session.tick_status == "idle":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot advance ticks: simulation not started. Call /simulation/start first."
+        )
+
+    # Advance ticks
+    starting_tick = session.tick_index
+    session.tick_index += request.tick_count
+
+    # TODO (VF-202): Actual tick engine processing goes here
+    # For now, just increment the counter
+    events_processed = 0
+
+    session_store.update_session(session)
+
+    return TickResponse(
+        tick_index=session.tick_index,
+        tick_status=session.tick_status,
+        events_processed=events_processed,
+        message=f"Advanced {request.tick_count} ticks ({starting_tick} -> {session.tick_index})"
+    )
+
+
+@router.post("/sessions/{session_id}/simulation/pause")
+async def pause_simulation(session_id: str):
+    """Pause auto-run simulation (VF-201).
+
+    Only valid if tick_status == "running".
+    Sets tick_status to "paused".
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import SimulationPauseResponse
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Must be running to pause
+    if session.tick_status != "running":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot pause: simulation is not running (status: {session.tick_status})"
+        )
+
+    # Pause simulation
+    session.tick_status = "paused"
+    session_store.update_session(session)
+
+    return SimulationPauseResponse(
+        tick_index=session.tick_index,
+        tick_status=session.tick_status,
+        message="Simulation paused"
+    )
+
+
+@router.get("/sessions/{session_id}/simulation/state")
+async def get_simulation_state(session_id: str):
+    """Get current simulation state (VF-201).
+
+    Returns tick_index, simulation_mode, tick_status, and queued work summary.
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import SimulationStateResponse
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Build pending work summary
+    pending_work_summary = None
+    if session.agents:
+        pending_work_summary = f"{len(session.agents)} agents configured"
+
+    return SimulationStateResponse(
+        simulation_mode=session.simulation_mode,
+        tick_index=session.tick_index,
+        tick_status=session.tick_status,
+        auto_delay_ms=session.auto_delay_ms,
+        tick_budget=session.tick_budget,
+        pending_work_summary=pending_work_summary,
     )

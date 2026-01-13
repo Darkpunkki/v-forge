@@ -170,3 +170,20 @@ class SimulationStateResponse(BaseModel):
     auto_delay_ms: Optional[int]
     tick_budget: Optional[int]
     pending_work_summary: Optional[str]
+
+
+class SimulationResetResponse(BaseModel):
+    """Response from simulation reset (VF-200)."""
+
+    tick_index: int
+    tick_status: str
+    workflow_preserved: bool
+    message: str
+
+
+class SimulationPauseResponse(BaseModel):
+    """Response from pausing simulation (VF-201)."""
+
+    tick_index: int
+    tick_status: str
+    message: str
