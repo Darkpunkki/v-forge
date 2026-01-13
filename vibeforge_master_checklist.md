@@ -1442,25 +1442,29 @@ This section covers the capabilities for admins to configure and run custom agen
   - **Implementation:** Added 4 endpoints (tick, ticks, pause, state) with proper guardrails; added SimulationPauseResponse model
   - **Files:** apps/api/vibeforge_api/routers/control.py, apps/api/vibeforge_api/models/responses.py, apps/api/tests/test_simulation_api.py (27 tests)
 
-- [ ] **VF-202 — Implement Tick Engine for discrete simulation progression**
+- [x] **VF-202 — Implement Tick Engine for discrete simulation progression**
   - Add a "Tick Engine" in `orchestration/coordinator/tick_engine.py` that:
     - Reads session state and pending work queues
     - Performs one discrete unit of progress per tick (one scheduling cycle OR one agent message exchange batch OR one state-machine transition batch)
     - Emits events/messages for everything it did in the tick
     - Returns `events_in_tick` and optionally `messages_in_tick` for UI consumption
   - Define and document what "one tick" means in this system.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** TickEngine class exists; `advance_tick()` performs one atomic unit of work; events are emitted with tick_index; unit tests cover single-tick and multi-tick scenarios.
   - **Verify:** `cd apps/api && pytest tests/test_tick_engine.py -v`
+  - **Implementation:** Created TickEngine class with advance_tick(), message queue, tick state management; added TICK_ADVANCED event type; defined tick as one agent execution cycle
+  - **Files:** orchestration/coordinator/tick_engine.py (new), apps/api/vibeforge_api/core/event_log.py (added event types), apps/api/tests/test_tick_engine.py (13 tests)
 
-- [ ] **VF-203 — Implement graph-gated messaging enforcement**
+- [x] **VF-203 — Implement graph-gated messaging enforcement**
   - Enforce that agent-to-agent messages are only allowed along configured edges in `agent_graph`:
     - Message from agent A → agent B is allowed only if edge A→B exists, OR message is a system/orchestrator broadcast
     - If blocked, emit `MESSAGE_BLOCKED_BY_GRAPH` event so UI can show why nothing happened
   - Update tick engine and coordinator to check graph edges before message delivery.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** Messages are validated against agent_graph; blocked messages emit specific event; allowed messages pass through; tests verify both cases.
   - **Verify:** `cd apps/api && pytest tests/test_graph_gated_messaging.py -v`
+  - **Implementation:** validate_message() and send_message() in TickEngine; MESSAGE_BLOCKED_BY_GRAPH event emitted on blocked messages; orchestrator broadcast allowed; self-messages allowed
+  - **Files:** orchestration/coordinator/tick_engine.py, apps/api/vibeforge_api/core/event_log.py, apps/api/tests/test_graph_gated_messaging.py (16 tests)
 
 - [ ] **VF-204 — Create Simulation UI widgets for control panel**
   - Add simulation control widgets to `apps/ui/src/screens/control/widgets/`:

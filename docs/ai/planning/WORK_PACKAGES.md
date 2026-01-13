@@ -1095,18 +1095,21 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/api/tests/test_simulation_api.py` (new - 27 comprehensive tests)
 
 ## WP-0049 — Tick Engine and graph-gated messaging
-- **Status:** Queued
-- **VF Tasks:** VF-202, VF-203
+- **Status:** Done
+- **Started:** 2026-01-13 (local)
+- **Completed:** 2026-01-13 (local)
+- **Branch:** master
+- **VF Tasks:** VF-202 ✓, VF-203 ✓
 - **Goal:** Implement the Tick Engine for discrete simulation progression and enforce graph-gated messaging (messages only allowed along configured agent_graph edges).
 - **Dependencies:** WP-0043 (AgentFlowGraph model), WP-0048 (simulation endpoints)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0049_VF-202-203_tick-engine-graph-messaging.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_tick_engine.py tests/test_graph_gated_messaging.py -v`
-- **Files to touch:**
-  - `orchestration/coordinator/tick_engine.py` (new file)
-  - `orchestration/coordinator/session_coordinator.py` (integrate tick engine)
-  - `apps/api/tests/test_tick_engine.py` (new test file)
-  - `apps/api/tests/test_graph_gated_messaging.py` (new test file)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_tick_engine.py tests/test_graph_gated_messaging.py -v` → 29 passed
+- **Files touched:**
+  - `orchestration/coordinator/tick_engine.py` (new - TickEngine class with advance_tick, validate_message, send_message)
+  - `apps/api/vibeforge_api/core/event_log.py` (added TICK_ADVANCED, MESSAGE_SENT, MESSAGE_BLOCKED_BY_GRAPH events)
+  - `apps/api/tests/test_tick_engine.py` (new - 13 tests)
+  - `apps/api/tests/test_graph_gated_messaging.py` (new - 16 tests)
 
 ## WP-0050 — Simulation UI widgets
 - **Status:** Queued

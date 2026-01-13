@@ -35,6 +35,10 @@ class EventType(str, Enum):
     # VF-163, VF-165: Failure and abort events
     SESSION_FAILED = "session_failed"
     SESSION_ABORTED = "session_aborted"
+    # VF-202, VF-203: Tick engine and graph-gated messaging events
+    TICK_ADVANCED = "tick_advanced"
+    MESSAGE_SENT = "message_sent"
+    MESSAGE_BLOCKED_BY_GRAPH = "message_blocked_by_graph"
 
 
 @dataclass
