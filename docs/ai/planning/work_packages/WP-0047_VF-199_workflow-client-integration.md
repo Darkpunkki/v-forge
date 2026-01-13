@@ -407,8 +407,8 @@ cd apps/ui && npm run build
 
 ## Done When
 
-- [ ] controlClient.ts has all 5 typed workflow methods
-- [ ] Types exported and usable in widgets
-- [ ] Integration test covers full workflow: init → assign → task → flows
-- [ ] Tests cover error cases (phase guards, validation failures)
-- [ ] CI passes with all tests
+- [x] controlClient.ts has all 5 typed workflow methods (already added in WP-0046)
+- [x] Types exported and usable in widgets (added to api.ts)
+- [x] Integration test covers full workflow: init → assign → task → flows (TestAgentWorkflowIntegration class)
+- [x] Tests cover error cases (phase guards, validation failures)
+- [x] CI passes with all tests (27 passed)

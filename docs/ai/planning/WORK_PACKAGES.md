@@ -1061,17 +1061,20 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/ui/src/screens/ControlPanel.tsx` (integrated widgets + workflow config state)
 
 ## WP-0047 — Agent workflow API client + integration tests
-- **Status:** Queued
-- **VF Tasks:** VF-199
+- **Status:** Done
+- **Started:** 2026-01-13 (local)
+- **Completed:** 2026-01-13 (local)
+- **Branch:** master
+- **VF Tasks:** VF-199 ✓
 - **Goal:** Extend controlClient.ts with typed methods for all workflow endpoints and add integration tests covering the full init → assign → task → flows → execute workflow.
 - **Dependencies:** WP-0044 (endpoints), WP-0046 (widgets to wire)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0047_VF-199_workflow-client-integration.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_control_api.py -v`
-  - `cd apps/ui && npm run build`
-- **Files to touch:**
-  - `apps/ui/src/api/controlClient.ts` (add 5 methods)
-  - `apps/api/tests/test_control_api.py` (add integration tests)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_control_api.py -v` → 27 passed
+  - `cd apps/ui && npm run build` → Build succeeded (262.80 kB bundle)
+- **Files touched:**
+  - `apps/ui/src/types/api.ts` (added AgentInfo, AgentFlowEdge, WorkflowConfig types)
+  - `apps/api/tests/test_control_api.py` (added TestAgentWorkflowIntegration class with 6 tests)
 
 ## WP-0048 — Simulation lifecycle and tick control endpoints
 - **Status:** Queued

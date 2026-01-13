@@ -643,3 +643,244 @@ class TestWorkflowEndpoints:
         assert response.agent_roles == {"agent-1": "worker"}
         assert response.agent_models == {"agent-1": "gpt-4"}
         assert response.main_task == "Test workflow"
+
+
+class TestAgentWorkflowIntegration:
+    """Integration tests for VF-199: full agent workflow lifecycle."""
+
+    @pytest.mark.asyncio
+    async def test_full_workflow_init_to_configured(self):
+        """Test complete workflow: init → assign → task → flows → verify configured."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            assign_agent_role,
+            set_main_task,
+            configure_agent_flow,
+            get_workflow_config,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            AssignAgentRoleRequest,
+            SetMainTaskRequest,
+            ConfigureAgentFlowRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        # Step 1: Create session
+        session = session_store.create_session()
+        session_id = session.session_id
+
+        # Step 2: Initialize 3 agents
+        init_resp = await initialize_agents(
+            session_id, InitializeAgentsRequest(agent_count=3)
+        )
+        assert len(init_resp.agent_ids) == 3
+        agent_ids = init_resp.agent_ids
+
+        # Step 3: Assign roles to all agents
+        roles = ["orchestrator", "worker", "reviewer"]
+        for agent_id, role in zip(agent_ids, roles):
+            resp = await assign_agent_role(
+                session_id,
+                AssignAgentRoleRequest(agent_id=agent_id, role=role, model_id="gpt-4"),
+            )
+            assert resp.role == role
+
+        # Step 4: Set main task
+        task_resp = await set_main_task(
+            session_id,
+            SetMainTaskRequest(main_task="Build a calculator app"),
+        )
+        assert task_resp.main_task == "Build a calculator app"
+
+        # Step 5: Configure flow (orchestrator → worker → reviewer)
+        flow_resp = await configure_agent_flow(
+            session_id,
+            ConfigureAgentFlowRequest(
+                edges=[
+                    {"from_agent": agent_ids[0], "to_agent": agent_ids[1]},
+                    {"from_agent": agent_ids[1], "to_agent": agent_ids[2]},
+                ]
+            ),
+        )
+        assert flow_resp.edge_count == 2
+
+        # Step 6: Verify workflow is fully configured
+        config = await get_workflow_config(session_id)
+
+        assert len(config.agents) == 3
+        assert len(config.agent_roles) == 3
+        assert config.agent_roles[agent_ids[0]] == "orchestrator"
+        assert config.agent_roles[agent_ids[1]] == "worker"
+        assert config.agent_roles[agent_ids[2]] == "reviewer"
+        assert config.main_task == "Build a calculator app"
+        assert config.agent_graph is not None
+        assert len(config.agent_graph["edges"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_workflow_config_empty_before_init(self):
+        """Workflow config shows empty state before initialization."""
+        from vibeforge_api.routers.control import get_workflow_config
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+
+        config = await get_workflow_config(session.session_id)
+
+        assert len(config.agents) == 0
+        assert len(config.agent_roles) == 0
+        assert config.main_task is None
+        assert config.agent_graph is None
+
+    @pytest.mark.asyncio
+    async def test_workflow_reinitialize_clears_assignments(self):
+        """Re-initializing agents clears previous role assignments."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            assign_agent_role,
+            get_workflow_config,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            AssignAgentRoleRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        session_id = session.session_id
+
+        # Initialize and assign
+        await initialize_agents(session_id, InitializeAgentsRequest(agent_count=2))
+        await assign_agent_role(
+            session_id,
+            AssignAgentRoleRequest(agent_id="agent-1", role="worker"),
+        )
+
+        # Verify assignment exists
+        config1 = await get_workflow_config(session_id)
+        assert "agent-1" in config1.agent_roles
+
+        # Re-initialize with different count
+        await initialize_agents(session_id, InitializeAgentsRequest(agent_count=3))
+
+        # Verify: new agents, roles cleared
+        config2 = await get_workflow_config(session_id)
+        assert len(config2.agents) == 3
+        assert len(config2.agent_roles) == 0  # roles should be cleared
+
+    @pytest.mark.asyncio
+    async def test_workflow_partial_config_state(self):
+        """Test workflow shows correct state when only partially configured."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            assign_agent_role,
+            set_main_task,
+            get_workflow_config,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            AssignAgentRoleRequest,
+            SetMainTaskRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        session_id = session.session_id
+
+        # Initialize agents only
+        await initialize_agents(session_id, InitializeAgentsRequest(agent_count=2))
+
+        config1 = await get_workflow_config(session_id)
+        assert len(config1.agents) == 2
+        assert len(config1.agent_roles) == 0  # no roles assigned yet
+        assert config1.main_task is None
+        assert config1.agent_graph is None
+
+        # Add one role assignment
+        await assign_agent_role(
+            session_id,
+            AssignAgentRoleRequest(agent_id="agent-1", role="worker", model_id="gpt-4o"),
+        )
+
+        config2 = await get_workflow_config(session_id)
+        assert config2.agent_roles == {"agent-1": "worker"}
+        assert config2.agent_models == {"agent-1": "gpt-4o"}
+
+        # Set main task
+        await set_main_task(
+            session_id,
+            SetMainTaskRequest(main_task="Test task"),
+        )
+
+        config3 = await get_workflow_config(session_id)
+        assert config3.main_task == "Test task"
+
+    @pytest.mark.asyncio
+    async def test_workflow_flow_validation_rejects_unknown_agents(self):
+        """Flow configuration should reject edges with unknown agent IDs."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            configure_agent_flow,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            ConfigureAgentFlowRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        session_id = session.session_id
+
+        # Initialize 2 agents
+        await initialize_agents(session_id, InitializeAgentsRequest(agent_count=2))
+
+        # Try to configure flow with unknown agent
+        with pytest.raises(HTTPException) as exc_info:
+            await configure_agent_flow(
+                session_id,
+                ConfigureAgentFlowRequest(
+                    edges=[
+                        {"from_agent": "agent-1", "to_agent": "unknown-agent"},
+                    ]
+                ),
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "unknown-agent" in exc_info.value.detail or "not found" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_workflow_multiple_role_updates(self):
+        """Test updating agent roles multiple times."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            assign_agent_role,
+            get_workflow_config,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            AssignAgentRoleRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        session_id = session.session_id
+
+        await initialize_agents(session_id, InitializeAgentsRequest(agent_count=2))
+
+        # First assignment
+        await assign_agent_role(
+            session_id,
+            AssignAgentRoleRequest(agent_id="agent-1", role="worker"),
+        )
+
+        config1 = await get_workflow_config(session_id)
+        assert config1.agent_roles["agent-1"] == "worker"
+
+        # Update to different role
+        await assign_agent_role(
+            session_id,
+            AssignAgentRoleRequest(agent_id="agent-1", role="orchestrator"),
+        )
+
+        config2 = await get_workflow_config(session_id)
+        assert config2.agent_roles["agent-1"] == "orchestrator"

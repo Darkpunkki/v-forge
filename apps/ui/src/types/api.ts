@@ -111,3 +111,27 @@ export interface ClarificationAnswerRequest {
 export interface ErrorResponse {
   detail: string
 }
+
+// Workflow configuration types (VF-199)
+export interface AgentInfo {
+  agent_id: string
+  role?: string
+  model_id?: string
+  display_name?: string
+}
+
+export interface AgentFlowEdge {
+  from_agent: string
+  to_agent: string
+  label?: string
+}
+
+export interface WorkflowConfig {
+  session_id: string
+  agents: AgentInfo[]
+  agent_roles: Record<string, string>
+  agent_models: Record<string, string>
+  main_task?: string
+  flow_edges: AgentFlowEdge[]
+  is_configured: boolean
+}

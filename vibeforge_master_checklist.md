@@ -1409,11 +1409,13 @@ This section covers the capabilities for admins to configure and run custom agen
   - **Implementation:** Created AgentFlowEditor.tsx with SVG graph visualization, from/to dropdowns, edge list, add/remove controls, DAG validation error display
   - **Files:** apps/ui/src/screens/control/widgets/AgentFlowEditor.tsx
 
-- [ ] **VF-199 — Add API client methods and integration tests for agent workflow**
+- [x] **VF-199 — Add API client methods and integration tests for agent workflow**
   - Extend `apps/ui/src/api/controlClient.ts` with 5 new methods: `initializeAgents()`, `assignAgentRole()`, `setMainTask()`, `configureAgentFlow()`, `getWorkflowConfig()`. Add integration tests in `apps/api/tests/test_control_api.py` covering the full workflow: init → assign → task → flows → execute.
-  - **Status:** Planned
+  - **Status:** Complete ✓
   - **Done when:** All client methods typed and working; integration test runs full workflow; CI passes.
   - **Verify:** `cd apps/api && pytest tests/test_control_api.py -v && cd ../ui && npm run build`
+  - **Implementation:** controlClient.ts methods already added in WP-0046; added workflow types to api.ts; added 6 integration tests (TestAgentWorkflowIntegration class) covering full workflow lifecycle
+  - **Files:** apps/ui/src/types/api.ts (workflow types), apps/api/tests/test_control_api.py (6 integration tests)
 
 - [ ] **VF-200 — Implement simulation lifecycle API endpoints**
   - Add simulation control endpoints to `apps/api/vibeforge_api/routers/control.py`:
