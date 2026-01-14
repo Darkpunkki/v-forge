@@ -11,6 +11,7 @@ This is a **private solo project** - this README is optimized for quick context 
 - **Session orchestration is live**: phase-guarded questionnaire → plan → execution pipeline with result gating.
 - **Control panel exists**: operators can monitor sessions, view events, and configure agent workflows.
 - **Simulation mode is scaffolded**: tick engine + API endpoints exist, but the execution loop is not yet wired.
+- **Control simulation concept approved**: IDEA-0001-control-simulation has an approved concept summary for planning.
 - **Local LLM seam is ready**: router + provider stubs support future local inference.
 
 ---
@@ -123,6 +124,7 @@ v-forge/
 ### Control-mode simulation scaffolding (VF-190+)
 - Tick engine + simulation API endpoints exist but are not yet connected.
 - UI lacks tick controls and agent message views.
+- Concept summary approved for /control simulation (IDEA-0001-control-simulation).
 
 ### UI shell & routing (WP-0007)
 - Session screens for questionnaire, plan review, progress, clarification, and result.
