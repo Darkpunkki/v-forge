@@ -70,3 +70,31 @@
 - Critical issues: 0
 - Warnings: 2
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-14T22:06:41Z - Feature Extractor
+
+- Idea-ID: IDEA-0001-control-simulation
+- Run-ID: 2026-01-14T22-06-41Z_run-96a8
+- Inputs:
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/concept_summary.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/epics_backlog.md (preferred)
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/epics.md (fallback if backlog missing)
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/idea_normalized.md (if present)
+  - docs/forge/ideas/IDEA-0001-control-simulation/inputs/idea.md
+- Output:
+  - runs/2026-01-14T22-06-41Z_run-96a8/outputs/features_backlog.md
+  - latest/features_backlog.md
+- Counts:
+  - total_features: 23
+  - by_epic:
+    - EPIC-001: 3
+    - EPIC-002: 3
+    - EPIC-003: 3
+    - EPIC-004: 3
+    - EPIC-005: 2
+    - EPIC-006: 3
+    - EPIC-007: 3
+    - EPIC-008: 3
+- Warnings:
+  - None.
+- Status: SUCCESS
