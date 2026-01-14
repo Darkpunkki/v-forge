@@ -1153,6 +1153,17 @@ The following WPs implement the multi-agent workflow configuration capabilities 
 
 ---
 
+## WP-0052 - Simulation-focused control panel (launcher + slim view)
+- **Status:** Queued
+- **Idea-ID:** N/A (control panel cleanup request)
+- **Release:** Post-MVP
+- **VF Tasks:** VF-346, VF-347
+- **Goal:** Reduce /control to a simulation-first view and add a simple launcher to initialize agents by count.
+- **Dependencies:** WP-0046 (workflow widgets), WP-0050 (simulation widgets), WP-0051 (simulation events client)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0052_VF-346-347_control_simulation_launcher.md
+- **Verify:**
+  - `cd apps/ui && npm run build`
+
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."

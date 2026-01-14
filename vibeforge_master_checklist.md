@@ -1279,6 +1279,32 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
     - Updated `models/local/provider.py` with upgrade path references
     - Updated MVP Placeholder Audit (MP-005, MP-006) with links to upgrade path
 
+- [ ] **VF-346 - Slim /control to simulation view (move monitoring off the main route)**
+  - Replace the /control screen with a simulation-focused layout; move monitoring widgets to a separate route or behind an explicit toggle.
+  - Keep only: session picker, workflow configuration, simulation controls, and agent interaction view.
+  - **Done when:** /control no longer renders monitoring widgets by default; monitoring remains accessible via /control/monitoring or a clear toggle.
+  - **Files:** `apps/ui/src/screens/ControlPanel.tsx`, `apps/ui/src/ui/App.tsx`, `apps/ui/src/components/Layout.tsx`
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-347 - Add simulation launcher (agent count + initialize)**
+  - Add a first-step launcher card that lets users pick agent count and initialize agents for the selected session.
+  - Prefer a minimal UX: agent count input, init button, and success/error feedback; reuse AgentInitializer where possible.
+  - **Done when:** Users can select agent count and initialize agents from the simulation view; workflow config refreshes automatically.
+  - **Files:** `apps/ui/src/screens/control/widgets/AgentInitializer.tsx` (or new SimulationLauncher), `apps/ui/src/screens/ControlPanel.tsx`
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-348 - Add simulation setup stepper (guide config order)**
+  - Provide a stepper that shows required steps (agents -> roles/models -> task -> flow -> start) and disables actions until prerequisites are met.
+  - **Done when:** Simulation view shows step status and prevents starting simulation until all prerequisites are complete.
+  - **Files:** `apps/ui/src/screens/ControlPanel.tsx`, `apps/ui/src/screens/control/widgets` (new stepper)
+  - **Verify:** `cd apps/ui && npm run build`
+
+- [ ] **VF-349 - Reduce simulation view noise with filtered events**
+  - Use the /control/sessions/{id}/events/filter endpoint to show only simulation-relevant events (ticks/messages) in the simulation view.
+  - **Done when:** Multi-agent messages and event views default to simulation-related events; monitoring-level events are hidden unless explicitly enabled.
+  - **Files:** `apps/ui/src/api/controlClient.ts`, `apps/ui/src/screens/control/widgets/MultiAgentMessages.tsx`, `apps/ui/src/screens/ControlPanel.tsx`
+  - **Verify:** `cd apps/ui && npm run build`
+
 ---
 
 ### 18 Agent Workflow Configuration (Control Panel Simulation Mode)
