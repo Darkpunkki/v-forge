@@ -50,3 +50,23 @@
 - Critical issues: 0
 - Warnings: 2
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-14T21:47:47Z - Epic Validator
+
+- Idea-ID: IDEA-0001-control-simulation
+- Run-ID: 2026-01-14T21-47-46Z_run-f5a3
+- Inputs:
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/concept_summary.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/epics.md (fallback; epics_backlog missing)
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/idea_normalized.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/inputs/idea.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/inputs/validator_config.md
+- Outputs:
+  - runs/2026-01-14T21-47-46Z_run-f5a3/validators/epic_validation_report.md
+  - latest/validators/epic_validation_report.md
+  - runs/2026-01-14T21-47-46Z_run-f5a3/outputs/epics_backlog.md
+  - latest/epics_backlog.md
+- Verdict: PASS_WITH_WARNINGS
+- Critical issues: 0
+- Warnings: 2
+- Status: SUCCESS_WITH_WARNINGS

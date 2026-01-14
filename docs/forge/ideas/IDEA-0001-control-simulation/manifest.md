@@ -88,12 +88,12 @@
 ## Validation
 
 - last_updated: 2026-01-14
-- last_run_id: 2026-01-14T18-48-05Z_run-5135
+- last_run_id: 2026-01-14T21-47-46Z_run-f5a3
 
 ### Epic Validator
 - validator: Epic Validator
-- run_id: 2026-01-14T18-48-05Z_run-5135
-- verdict: PASS_WITH_WARNINGS
+- run_id: 2026-01-14T21-47-46Z_run-f5a3
+- verdict: WARN
 - report_file: latest/validators/epic_validation_report.md
-- patched_file: latest/validators/epics.patched.md
+- patched_file: latest/epics_backlog.md
 - last_updated: 2026-01-14
