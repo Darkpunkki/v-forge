@@ -31,3 +31,56 @@
   - Concept summary generated from normalized idea
   - Concept summary approved
 
+
+## Epics
+
+- last_updated: 2026-01-14
+- last_run_id: 2026-01-14T18-22-24Z_run-e188
+
+### EPIC-001 - Session Setup & Agent Registry
+- status: Proposed
+- release_target: MVP
+- priority: P0
+- depends_on: []
+
+### EPIC-002 - Directed Communication Rules
+- status: Proposed
+- release_target: MVP
+- priority: P0
+- depends_on: [EPIC-001]
+
+### EPIC-003 - Manual Tick Simulation Runtime
+- status: Proposed
+- release_target: MVP
+- priority: P0
+- depends_on: [EPIC-001, EPIC-002]
+
+### EPIC-004 - Autorun Pacing & Request Budget
+- status: Proposed
+- release_target: V1
+- priority: P1
+- depends_on: [EPIC-003]
+
+### EPIC-005 - Message Trace & Metadata Ledger
+- status: Proposed
+- release_target: MVP
+- priority: P0
+- depends_on: [EPIC-003]
+
+### EPIC-006 - Control Room Interaction Surface
+- status: Proposed
+- release_target: MVP
+- priority: P1
+- depends_on: [EPIC-001, EPIC-003, EPIC-005]
+
+### EPIC-007 - Topology Visualization
+- status: Proposed
+- release_target: V1
+- priority: P2
+- depends_on: [EPIC-002, EPIC-006]
+
+### EPIC-008 - LLM Mode Switching & Provider Bridge
+- status: Proposed
+- release_target: MVP
+- priority: P0
+- depends_on: [EPIC-003]
