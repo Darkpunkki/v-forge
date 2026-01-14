@@ -84,3 +84,16 @@
 - release_target: MVP
 - priority: P0
 - depends_on: [EPIC-003]
+
+## Validation
+
+- last_updated: 2026-01-14
+- last_run_id: 2026-01-14T18-48-05Z_run-5135
+
+### Epic Validator
+- validator: Epic Validator
+- run_id: 2026-01-14T18-48-05Z_run-5135
+- verdict: PASS_WITH_WARNINGS
+- report_file: latest/validators/epic_validation_report.md
+- patched_file: latest/validators/epics.patched.md
+- last_updated: 2026-01-14
