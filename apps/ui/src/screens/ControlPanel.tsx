@@ -5,11 +5,13 @@ import {
   getSessionStatus,
   streamSessionEvents,
   getWorkflowConfig,
+  getSimulationState,
   type SessionListItem,
   type ActiveSessionItem,
   type SessionStatusResponse,
   type SessionEvent,
   type WorkflowConfigResponse,
+  type SimulationStateResponse,
 } from "../api/controlClient";
 import AgentDashboard from "./control/widgets/AgentDashboard";
 import AgentGraph from "./control/widgets/AgentGraph";
@@ -25,6 +27,9 @@ import { AgentInitializer } from "./control/widgets/AgentInitializer";
 import { AgentAssignment } from "./control/widgets/AgentAssignment";
 import { AgentTaskInput } from "./control/widgets/AgentTaskInput";
 import { AgentFlowEditor } from "./control/widgets/AgentFlowEditor";
+import { SimulationConfig } from "./control/widgets/SimulationConfig";
+import { TickControls } from "./control/widgets/TickControls";
+import MultiAgentMessages from "./control/widgets/MultiAgentMessages";
 
 export function ControlPanelScreen() {
   const [allSessions, setAllSessions] = useState<SessionListItem[]>([]);
@@ -40,6 +45,7 @@ export function ControlPanelScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sseError, setSseError] = useState<string | null>(null);
   const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfigResponse | null>(null);
+  const [simulationState, setSimulationState] = useState<SimulationStateResponse | null>(null);
   const artifactKeys = ["concept", "build_spec", "task_graph"];
 
   const getArtifactCount = (session: SessionListItem, key: string) =>
@@ -73,6 +79,7 @@ export function ControlPanelScreen() {
       setSessionEvents([]);
       setSseError(null);
       setWorkflowConfig(null);
+      setSimulationState(null);
       setLoadingSession(false);
       return;
     }
@@ -88,13 +95,15 @@ export function ControlPanelScreen() {
 
     async function loadSessionDetails() {
       try {
-        const [status, workflow] = await Promise.all([
+        const [status, workflow, simState] = await Promise.all([
           getSessionStatus(sessionId),
           getWorkflowConfig(sessionId).catch(() => null), // Workflow config is optional
+          getSimulationState(sessionId).catch(() => null), // Simulation state is optional
         ]);
         if (!cancelled) {
           setSessionStatus(status);
           setWorkflowConfig(workflow);
+          setSimulationState(simState);
           setLoadingSession(false);
         }
       } catch (err: any) {
@@ -148,6 +157,17 @@ export function ControlPanelScreen() {
       setWorkflowConfig(workflow);
     } catch (err) {
       console.error("Failed to refresh workflow config:", err);
+    }
+  };
+
+  // Handler to refresh simulation state
+  const refreshSimulationState = async () => {
+    if (!selectedSessionId) return;
+    try {
+      const simState = await getSimulationState(selectedSessionId);
+      setSimulationState(simState);
+    } catch (err) {
+      console.error("Failed to refresh simulation state:", err);
     }
   };
 
@@ -495,6 +515,32 @@ export function ControlPanelScreen() {
                   )}
                 </section>
 
+                {/* Simulation Control Section (VF-204) */}
+                {workflowConfig?.agents && workflowConfig.agents.length > 0 && (
+                  <section style={{ marginBottom: "24px" }}>
+                    <h2>Simulation Control</h2>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
+                        gap: "16px",
+                      }}
+                    >
+                      <SimulationConfig
+                        sessionId={selectedSessionId}
+                        currentMode={simulationState?.simulation_mode}
+                        currentDelayMs={simulationState?.auto_delay_ms}
+                        currentTickBudget={simulationState?.tick_budget}
+                        onConfigured={refreshSimulationState}
+                      />
+                      <TickControls
+                        sessionId={selectedSessionId}
+                        onStateChange={refreshSimulationState}
+                      />
+                    </div>
+                  </section>
+                )}
+
                 {/* Monitoring Widgets */}
                 <section>
                   <h2>Session Monitoring</h2>
@@ -505,6 +551,7 @@ export function ControlPanelScreen() {
                       gap: "16px",
                     }}
                   >
+                    <MultiAgentMessages events={sessionEvents} />
                     <AgentDashboard events={sessionEvents} />
                   <TokenVisualization events={sessionEvents} />
                   <AgentGraph events={sessionEvents} />

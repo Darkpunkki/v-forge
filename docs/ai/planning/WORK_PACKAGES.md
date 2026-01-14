@@ -1112,18 +1112,23 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/api/tests/test_graph_gated_messaging.py` (new - 16 tests)
 
 ## WP-0050 — Simulation UI widgets
-- **Status:** Queued
-- **VF Tasks:** VF-204, VF-205
+- **Status:** Done
+- **Started:** 2026-01-14 (local)
+- **Completed:** 2026-01-14 (local)
+- **Branch:** master
+- **VF Tasks:** VF-204 ✓, VF-205 ✓
 - **Goal:** Add UI widgets for simulation control (mode toggle, tick buttons) and multi-agent messaging visualization (conversation-style view, event filtering).
-- **Dependencies:** WP-0048 (simulation endpoints), WP-0046 (workflow widgets)
+- **Dependencies:** WP-0048 ✓ (simulation endpoints), WP-0046 ✓ (workflow widgets)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0050_VF-204-205_simulation-ui-widgets.md
-- **Verify:**
-  - `cd apps/ui && npm run build`
-- **Files to touch:**
-  - `apps/ui/src/screens/control/widgets/SimulationConfig.tsx` (new)
-  - `apps/ui/src/screens/control/widgets/TickControls.tsx` (new)
-  - `apps/ui/src/screens/control/widgets/MultiAgentMessages.tsx` (new)
-  - `apps/ui/src/screens/control/widgets/EventStream.tsx` (add filters)
+- **Verified:**
+  - `cd apps/ui && npm run build` → Build succeeded (279.86 kB bundle, no errors)
+- **Files touched:**
+  - `apps/ui/src/api/controlClient.ts` (added simulation types + 7 API methods)
+  - `apps/ui/src/screens/control/widgets/SimulationConfig.tsx` (new - VF-204)
+  - `apps/ui/src/screens/control/widgets/TickControls.tsx` (new - VF-204)
+  - `apps/ui/src/screens/control/widgets/MultiAgentMessages.tsx` (new - VF-205)
+  - `apps/ui/src/screens/control/widgets/EventStream.tsx` (added tick range filter - VF-205)
+  - `apps/ui/src/screens/ControlPanel.tsx` (integrated all widgets)
 
 ## WP-0051 — Simulation event logging and API client
 - **Status:** Queued

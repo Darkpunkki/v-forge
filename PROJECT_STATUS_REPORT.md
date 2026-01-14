@@ -111,8 +111,25 @@ Below are the required capabilities and the concrete steps/locations to implemen
 
 ## Open questions for the developer
 1. Should simulation mode be decoupled from the production execution pipeline, or should it reuse the same `SessionCoordinator.execute_next_task()` logic with a message-driven wrapper?
+
+- Simulation mode should be decoupled from the production execution pipeline. 
+
 2. Is the intended control-mode simulation purely agent-to-agent messaging, or should it execute real task graph steps as well?
+
+- The control-mode simulation is intended purely for agent to agent messaging, for now. Basically i just want to have a nice looking and convenient web UI for orchestrating agents messaging eachother. Will expand to more complex task completion later.
+
 3. Do you want the tick engine to persist messages/events in the session store or in a dedicated simulation store (to survive API restarts)?
+
+- tick engine doesnt need to survive API restarts, for now.
+
 4. What should the default policy be when an API-call budget is reached mid-tick (pause, mark failed, or auto-reset)?
+
+- One tick should only allow for one API-call to happen. A tick represents an action over one unit of time. For example if there is a message queue, one tick advances all messages by one.
+
 5. How should “agent names” map to roles for routing—are roles optional in simulation, or mandatory for all agents?
+
+- Agents can be freely named, per session, by the user. Not bound to anything, just nice fun names
+
 6. Should the control panel eventually allow selecting local model backends (ollama/vLLM/etc.), or only override model IDs while keeping a single provider?
+
+- control panel should eventually allow selecting local model backends

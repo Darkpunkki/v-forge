@@ -133,6 +133,57 @@ export interface WorkflowConfigResponse {
 }
 
 /**
+ * Simulation types (VF-204, VF-205)
+ */
+export interface SimulationConfigRequest {
+  simulation_mode: 'manual' | 'auto'
+  auto_delay_ms?: number | null
+  tick_budget?: number | null
+}
+
+export interface SimulationConfigResponse {
+  simulation_mode: string
+  auto_delay_ms: number | null
+  tick_budget: number | null
+  message: string
+}
+
+export interface SimulationStartResponse {
+  tick_index: number
+  tick_status: string
+  message: string
+}
+
+export interface TickResponse {
+  tick_index: number
+  tick_status: string
+  events_processed: number
+  message: string
+}
+
+export interface SimulationStateResponse {
+  simulation_mode: string
+  tick_index: number
+  tick_status: string
+  auto_delay_ms: number | null
+  tick_budget: number | null
+  pending_work_summary: string | null
+}
+
+export interface SimulationResetResponse {
+  tick_index: number
+  tick_status: string
+  workflow_preserved: boolean
+  message: string
+}
+
+export interface SimulationPauseResponse {
+  tick_index: number
+  tick_status: string
+  message: string
+}
+
+/**
  * API client class
  */
 class ControlApiError extends Error {
@@ -307,6 +358,107 @@ export async function getWorkflowConfig(
 ): Promise<WorkflowConfigResponse> {
   return fetchJson<WorkflowConfigResponse>(
     `/control/sessions/${sessionId}/workflow`
+  )
+}
+
+/**
+ * Configure simulation mode and parameters (VF-204)
+ */
+export async function configureSimulation(
+  sessionId: string,
+  config: SimulationConfigRequest
+): Promise<SimulationConfigResponse> {
+  return fetchJson<SimulationConfigResponse>(
+    `/control/sessions/${sessionId}/simulation/config`,
+    {
+      method: 'POST',
+      body: JSON.stringify(config),
+    }
+  )
+}
+
+/**
+ * Start simulation (VF-204)
+ */
+export async function startSimulation(
+  sessionId: string
+): Promise<SimulationStartResponse> {
+  return fetchJson<SimulationStartResponse>(
+    `/control/sessions/${sessionId}/simulation/start`,
+    {
+      method: 'POST',
+    }
+  )
+}
+
+/**
+ * Reset simulation state (VF-204)
+ */
+export async function resetSimulation(
+  sessionId: string,
+  preserveWorkflow: boolean = true
+): Promise<SimulationResetResponse> {
+  return fetchJson<SimulationResetResponse>(
+    `/control/sessions/${sessionId}/simulation/reset`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ preserve_workflow: preserveWorkflow }),
+    }
+  )
+}
+
+/**
+ * Advance simulation by one tick (VF-204)
+ */
+export async function advanceTick(
+  sessionId: string
+): Promise<TickResponse> {
+  return fetchJson<TickResponse>(
+    `/control/sessions/${sessionId}/simulation/tick`,
+    {
+      method: 'POST',
+    }
+  )
+}
+
+/**
+ * Advance simulation by N ticks (VF-204)
+ */
+export async function advanceTicks(
+  sessionId: string,
+  tickCount: number
+): Promise<TickResponse> {
+  return fetchJson<TickResponse>(
+    `/control/sessions/${sessionId}/simulation/ticks`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ tick_count: tickCount }),
+    }
+  )
+}
+
+/**
+ * Pause auto-run simulation (VF-204)
+ */
+export async function pauseSimulation(
+  sessionId: string
+): Promise<SimulationPauseResponse> {
+  return fetchJson<SimulationPauseResponse>(
+    `/control/sessions/${sessionId}/simulation/pause`,
+    {
+      method: 'POST',
+    }
+  )
+}
+
+/**
+ * Get current simulation state (VF-204)
+ */
+export async function getSimulationState(
+  sessionId: string
+): Promise<SimulationStateResponse> {
+  return fetchJson<SimulationStateResponse>(
+    `/control/sessions/${sessionId}/simulation/state`
   )
 }
 

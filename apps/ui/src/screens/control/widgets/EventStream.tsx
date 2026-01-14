@@ -11,6 +11,8 @@ type EventStreamProps = {
 
 type Severity = 'all' | 'info' | 'success' | 'warning' | 'error'
 
+type TickFilter = 'all' | 'range'
+
 type FilterOption = {
   label: string
   value: string
@@ -41,6 +43,9 @@ export default function EventStream({ events, sessionId, onClear }: EventStreamP
   const [phaseFilter, setPhaseFilter] = useState('ALL')
   const [agentFilter, setAgentFilter] = useState('ALL')
   const [severityFilter, setSeverityFilter] = useState<Severity>('all')
+  const [tickFilter, setTickFilter] = useState<TickFilter>('all')
+  const [tickMin, setTickMin] = useState('')
+  const [tickMax, setTickMax] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [autoScroll, setAutoScroll] = useState(true)
   const logRef = useRef<HTMLDivElement>(null)
@@ -76,6 +81,15 @@ export default function EventStream({ events, sessionId, onClear }: EventStreamP
     return buildOptions(agents, 'All agents')
   }, [events])
 
+  // Get tick range from events
+  const tickRange = useMemo(() => {
+    const ticks = events
+      .map((event) => event.metadata?.tick_index as number | undefined)
+      .filter((t): t is number => typeof t === 'number')
+    if (ticks.length === 0) return { min: 0, max: 0, hasTicks: false }
+    return { min: Math.min(...ticks), max: Math.max(...ticks), hasTicks: true }
+  }, [events])
+
   const filteredEvents = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
 
@@ -96,6 +110,16 @@ export default function EventStream({ events, sessionId, onClear }: EventStreamP
 
       if (severityFilter !== 'all' && getSeverity(event) !== severityFilter) return false
 
+      // Tick filter
+      if (tickFilter === 'range') {
+        const tickIndex = event.metadata?.tick_index as number | undefined
+        if (tickIndex === undefined) return false
+        const minTick = tickMin ? parseInt(tickMin, 10) : null
+        const maxTick = tickMax ? parseInt(tickMax, 10) : null
+        if (minTick !== null && !isNaN(minTick) && tickIndex < minTick) return false
+        if (maxTick !== null && !isNaN(maxTick) && tickIndex > maxTick) return false
+      }
+
       if (!query) return true
 
       const metadataText = JSON.stringify(event.metadata ?? {}).toLowerCase()
@@ -103,7 +127,7 @@ export default function EventStream({ events, sessionId, onClear }: EventStreamP
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     })
-  }, [events, typeFilter, phaseFilter, agentFilter, severityFilter, searchQuery])
+  }, [events, typeFilter, phaseFilter, agentFilter, severityFilter, tickFilter, tickMin, tickMax, searchQuery])
 
   useEffect(() => {
     if (autoScroll && logRef.current) {
@@ -162,6 +186,40 @@ export default function EventStream({ events, sessionId, onClear }: EventStreamP
             <option value="warning">Warning</option>
             <option value="error">Error</option>
           </select>
+          {tickRange.hasTicks && (
+            <>
+              <select
+                value={tickFilter}
+                onChange={(event) => setTickFilter(event.target.value as TickFilter)}
+              >
+                <option value="all">All ticks</option>
+                <option value="range">Tick range</option>
+              </select>
+              {tickFilter === 'range' && (
+                <>
+                  <input
+                    type="number"
+                    placeholder={`Min (${tickRange.min})`}
+                    value={tickMin}
+                    onChange={(event) => setTickMin(event.target.value)}
+                    style={{ width: '80px' }}
+                    min={tickRange.min}
+                    max={tickRange.max}
+                  />
+                  <span style={{ opacity: 0.5 }}>-</span>
+                  <input
+                    type="number"
+                    placeholder={`Max (${tickRange.max})`}
+                    value={tickMax}
+                    onChange={(event) => setTickMax(event.target.value)}
+                    style={{ width: '80px' }}
+                    min={tickRange.min}
+                    max={tickRange.max}
+                  />
+                </>
+              )}
+            </>
+          )}
           <input
             type="search"
             placeholder="Search events"
@@ -227,6 +285,11 @@ export default function EventStream({ events, sessionId, onClear }: EventStreamP
                       </span>
                     )}
                     {event.task_id && <span>Task: {event.task_id}</span>}
+                    {typeof event.metadata?.tick_index === 'number' && (
+                      <span style={{ background: '#e3f2fd', padding: '1px 6px', borderRadius: '4px', color: '#1565c0' }}>
+                        Tick: {event.metadata.tick_index}
+                      </span>
+                    )}
                   </div>
                   {event.metadata && Object.keys(event.metadata).length > 0 && (
                     <details className="event-stream__details">

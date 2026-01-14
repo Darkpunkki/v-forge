@@ -1466,23 +1466,32 @@ This section covers the capabilities for admins to configure and run custom agen
   - **Implementation:** validate_message() and send_message() in TickEngine; MESSAGE_BLOCKED_BY_GRAPH event emitted on blocked messages; orchestrator broadcast allowed; self-messages allowed
   - **Files:** orchestration/coordinator/tick_engine.py, apps/api/vibeforge_api/core/event_log.py, apps/api/tests/test_graph_gated_messaging.py (16 tests)
 
-- [ ] **VF-204 — Create Simulation UI widgets for control panel**
+- [x] **VF-204 — Create Simulation UI widgets for control panel**
   - Add simulation control widgets to `apps/ui/src/screens/control/widgets/`:
     - `SimulationConfig.tsx` — manual vs auto mode toggle, optional delay input
     - `TickControls.tsx` — run 1 tick button, run N ticks input, pause button, reset button; show current tick index + status
   - Wire widgets to simulation API endpoints.
-  - **Status:** Planned
+  - **Status:** Complete (WP-0050)
   - **Done when:** Widgets render in control panel; mode toggle and tick buttons functional; tick count and status display updates after each action.
   - **Verify:** `cd apps/ui && npm run build`
+  - **Files touched:**
+    - `apps/ui/src/api/controlClient.ts` (added 7 simulation API methods + types)
+    - `apps/ui/src/screens/control/widgets/SimulationConfig.tsx` (new - mode toggle, delay, budget)
+    - `apps/ui/src/screens/control/widgets/TickControls.tsx` (new - tick/ticks/pause/reset/start)
+    - `apps/ui/src/screens/ControlPanel.tsx` (integrated simulation widgets)
 
-- [ ] **VF-205 — Create multi-agent messaging visualization**
+- [x] **VF-205 — Create multi-agent messaging visualization**
   - Add/extend UI components for agent-to-agent message display:
     - `MultiAgentMessages.tsx` — conversation-style view grouped by agent, showing sender/recipient, timestamp/tick, role, model, message type
     - Enhance `EventStream.tsx` to support filters by tick index, agent ID, and event type
   - Wire to event/message retrieval endpoints with filtering.
-  - **Status:** Planned
+  - **Status:** Complete (WP-0050)
   - **Done when:** MultiAgentMessages shows messages grouped by agent; EventStream supports tick/agent/type filters; UI updates as ticks progress.
   - **Verify:** `cd apps/ui && npm run build`
+  - **Files touched:**
+    - `apps/ui/src/screens/control/widgets/MultiAgentMessages.tsx` (new - agent message view)
+    - `apps/ui/src/screens/control/widgets/EventStream.tsx` (added tick index range filter)
+    - `apps/ui/src/screens/ControlPanel.tsx` (integrated MultiAgentMessages)
 
 - [ ] **VF-206 — Extend event logging for simulation events**
   - Update `vibeforge_api/core/event_log.py` with new event types:
