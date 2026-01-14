@@ -98,3 +98,25 @@
 - Warnings:
   - None.
 - Status: SUCCESS
+### 2026-01-15T00:40:49.9899577+02:00 — Feature Validator
+
+- Idea-ID: IDEA-0001-control-simulation
+- Run-ID: 2026-01-14T22-39-39.893Z_run-1b5f
+- Inputs:
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/concept_summary.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/epics_backlog.md (preferred)
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/epics.md (fallback if backlog missing)
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/features_backlog.md (preferred)
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/features.md (fallback if backlog missing)
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/idea_normalized.md (if present)
+  - docs/forge/ideas/IDEA-0001-control-simulation/inputs/idea.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/inputs/validator_config.md (if present)
+- Outputs:
+  - runs/2026-01-14T22-39-39.893Z_run-1b5f/validators/feature_validation_report.md
+  - latest/validators/feature_validation_report.md
+  - runs/2026-01-14T22-39-39.893Z_run-1b5f/outputs/features_backlog.md (only if produced)
+  - latest/features_backlog.md (only if produced)
+- Verdict: FAIL
+- Critical issues: 1
+- Warnings: 0
+- Status: FAILED

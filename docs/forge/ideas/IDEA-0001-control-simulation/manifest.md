@@ -87,8 +87,8 @@
 
 ## Validation
 
-- last_updated: 2026-01-14
-- last_run_id: 2026-01-14T21-47-46Z_run-f5a3
+- last_updated: 2026-01-15
+- last_run_id: 2026-01-14T22-39-39.893Z_run-1b5f
 
 ### Epic Validator
 - validator: Epic Validator
@@ -97,6 +97,14 @@
 - report_file: latest/validators/epic_validation_report.md
 - patched_file: latest/epics_backlog.md
 - last_updated: 2026-01-14
+
+### Feature Validator
+- validator: Feature Validator
+- run_id: 2026-01-14T22-39-39.893Z_run-1b5f
+- verdict: FAIL
+- report_file: latest/validators/feature_validation_report.md
+- patched_file: latest/features_backlog.md
+- last_updated: 2026-01-15
 
 ## Features
 
