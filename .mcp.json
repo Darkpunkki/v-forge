@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "vf": {
+      "command": "node",
+      "args": ["C:\\Apps\\VibeForge\\dist\\index.js"],
+      "env": {}
+    }
+  }
+}
