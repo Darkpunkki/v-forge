@@ -1493,23 +1493,35 @@ This section covers the capabilities for admins to configure and run custom agen
     - `apps/ui/src/screens/control/widgets/EventStream.tsx` (added tick index range filter)
     - `apps/ui/src/screens/ControlPanel.tsx` (integrated MultiAgentMessages)
 
-- [ ] **VF-206 — Extend event logging for simulation events**
+- [x] **VF-206 — Extend event logging for simulation events**
   - Update `vibeforge_api/core/event_log.py` with new event types:
     - `SIMULATION_STARTED`, `SIMULATION_RESET`
     - `TICK_STARTED`, `TICK_COMPLETED`, `TICK_BLOCKED`
     - `AGENT_MESSAGE_SENT`, `MESSAGE_BLOCKED_BY_GRAPH`
   - Ensure all events include: `session_id`, `tick_index` (when applicable), `agent_id` (when applicable), `event_type`, `payload`.
   - Add server-side filtering support for queries by tick_index, agent_id, and event_type.
-  - **Status:** Planned
+  - **Status:** Done
   - **Done when:** All event types defined; events emitted with required metadata; GET /events supports tick/agent/type query params; tests pass.
   - **Verify:** `cd apps/api && pytest tests/test_event_log.py tests/test_simulation_api.py -v`
+  - **Completed:** WP-0051
+    - Added 8 simulation event types to EventType enum (SIMULATION_CONFIGURED/STARTED/RESET/PAUSED, TICK_STARTED/COMPLETED/BLOCKED, AGENT_MESSAGE_SENT)
+    - Added `get_events_filtered()` method with tick_index, tick_min, tick_max, agent_id, event_type, limit support
+    - Added `/sessions/{session_id}/events/filter` endpoint with query params
+    - `apps/api/vibeforge_api/core/event_log.py` (EventType, get_events_filtered)
+    - `apps/api/vibeforge_api/routers/control.py` (filter endpoint)
+    - `apps/api/tests/test_event_log.py` (11 new tests)
 
-- [ ] **VF-207 — Add API client methods for simulation endpoints**
+- [x] **VF-207 — Add API client methods for simulation endpoints**
   - Extend `apps/ui/src/api/controlClient.ts` with simulation methods:
     - `configureSimulation()`, `startSimulation()`, `resetSimulation()`
     - `advanceTick()`, `advanceTicks(n)`, `pauseSimulation()`, `getSimulationState()`
     - `getEvents(filters)` with tick/agent/type filtering
   - Add integration tests covering: config → start → tick → observe events → reset cycle.
-  - **Status:** Planned
+  - **Status:** Done
   - **Done when:** All client methods typed and working; integration tests pass; UI can drive full simulation lifecycle.
   - **Verify:** `cd apps/api && pytest tests/test_simulation_api.py -v && cd ../ui && npm run build`
+  - **Completed:** WP-0051
+    - Added `getFilteredEvents()` client method with EventsFilter/FilteredEventsResponse types
+    - Added TestFilteredEventsEndpoint integration tests for endpoint signature and error handling
+    - `apps/ui/src/api/controlClient.ts` (EventsFilter, FilteredEventsResponse, getFilteredEvents)
+    - `apps/api/tests/test_simulation_api.py` (2 new tests)

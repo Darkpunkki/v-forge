@@ -569,3 +569,40 @@ class TestSimulationIntegration:
         final_state = await get_simulation_state(session_id)
         assert final_state.tick_index == 0
         assert "2 agents" in final_state.pending_work_summary
+
+
+class TestFilteredEventsEndpoint:
+    """Tests for VF-206: GET /control/sessions/{id}/events/filter endpoint.
+
+    Note: The EventLog.get_events_filtered() method is thoroughly tested in
+    test_event_log.py::TestEventLogFiltering. These tests verify the endpoint
+    interface and error handling.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_filtered_events_session_not_found(self):
+        """Test filter with non-existent session."""
+        from vibeforge_api.routers.control import get_filtered_events
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_filtered_events("nonexistent")
+
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_filtered_events_endpoint_signature(self):
+        """Test the endpoint accepts all filter parameters."""
+        from vibeforge_api.routers.control import get_filtered_events
+        import inspect
+
+        sig = inspect.signature(get_filtered_events)
+        params = list(sig.parameters.keys())
+
+        # Verify all filter parameters exist
+        assert "session_id" in params
+        assert "event_type" in params
+        assert "tick_index" in params
+        assert "tick_min" in params
+        assert "tick_max" in params
+        assert "agent_id" in params
+        assert "limit" in params

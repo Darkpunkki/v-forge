@@ -184,6 +184,24 @@ export interface SimulationPauseResponse {
 }
 
 /**
+ * Event filtering types (VF-206, VF-207)
+ */
+export interface EventsFilter {
+  event_type?: string
+  tick_index?: number
+  tick_min?: number
+  tick_max?: number
+  agent_id?: string
+  limit?: number
+}
+
+export interface FilteredEventsResponse {
+  events: SessionEvent[]
+  total: number
+  filters_applied: EventsFilter
+}
+
+/**
  * API client class
  */
 class ControlApiError extends Error {
@@ -460,6 +478,42 @@ export async function getSimulationState(
   return fetchJson<SimulationStateResponse>(
     `/control/sessions/${sessionId}/simulation/state`
   )
+}
+
+/**
+ * Get filtered events for a session (VF-207)
+ */
+export async function getFilteredEvents(
+  sessionId: string,
+  filters: EventsFilter = {}
+): Promise<FilteredEventsResponse> {
+  const params = new URLSearchParams()
+
+  if (filters.event_type !== undefined) {
+    params.set('event_type', filters.event_type)
+  }
+  if (filters.tick_index !== undefined) {
+    params.set('tick_index', filters.tick_index.toString())
+  }
+  if (filters.tick_min !== undefined) {
+    params.set('tick_min', filters.tick_min.toString())
+  }
+  if (filters.tick_max !== undefined) {
+    params.set('tick_max', filters.tick_max.toString())
+  }
+  if (filters.agent_id !== undefined) {
+    params.set('agent_id', filters.agent_id)
+  }
+  if (filters.limit !== undefined) {
+    params.set('limit', filters.limit.toString())
+  }
+
+  const queryString = params.toString()
+  const endpoint = `/control/sessions/${sessionId}/events/filter${
+    queryString ? `?${queryString}` : ''
+  }`
+
+  return fetchJson<FilteredEventsResponse>(endpoint)
 }
 
 // Export error class for error handling

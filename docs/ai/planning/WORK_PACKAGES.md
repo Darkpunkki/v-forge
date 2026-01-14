@@ -1131,18 +1131,25 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/ui/src/screens/ControlPanel.tsx` (integrated all widgets)
 
 ## WP-0051 — Simulation event logging and API client
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-14 (local)
+- **Completed:** 2026-01-14
+- **Branch:** master
 - **VF Tasks:** VF-206, VF-207
 - **Goal:** Extend event logging with simulation event types and add API client methods for simulation control with filtering support.
 - **Dependencies:** WP-0048 (simulation endpoints), WP-0049 (tick engine emits events)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0051_VF-206-207_simulation-events-client.md
-- **Verify:**
-  - `cd apps/api && pytest tests/test_event_log.py tests/test_simulation_api.py -v`
-  - `cd apps/ui && npm run build`
-- **Files to touch:**
-  - `apps/api/vibeforge_api/core/event_log.py` (add event types, filtering)
-  - `apps/ui/src/api/controlClient.ts` (add simulation methods)
-  - `apps/api/tests/test_simulation_api.py` (add client integration tests)
+- **Verified:**
+  - `cd apps/api && pytest tests/test_event_log.py tests/test_simulation_api.py -v` → 43 passed
+  - `cd apps/ui && npm run build` → ✓ built (279.86 kB)
+- **Files touched:**
+  - VF-206:
+    - `apps/api/vibeforge_api/core/event_log.py` (8 simulation EventTypes, get_events_filtered method)
+    - `apps/api/vibeforge_api/routers/control.py` (events/filter endpoint)
+    - `apps/api/tests/test_event_log.py` (11 new tests: TestSimulationEventTypes, TestEventLogFiltering)
+  - VF-207:
+    - `apps/ui/src/api/controlClient.ts` (EventsFilter, FilteredEventsResponse, getFilteredEvents)
+    - `apps/api/tests/test_simulation_api.py` (TestFilteredEventsEndpoint: 2 tests)
 
 ---
 

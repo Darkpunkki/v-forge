@@ -39,6 +39,15 @@ class EventType(str, Enum):
     TICK_ADVANCED = "tick_advanced"
     MESSAGE_SENT = "message_sent"
     MESSAGE_BLOCKED_BY_GRAPH = "message_blocked_by_graph"
+    # VF-206: Simulation lifecycle events
+    SIMULATION_CONFIGURED = "simulation_configured"
+    SIMULATION_STARTED = "simulation_started"
+    SIMULATION_RESET = "simulation_reset"
+    SIMULATION_PAUSED = "simulation_paused"
+    TICK_STARTED = "tick_started"
+    TICK_COMPLETED = "tick_completed"
+    TICK_BLOCKED = "tick_blocked"
+    AGENT_MESSAGE_SENT = "agent_message_sent"
 
 
 @dataclass
@@ -140,6 +149,77 @@ class EventLog:
         if event_type:
             return [e for e in events if e.event_type == event_type]
         return events
+
+    def get_events_filtered(
+        self,
+        session_id: str,
+        event_type: Optional[str] = None,
+        tick_index: Optional[int] = None,
+        tick_min: Optional[int] = None,
+        tick_max: Optional[int] = None,
+        agent_id: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> list[Event]:
+        """Return events with multi-criteria filtering (VF-206).
+
+        Args:
+            session_id: Session to query
+            event_type: Filter by event type string
+            tick_index: Filter by exact tick index (from metadata.tick_index)
+            tick_min: Filter by minimum tick index (inclusive)
+            tick_max: Filter by maximum tick index (inclusive)
+            agent_id: Filter by agent ID (from metadata.agent_id or metadata.from_agent)
+            limit: Maximum number of events to return (most recent)
+
+        Returns:
+            List of matching events, ordered by timestamp ascending.
+        """
+        events = list(self._load_cache(session_id))
+        if not self.use_cache:
+            file_path = self._event_file(session_id)
+            if file_path.exists():
+                events = [
+                    Event.from_dict(json.loads(line))
+                    for line in file_path.read_text().splitlines()
+                    if line.strip()
+                ]
+
+        filtered: list[Event] = []
+        for e in events:
+            # Filter by event type
+            if event_type and e.event_type.value != event_type:
+                continue
+
+            # Filter by tick_index (exact match)
+            if tick_index is not None:
+                event_tick = e.metadata.get("tick_index") if e.metadata else None
+                if event_tick != tick_index:
+                    continue
+
+            # Filter by tick range
+            if tick_min is not None or tick_max is not None:
+                event_tick = e.metadata.get("tick_index") if e.metadata else None
+                if event_tick is None:
+                    continue
+                if tick_min is not None and event_tick < tick_min:
+                    continue
+                if tick_max is not None and event_tick > tick_max:
+                    continue
+
+            # Filter by agent_id
+            if agent_id is not None:
+                meta = e.metadata or {}
+                event_agent = meta.get("agent_id") or meta.get("from_agent") or meta.get("sender")
+                if event_agent != agent_id:
+                    continue
+
+            filtered.append(e)
+
+        # Apply limit (return most recent)
+        if limit is not None and len(filtered) > limit:
+            return filtered[-limit:]
+
+        return filtered
 
     def get_latest(self, session_id: str, limit: int = 1) -> list[Event]:
         events = self.get_events(session_id)

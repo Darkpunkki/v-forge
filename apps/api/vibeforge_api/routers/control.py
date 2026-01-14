@@ -4,6 +4,8 @@ Provides observability and monitoring endpoints for the control panel UI.
 Separate from the end-user session flow.
 """
 
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
@@ -125,6 +127,60 @@ async def stream_session_events(session_id: str):
                 last_count = len(current_events)
 
     return EventSourceResponse(event_generator())
+
+
+@router.get("/sessions/{session_id}/events/filter")
+async def get_filtered_events(
+    session_id: str,
+    event_type: Optional[str] = None,
+    tick_index: Optional[int] = None,
+    tick_min: Optional[int] = None,
+    tick_max: Optional[int] = None,
+    agent_id: Optional[str] = None,
+    limit: Optional[int] = None,
+):
+    """Get filtered events for a session (VF-206).
+
+    Query params:
+        event_type: Filter by event type (e.g., "tick_advanced", "message_sent")
+        tick_index: Filter by exact tick index
+        tick_min: Filter by minimum tick index (inclusive)
+        tick_max: Filter by maximum tick index (inclusive)
+        agent_id: Filter by agent ID
+        limit: Maximum number of events to return (most recent)
+    """
+    from vibeforge_api.core.event_log import EventLog
+    from vibeforge_api.core.workspace import WorkspaceManager
+
+    workspace_manager = WorkspaceManager()
+    workspace_path = workspace_manager.workspace_root / session_id
+
+    if not workspace_path.exists():
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    event_log = EventLog(workspace_manager.workspace_root)
+    events = event_log.get_events_filtered(
+        session_id=session_id,
+        event_type=event_type,
+        tick_index=tick_index,
+        tick_min=tick_min,
+        tick_max=tick_max,
+        agent_id=agent_id,
+        limit=limit,
+    )
+
+    return {
+        "events": [e.to_dict() for e in events],
+        "total": len(events),
+        "filters_applied": {
+            "event_type": event_type,
+            "tick_index": tick_index,
+            "tick_min": tick_min,
+            "tick_max": tick_max,
+            "agent_id": agent_id,
+            "limit": limit,
+        },
+    }
 
 
 @router.get("/sessions/{session_id}/prompts")
