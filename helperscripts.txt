@@ -55,3 +55,21 @@ todooo:
     - into-WPs
     - work-WP
 
+
+1. imagine → normalize → concept
+
+2. codebase-context
+
+3. epics backlog + validate
+
+4. features backlog + validate
+
+5. existing-solution-map (for EPIC-001)
+
+6. task-builder (EPIC-001) + task-validator
+
+7. repeat 5–6 for each epic
+
+8. into-WPs → work-WP
+
+9. execute WPs

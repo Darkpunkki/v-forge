@@ -98,7 +98,7 @@
 - Warnings:
   - None.
 - Status: SUCCESS
-### 2026-01-15T00:40:49.9899577+02:00 — Feature Validator
+### 2026-01-15T00:40:49.9899577+02:00 - Feature Validator
 
 - Idea-ID: IDEA-0001-control-simulation
 - Run-ID: 2026-01-14T22-39-39.893Z_run-1b5f
@@ -120,3 +120,25 @@
 - Critical issues: 1
 - Warnings: 0
 - Status: FAILED
+
+### 2026-01-14T23:07:37.284Z - Task Builder
+
+- Idea-ID: IDEA-0001-control-simulation
+- Run-ID: 2026-01-14T23-07-37.284Z_run-c5bd
+- Epic processed: EPIC-001
+- Inputs:
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/concept_summary.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/features_backlog.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/epics_backlog.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/latest/idea_normalized.md
+  - docs/forge/ideas/IDEA-0001-control-simulation/inputs/idea.md
+- Outputs:
+  - runs/2026-01-14T23-07-37.284Z_run-c5bd/tasks_epic_slice.md
+  - runs/2026-01-14T23-07-37.284Z_run-c5bd/tasks.md
+  - latest/tasks.md
+  - latest/task_builder_progress.md
+- Counts:
+  - epic_tasks: 10
+  - epic_features: 3
+  - total_tasks_so_far: 10
+- Status: SUCCESS

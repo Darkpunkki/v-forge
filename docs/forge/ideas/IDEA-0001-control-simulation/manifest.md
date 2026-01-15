@@ -310,3 +310,18 @@
 - depends_on: []
 - last_updated: 2026-01-14
 - last_run_id: 2026-01-14T22-06-41Z_run-96a8
+
+## Tasks
+
+- last_updated: 2026-01-14
+- last_run_id: 2026-01-14T23-07-37.284Z_run-c5bd
+- total_tasks: 10
+- latest_outputs:
+  - latest/tasks.md
+  - latest/task_builder_progress.md
+
+### EPIC-001 - Session Setup & Agent Registry
+- status: Planned
+- task_count: 10
+- last_updated: 2026-01-14
+- last_run_id: 2026-01-14T23-07-37.284Z_run-c5bd
