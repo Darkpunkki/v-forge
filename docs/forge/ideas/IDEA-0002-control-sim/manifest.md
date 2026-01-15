@@ -26,3 +26,38 @@
   - latest/concept_summary.md
 - notes:
   - Open questions remain for rewind scope, tick ordering, and graph-violation handling.
+
+## Epics
+
+- last_updated: 2026-01-15
+- last_run_id: 2026-01-15T02-51-27.209Z_run-2755
+
+### EPIC-001 — Simulation Session Configuration
+- status: Proposed
+- release_target: MVP
+- priority: P0
+- depends_on: []
+
+### EPIC-002 — Graph-Gated Tick Progression
+- status: Proposed
+- release_target: MVP
+- priority: P0
+- depends_on: [EPIC-001]
+
+### EPIC-003 — Simulation Lifecycle Controls
+- status: Proposed
+- release_target: MVP
+- priority: P0
+- depends_on: [EPIC-001, EPIC-002]
+
+### EPIC-004 — Event Logging and Streaming
+- status: Proposed
+- release_target: MVP
+- priority: P1
+- depends_on: [EPIC-002]
+
+### EPIC-005 — Control Panel Monitoring Views
+- status: Proposed
+- release_target: MVP
+- priority: P1
+- depends_on: [EPIC-003, EPIC-004]

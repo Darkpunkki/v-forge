@@ -89,3 +89,20 @@
   - Tick engine provides graph-gated messaging but is not wired into API flow yet.
   - Agent flow graph validation enforces DAG, which constrains bidirectional links.
 - Status: SUCCESS
+
+### 2026-01-15T02:51:53.936013+00:00 — Epic Extractor
+
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T02-51-27.209Z_run-2755
+- Inputs:
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/concept_summary.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/idea_normalized.md
+  - docs/forge/ideas/IDEA-0002-control-sim/inputs/idea.md
+- Output:
+  - runs/2026-01-15T02-51-27.209Z_run-2755/outputs/epics_backlog.md
+  - latest/epics_backlog.md
+- Counts: 5 epics
+- Warnings:
+  - Open questions remain for graph-violation handling, rewind scope, and tick ordering.
+  - Codebase context indicates agent flow graph validation enforces a DAG; bidirectional links may require changes.
+- Status: SUCCESS_WITH_WARNINGS
