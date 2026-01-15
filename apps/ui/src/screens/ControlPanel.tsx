@@ -498,6 +498,7 @@ export function ControlPanelScreen() {
                       <AgentAssignment
                         sessionId={selectedSessionId}
                         agents={workflowConfig.agents}
+                        availableRoles={simulationState?.available_roles}
                         onAssigned={refreshWorkflowConfig}
                       />
                       <AgentTaskInput

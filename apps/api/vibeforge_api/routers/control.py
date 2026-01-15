@@ -5,6 +5,7 @@ Separate from the end-user session flow.
 """
 
 from typing import Optional
+from collections import Counter
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -390,11 +391,59 @@ async def initialize_agents(session_id: str, request: InitializeAgentsRequest):
             detail=f"Cannot initialize agents in {session.phase.value} phase"
         )
 
-    # Initialize agents
-    agent_ids = [f"agent-{i+1}" for i in range(request.agent_count)]
-    agents = [
-        AgentConfig(agent_id=aid).model_dump() for aid in agent_ids
-    ]
+    if request.agent_count is not None and request.agents is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either agent_count or agents, not both."
+        )
+    if request.agent_count is None and request.agents is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide agent_count or agents to initialize."
+        )
+
+    if request.agents is not None:
+        empty_ids: list[str] = []
+        agent_ids: list[str] = []
+        display_names: dict[str, Optional[str]] = {}
+
+        for agent in request.agents:
+            raw_id = agent.agent_id
+            normalized_id = raw_id.strip() if raw_id else ""
+            if not normalized_id:
+                empty_ids.append(raw_id or "")
+                continue
+            agent_ids.append(normalized_id)
+            display_name = agent.display_name.strip() if agent.display_name else None
+            display_names[normalized_id] = display_name
+
+        if empty_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Agent IDs cannot be empty or whitespace."
+            )
+
+        duplicates = sorted(
+            agent_id for agent_id, count in Counter(agent_ids).items() if count > 1
+        )
+        if duplicates:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Duplicate agent IDs: {', '.join(duplicates)}"
+            )
+
+        agents = [
+            AgentConfig(
+                agent_id=agent_id,
+                display_name=display_names.get(agent_id),
+            ).model_dump()
+            for agent_id in agent_ids
+        ]
+    else:
+        agent_ids = [f"agent-{i+1}" for i in range(request.agent_count)]
+        agents = [
+            AgentConfig(agent_id=aid).model_dump() for aid in agent_ids
+        ]
 
     session.agents = agents
     session.agent_roles = {}
@@ -403,7 +452,7 @@ async def initialize_agents(session_id: str, request: InitializeAgentsRequest):
 
     return InitializeAgentsResponse(
         agent_ids=agent_ids,
-        message=f"Initialized {request.agent_count} agents"
+        message=f"Initialized {len(agent_ids)} agents"
     )
 
 
@@ -867,11 +916,29 @@ async def get_simulation_state(session_id: str):
     """
     from vibeforge_api.core.session import session_store
     from vibeforge_api.models import SimulationStateResponse
+    from orchestration.models import AgentRole
 
     # Get session
     session = session_store.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Build roster with labels
+    agents = []
+    for agent in session.agents:
+        agent_id = agent.get("agent_id")
+        if not agent_id:
+            continue
+        agents.append(
+            {
+                "agent_id": agent_id,
+                "display_name": agent.get("display_name"),
+                "role": session.agent_roles.get(agent_id) or agent.get("role"),
+                "model_id": session.agent_models.get(agent_id) or agent.get("model_id"),
+            }
+        )
+
+    available_roles = [role.value for role in AgentRole]
 
     # Build pending work summary
     pending_work_summary = None
@@ -885,4 +952,6 @@ async def get_simulation_state(session_id: str):
         auto_delay_ms=session.auto_delay_ms,
         tick_budget=session.tick_budget,
         pending_work_summary=pending_work_summary,
+        agents=agents,
+        available_roles=available_roles,
     )

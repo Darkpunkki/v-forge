@@ -168,6 +168,8 @@ export interface SimulationStateResponse {
   auto_delay_ms: number | null
   tick_budget: number | null
   pending_work_summary: string | null
+  agents: AgentConfig[]
+  available_roles: string[]
 }
 
 export interface SimulationResetResponse {

@@ -1,7 +1,7 @@
 """Response models for API endpoints."""
 
 from typing import Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from vibeforge_api.models.types import SessionPhase
 
@@ -170,6 +170,8 @@ class SimulationStateResponse(BaseModel):
     auto_delay_ms: Optional[int]
     tick_budget: Optional[int]
     pending_work_summary: Optional[str]
+    agents: list[dict[str, Any]] = Field(default_factory=list)
+    available_roles: list[str] = Field(default_factory=list)
 
 
 class SimulationResetResponse(BaseModel):

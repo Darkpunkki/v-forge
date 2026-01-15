@@ -27,15 +27,29 @@ class ClarificationAnswerRequest(BaseModel):
 # VF-192: Agent workflow request schemas
 
 
+class AgentInitConfig(BaseModel):
+    """Agent definition for initialization requests."""
+
+    agent_id: str = Field(..., description="Agent identifier")
+    display_name: Optional[str] = Field(None, description="Human-readable name")
+
+
 class InitializeAgentsRequest(BaseModel):
     """Request to initialize agents for a session (VF-192)."""
 
-    agent_count: int = Field(..., ge=1, le=10, description="Number of agents to initialize")
+    agent_count: Optional[int] = Field(
+        None, ge=1, le=10, description="Number of agents to initialize"
+    )
+    agents: Optional[list[AgentInitConfig]] = Field(
+        None, description="Explicit agent roster definitions"
+    )
 
     @field_validator("agent_count")
     @classmethod
-    def validate_agent_count(cls, v: int) -> int:
+    def validate_agent_count(cls, v: Optional[int]) -> Optional[int]:
         """Validate agent count is reasonable."""
+        if v is None:
+            return v
         if v < 1:
             raise ValueError("agent_count must be at least 1")
         if v > 10:

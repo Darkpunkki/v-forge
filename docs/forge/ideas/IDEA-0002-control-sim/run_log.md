@@ -213,3 +213,13 @@
   - Key architectural task: TASK-011 wires TickEngine to control API endpoints
   - Key modification: TASK-004 removes DAG enforcement to allow cycles/bidirectional links
 - Status: SUCCESS
+
+### 2026-01-15T17:41:13.726Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Outputs:
+  - planning/FEC-FEAT-001-workspace-checklist.md
+  - latest/feature_execution_progress.md
+- Notes:
+  - FEAT-001 executed: roster validation, simulation state roster/roles, UI role sourcing.
+  - Tests: pytest apps/api/tests/test_control_api.py -k "initialize_agents or simulation_state" (pass, warnings about pydantic model_id protected namespace).
+- Status: SUCCESS_WITH_WARNINGS

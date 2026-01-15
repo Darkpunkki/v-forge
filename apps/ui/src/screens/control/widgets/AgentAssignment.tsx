@@ -5,19 +5,22 @@ import type { AgentConfig } from '../../../api/controlClient';
 interface AgentAssignmentProps {
   sessionId: string;
   agents: AgentConfig[];
+  availableRoles?: string[];
   onAssigned: () => void;
 }
 
-const ROLES = ['orchestrator', 'foreman', 'worker', 'reviewer', 'fixer'];
+const DEFAULT_ROLES = ['orchestrator', 'foreman', 'worker', 'reviewer', 'fixer'];
 const MODELS = ['gpt-4', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo', 'claude-3-opus', 'claude-3-sonnet'];
 
 export const AgentAssignment: React.FC<AgentAssignmentProps> = ({
   sessionId,
   agents,
+  availableRoles,
   onAssigned
 }) => {
   const [assignments, setAssignments] = useState<Record<string, { role: string; model: string }>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const roleOptions = availableRoles && availableRoles.length > 0 ? availableRoles : DEFAULT_ROLES;
 
   const handleAssign = async (agentId: string) => {
     const assignment = assignments[agentId];
@@ -56,7 +59,7 @@ export const AgentAssignment: React.FC<AgentAssignmentProps> = ({
                 })}
               >
                 <option value="">Select Role</option>
-                {ROLES.map(role => (
+                {roleOptions.map(role => (
                   <option key={role} value={role}>{role}</option>
                 ))}
               </select>

@@ -500,6 +500,100 @@ class TestWorkflowEndpoints:
         assert updated_session.agent_models["agent-1"] == "gpt-4"
 
     @pytest.mark.asyncio
+    async def test_initialize_agents_duplicate_ids_rejected(self):
+        """Test initialize_agents rejects duplicate agent IDs."""
+        from vibeforge_api.routers.control import initialize_agents
+        from vibeforge_api.models import InitializeAgentsRequest
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        request = InitializeAgentsRequest(
+            agents=[
+                {"agent_id": "agent-1"},
+                {"agent_id": "agent-1"},
+            ]
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await initialize_agents(session.session_id, request)
+
+        assert exc_info.value.status_code == 400
+        assert "Duplicate agent IDs" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_initialize_agents_empty_ids_rejected(self):
+        """Test initialize_agents rejects empty agent IDs."""
+        from vibeforge_api.routers.control import initialize_agents
+        from vibeforge_api.models import InitializeAgentsRequest
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        request = InitializeAgentsRequest(
+            agents=[
+                {"agent_id": " "},
+                {"agent_id": "agent-2"},
+            ]
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await initialize_agents(session.session_id, request)
+
+        assert exc_info.value.status_code == 400
+        assert "empty or whitespace" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_simulation_state_returns_agent_roster(self):
+        """Test simulation state includes roster with labels."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            assign_agent_role,
+            get_simulation_state,
+        )
+        from vibeforge_api.models import InitializeAgentsRequest, AssignAgentRoleRequest
+        from vibeforge_api.core.session import session_store
+        from orchestration.models import AgentRole
+
+        session = session_store.create_session()
+        init_req = InitializeAgentsRequest(
+            agents=[
+                {"agent_id": "agent-1", "display_name": "Alpha"},
+                {"agent_id": "agent-2", "display_name": "Beta"},
+            ]
+        )
+        await initialize_agents(session.session_id, init_req)
+
+        await assign_agent_role(
+            session.session_id,
+            AssignAgentRoleRequest(agent_id="agent-1", role="worker", model_id="gpt-4"),
+        )
+        await assign_agent_role(
+            session.session_id,
+            AssignAgentRoleRequest(agent_id="agent-2", role="reviewer", model_id="gpt-4o-mini"),
+        )
+
+        response = await get_simulation_state(session.session_id)
+        roster_by_id = {agent["agent_id"]: agent for agent in response.agents}
+
+        assert roster_by_id["agent-1"]["display_name"] == "Alpha"
+        assert roster_by_id["agent-1"]["role"] == "worker"
+        assert roster_by_id["agent-1"]["model_id"] == "gpt-4"
+        assert roster_by_id["agent-2"]["display_name"] == "Beta"
+        assert roster_by_id["agent-2"]["role"] == "reviewer"
+        assert roster_by_id["agent-2"]["model_id"] == "gpt-4o-mini"
+        assert set(response.available_roles) == {role.value for role in AgentRole}
+
+    @pytest.mark.asyncio
+    async def test_simulation_state_empty_roster(self):
+        """Test simulation state returns empty roster when no agents configured."""
+        from vibeforge_api.routers.control import get_simulation_state
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        response = await get_simulation_state(session.session_id)
+
+        assert response.agents == []
+
+    @pytest.mark.asyncio
     async def test_assign_agent_role_unknown_agent(self):
         """Test assign_agent_role with unknown agent."""
         from vibeforge_api.routers.control import assign_agent_role
