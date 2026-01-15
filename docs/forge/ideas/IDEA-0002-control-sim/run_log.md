@@ -106,3 +106,79 @@
   - Open questions remain for graph-violation handling, rewind scope, and tick ordering.
   - Codebase context indicates agent flow graph validation enforces a DAG; bidirectional links may require changes.
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-15T03:01:40.379643+00:00 — Epic Validator
+
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T03-01-40Z_run-1e7d
+- Inputs:
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/concept_summary.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/epics_backlog.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/idea_normalized.md
+  - docs/forge/ideas/IDEA-0002-control-sim/inputs/idea.md
+- Outputs:
+  - runs/2026-01-15T03-01-40Z_run-1e7d/validators/epic_validation_report.md
+  - latest/validators/epic_validation_report.md
+- Verdict: PASS_WITH_WARNINGS
+- Critical issues: 0
+- Warnings: 3
+- Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-15T03:11:10.625264+00:00 — Feature Extractor
+
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T03-11-10Z_run-b810
+- Inputs:
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/concept_summary.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/epics_backlog.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/idea_normalized.md
+  - docs/forge/ideas/IDEA-0002-control-sim/inputs/idea.md
+- Output:
+  - runs/2026-01-15T03-11-10Z_run-b810/outputs/features_backlog.md
+  - latest/features_backlog.md
+- Counts:
+  - total_features: 14
+  - by_epic:
+    - EPIC-001: 3
+    - EPIC-002: 4
+    - EPIC-003: 2
+    - EPIC-004: 2
+    - EPIC-005: 3
+- Warnings:
+  - Graph-violation handling, rewind scope, and tick ordering remain open.
+  - Agent flow graph validation currently enforces a DAG; bidirectional links may require validation changes.
+- Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-15T03:31:54.487730+00:00 — Open Questions Resolved
+
+- Idea-ID: IDEA-0002-control-sim
+- Notes:
+  - Graph violations are blocked, logged, and shown as system message entries.
+  - Rewind is out of scope for v1; reset clears state/messages and sets tick=0.
+  - Tick ordering uses a FIFO queue; v1 processes exactly one event per tick.
+  - Bidirectional links and cycles are allowed; only existing edges permit sends.
+- Outputs:
+  - latest/concept_summary.md
+  - latest/idea_normalized.md
+  - latest/epics_backlog.md
+  - latest/features_backlog.md
+- Status: SUCCESS
+
+### 2026-01-15T03:39:23.717040+00:00 - Feature Validator
+
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T03-39-23Z_run-f831
+- Inputs:
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/concept_summary.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/epics_backlog.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/features_backlog.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/idea_normalized.md
+  - docs/forge/ideas/IDEA-0002-control-sim/inputs/idea.md
+  - docs/forge/ideas/IDEA-0002-control-sim/inputs/validator_config.md
+- Outputs:
+  - runs/2026-01-15T03-39-23Z_run-f831/validators/feature_validation_report.md
+  - latest/validators/feature_validation_report.md
+- Verdict: PASS_WITH_WARNINGS
+- Critical issues: 0
+- Warnings: 2
+- Status: SUCCESS_WITH_WARNINGS

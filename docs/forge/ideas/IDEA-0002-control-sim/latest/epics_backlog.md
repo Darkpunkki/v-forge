@@ -16,11 +16,12 @@ epics:
   - id: "EPIC-001"
     title: "Simulation Session Configuration"
     outcome: "Users can define agents, roles, model labels, and a communication graph plus the initial prompt and first agent selection for a control simulation session."
-    description: "Covers capturing and validating simulation setup inputs for a session, including the default role list and graph link definitions. Focuses on configuration completeness and correctness before a run starts. Does not include tick progression or message execution."
+    description: "Covers capturing and validating simulation setup inputs for a session, including the default role list and graph link definitions. Focuses on configuration completeness and correctness before a run starts. Bidirectional links and cycles are allowed; validation checks only agent existence. Does not include tick progression or message execution."
     in_scope:
       - "Agent definitions with id, name, role label, and model label."
       - "Default role list and role assignment rules that remain display-only in v1."
       - "Communication graph configuration with directed or bidirectional links."
+      - "Allows bidirectional links and cycles; validation checks only agent existence."
       - "Initial prompt and first-agent selection as part of session setup."
     out_of_scope:
       - "Tick advancement, message execution, or stubbed response generation."
@@ -36,17 +37,18 @@ epics:
   - id: "EPIC-002"
     title: "Graph-Gated Tick Progression"
     outcome: "Each tick advances deterministic, stubbed message exchange with graph validation and one-activity-per-agent enforcement."
-    description: "Owns the tick engine and message queue behavior for simulation mode. Enforces communication graph rules, records message log entries, and labels stubbed content. Keeps deterministic ordering and caps activity per agent per tick."
+    description: "Owns the tick engine and FIFO event queue behavior for simulation mode. Enforces communication graph rules, emits message/tick events (including blocked sends), and labels stubbed content. Processes exactly one event per tick in v1 and caps activity per agent per tick."
     in_scope:
       - "Graph-gated message validation with explicit block reasons."
-      - "Per-tick processing with one activity per agent."
+      - "Per-tick processing from a FIFO queue with exactly one event per tick in v1."
       - "Deterministic stubbed response generation and labeling in v1."
-      - "Message log entries with sender, receiver, timestamp, and tick index."
+      - "Message and tick event emission with sender, receiver, tick index, and block reasons."
     out_of_scope:
       - "Real LLM calls in v1."
       - "Complex autonomy or multi-step agent loops within a tick."
+      - "Event persistence and streaming (owned by EPIC-004)."
     key_artifacts:
-      - "Message log entries"
+      - "Message events"
       - "Tick events"
       - "Blocked message records"
     dependencies:
@@ -56,14 +58,15 @@ epics:
     tags: ["simulation", "orchestration", "observability"]
   - id: "EPIC-003"
     title: "Simulation Lifecycle Controls"
-    outcome: "Simulation can be started, paused, stopped, and reset with status/tick state exposed to the UI, and rewind supported only if scope is confirmed."
-    description: "Owns lifecycle state transitions, guardrails, and status reporting for the simulation session. Ensures configuration is preserved on reset and status/tick is always available. Covers the control surface that invokes lifecycle actions."
+    outcome: "Simulation can be started, paused, stopped, and reset with status/tick state exposed to the UI."
+    description: "Owns lifecycle state transitions, guardrails, and status reporting for the simulation session. Ensures configuration is preserved on reset, state/messages are cleared, tick resets to 0, and status/tick is always available. Covers the control surface that invokes lifecycle actions."
     in_scope:
       - "Lifecycle controls for start, tick, pause, stop, and reset."
       - "Simulation status and tick state reporting to the UI."
       - "Preservation of configuration on reset."
+      - "Reset clears state/messages and sets tick=0."
     out_of_scope:
-      - "Rewind semantics unless explicitly confirmed in scope."
+      - "Rewind in v1."
       - "Changes to non-control session phases or user-facing flows."
     key_artifacts:
       - "Simulation status snapshot"
@@ -121,13 +124,14 @@ epics:
 
 **Outcome:** Users can define agents, roles, model labels, and a communication graph plus the initial prompt and first agent selection for a control simulation session.  
 **Release Target:** MVP **Priority:** P0  
-**Description:** Covers capturing and validating simulation setup inputs for a session, including the default role list and graph link definitions. Focuses on configuration completeness and correctness before a run starts. Does not include tick progression or message execution.
+**Description:** Covers capturing and validating simulation setup inputs for a session, including the default role list and graph link definitions. Focuses on configuration completeness and correctness before a run starts. Bidirectional links and cycles are allowed; validation checks only agent existence. Does not include tick progression or message execution.
 
 **In Scope:**
 
 - Agent definitions with id, name, role label, and model label.
 - Default role list and role assignment rules that remain display-only in v1.
 - Communication graph configuration with directed or bidirectional links.
+- Allows bidirectional links and cycles; validation checks only agent existence.
 - Initial prompt and first-agent selection as part of session setup.
 
 **Out of Scope:**
@@ -149,23 +153,24 @@ epics:
 
 **Outcome:** Each tick advances deterministic, stubbed message exchange with graph validation and one-activity-per-agent enforcement.  
 **Release Target:** MVP **Priority:** P0  
-**Description:** Owns the tick engine and message queue behavior for simulation mode. Enforces communication graph rules, records message log entries, and labels stubbed content. Keeps deterministic ordering and caps activity per agent per tick.
+**Description:** Owns the tick engine and FIFO event queue behavior for simulation mode. Enforces communication graph rules, emits message/tick events (including blocked sends), and labels stubbed content. Processes exactly one event per tick in v1 and caps activity per agent per tick.
 
 **In Scope:**
 
 - Graph-gated message validation with explicit block reasons.
-- Per-tick processing with one activity per agent.
+- Per-tick processing from a FIFO queue with exactly one event per tick in v1.
 - Deterministic stubbed response generation and labeling in v1.
-- Message log entries with sender, receiver, timestamp, and tick index.
+- Message and tick event emission with sender, receiver, tick index, and block reasons.
 
 **Out of Scope:**
 
 - Real LLM calls in v1.
 - Complex autonomy or multi-step agent loops within a tick.
+- Event persistence and streaming (owned by EPIC-004).
 
 **Key Artifacts:**
 
-- Message log entries
+- Message events
 - Tick events
 - Blocked message records
 
@@ -175,19 +180,20 @@ epics:
 
 ## EPIC-003: Simulation Lifecycle Controls
 
-**Outcome:** Simulation can be started, paused, stopped, and reset with status/tick state exposed to the UI, and rewind supported only if scope is confirmed.  
+**Outcome:** Simulation can be started, paused, stopped, and reset with status/tick state exposed to the UI.  
 **Release Target:** MVP **Priority:** P0  
-**Description:** Owns lifecycle state transitions, guardrails, and status reporting for the simulation session. Ensures configuration is preserved on reset and status/tick is always available. Covers the control surface that invokes lifecycle actions.
+**Description:** Owns lifecycle state transitions, guardrails, and status reporting for the simulation session. Ensures configuration is preserved on reset, state/messages are cleared, tick resets to 0, and status/tick is always available. Covers the control surface that invokes lifecycle actions.
 
 **In Scope:**
 
 - Lifecycle controls for start, tick, pause, stop, and reset.
 - Simulation status and tick state reporting to the UI.
 - Preservation of configuration on reset.
+- Reset clears state/messages and sets tick=0.
 
 **Out of Scope:**
 
-- Rewind semantics unless explicitly confirmed in scope.
+- Rewind in v1.
 - Changes to non-control session phases or user-facing flows.
 
 **Key Artifacts:**

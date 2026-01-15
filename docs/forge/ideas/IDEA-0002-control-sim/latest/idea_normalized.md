@@ -23,8 +23,7 @@ A control simulation view for internal dev demos where users configure multiple 
 - Must let users configure directed or bidirectional communication links.
 - Must let users start the simulation with an initial prompt and a user-selected first agent.
 - Must allow advancing the simulation one tick at a time and observing all agent messages.
-- Must provide controls: start, tick, pause, stop, reset (reset preserves configuration).
-- Should provide a rewind control if it remains in v1 scope; semantics to be defined.
+- Must provide controls: start, tick, pause, stop, reset (reset clears state and messages, sets tick=0, and preserves configuration).
 
 ## Target Users
 
@@ -47,6 +46,7 @@ A control simulation view for internal dev demos where users configure multiple 
 ## Outputs
 
 - Must produce message log entries with timestamp, from, to, content, tick index.
+- Must include blocked system entries such as \"Blocked: A -> B not allowed\" when a send violates the graph.
 - Must label stubbed content clearly in v1 outputs.
 - Must surface simulation status (configured, running, paused, completed) and current tick.
 - Must render a visual graph of agents and links.
@@ -56,7 +56,7 @@ A control simulation view for internal dev demos where users configure multiple 
 
 1. User configures agents and links.
 2. User selects the first agent, enters an initial prompt, and starts the simulation.
-3. On each tick, each agent performs at most one activity (for example, one message send or response).
+3. On each tick, the system processes exactly one queued event (send or response) in FIFO order; each agent performs at most one activity per tick.
 4. The system appends new messages and updates status and tick number.
 5. User can pause, stop, reset (preserving config), or rewind (if in scope) as needed.
 
@@ -73,8 +73,11 @@ A control simulation view for internal dev demos where users configure multiple 
 - Must extend the existing /control backend and UI without breaking current flows.
 - Must remain testable and deterministic when desired.
 - Must cap processing to one activity per agent per tick.
+- Must process exactly one queued event per tick in FIFO order in v1.
 - Must use stubbed responses in v1 and label stub content clearly.
 - Must keep session state in memory for v1.
+- Must clear message log entries on reset and set tick=0 while preserving configuration.
+- Must allow bidirectional links and cycles; only existing edges permit sends (no DAG validation in v1).
 
 ## Preferences
 
@@ -90,6 +93,7 @@ A control simulation view for internal dev demos where users configure multiple 
 - No routing logic changes based on role or model labels in v1.
 - No multi-user authentication if the app is currently single-user/local.
 - No real LLM calls in v1 (only after stubbed flow is validated).
+- No rewind in v1.
 
 ## Terminology
 
@@ -99,11 +103,9 @@ A control simulation view for internal dev demos where users configure multiple 
 - Communication graph: Directed or bidirectional links that govern which agents can message each other.
 - Tick: A discrete simulation step where each agent may perform at most one activity.
 - Stubbed response: Deterministic placeholder content used in v1.
-- Reset: Stop the simulation and clear session state while preserving configuration.
-- Rewind: Move the simulation back in time; exact semantics to be defined.
+- Reset: Stop the simulation, clear message log/state, and set tick to 0 while preserving configuration.
+- Rewind: Out of scope for v1.
 
 ## Open Questions / Ambiguities
 
-- What concrete behavior should be used for sends that violate the configured graph (block, drop, log error, warn, other)?
-- Is rewind in scope for v1? If yes, define the exact semantics; if no, remove the control.
-- What is the deterministic ordering rule when multiple agents can act within a tick?
+- None.

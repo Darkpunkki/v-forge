@@ -27,26 +27,31 @@ It delivers deterministic, stubbed interactions in v1 with explicit controls and
 - The system can start a simulation with an initial user prompt and a user-selected first agent.
 - The system can advance the simulation in discrete ticks and record resulting messages.
 - The system can render a message log, graph view, and current status/tick.
-- The system can provide controls for start, tick, pause, stop, reset (and rewind if in scope).
+- The system can provide controls for start, tick, pause, stop, reset.
 - The system can generate deterministic, stubbed responses in v1.
+- The system can record blocked sends as system message log entries.
 
 ## Conceptual Workflow
 
 1. Users define agents and their communication links.
 2. Users select the first agent, provide an initial prompt, and start the simulation.
-3. On each tick, agents perform at most one activity each and messages are recorded.
+3. On each tick, the system processes exactly one queued event (send or response) in FIFO order; each agent performs at most one activity per tick and messages are recorded.
 4. The system updates status/tick and displays the graph and message log.
 5. Users pause, stop, reset (preserving configuration), or rewind if in scope.
 
 ## Invariants
 
 - The system must cap processing to one activity per agent per tick.
+- The system must process exactly one queued event per tick in FIFO order in v1.
 - The system must label stubbed content clearly in v1 outputs.
 - The system must keep session state in memory for v1.
 - The system must preserve configuration on reset.
+- The system must clear message log entries and reset tick index to 0 on reset.
+- The system must log blocked sends as system events and message log entries.
 - The system must not use real LLM calls in v1.
 - The system must not change routing logic based on role or model labels in v1.
 - The system must surface current status and tick number to the UI.
+- The system must allow bidirectional links and cycles; only existing edges permit sends.
 
 ## Key Constraints
 
@@ -62,6 +67,8 @@ It delivers deterministic, stubbed interactions in v1 with explicit controls and
 - Enforce the configured communication graph when sending messages.
 - Display the graph and the message log alongside controls.
 - Offer a default role list: orchestrator, worker, reviewer, fixer, foreman.
+- Record blocked sends as system events in the message log.
+- Process tick events in FIFO order with a single event per tick in v1.
 
 ## Out-of-Scope / Explicit Exclusions
 
@@ -70,10 +77,11 @@ It delivers deterministic, stubbed interactions in v1 with explicit controls and
 - Routing logic changes based on role or model labels in v1.
 - Multi-user authentication if the app is currently single-user/local.
 - Real LLM calls in v1 (only after stubbed flow is validated).
+- Rewind behavior in v1.
 
 ## Primary Artifacts
 
-- Artifact: Message log entries — record timestamp, from, to, content, and tick index (stub-marked in v1).
+- Artifact: Message log entries — record timestamp, from, to, content, and tick index (stub-marked in v1), including blocked system entries.
 - Artifact: Simulation status — configured/running/paused/completed with current tick.
 - Artifact: Agent graph view — visual representation of agents and links.
 
@@ -87,6 +95,4 @@ It delivers deterministic, stubbed interactions in v1 with explicit controls and
 
 ## Open Questions / Ambiguities
 
-- What concrete behavior should be used for sends that violate the configured graph (block, drop, log error, warn, other)?
-- Is rewind in scope for v1? If yes, define the exact semantics; if no, remove the control.
-- What is the deterministic ordering rule when multiple agents can act within a tick?
+- None.
