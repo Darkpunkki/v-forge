@@ -39,15 +39,16 @@ Before using any idea-scoped paths:
 ### Canonical sources of truth (idea-scoped)
 
 - `docs/forge/ideas/<IDEA_ID>/latest/tasks.md` (required; feature-grouped task definitions)
+- `docs/forge/ideas/<IDEA_ID>/latest/existing_solution_map.md` (context for existing code, update when necessary)
+- `docs/forge/ideas/<IDEA_ID>/latest/idea_normalized.md` (broader project context)
 
-### Optional context (read-only, if present)
+### Optional context
 
-- `docs/forge/ideas/<IDEA_ID>/latest/features_backlog.md` (preferred; fallback to features.md if missing)
-- `docs/forge/ideas/<IDEA_ID>/latest/epics_backlog.md` (preferred; fallback to epics.md if missing)
+- `docs/forge/ideas/<IDEA_ID>/latest/features_backlog.md` (fallback to features.md if missing)
+- `docs/forge/ideas/<IDEA_ID>/latest/epics_backlog.md` (fallback to epics.md if missing)
 - `docs/forge/ideas/<IDEA_ID>/latest/concept_summary.md`
-- `docs/forge/ideas/<IDEA_ID>/latest/existing_solution_map.md` (strongly recommended for grounded edits)
+- `docs/forge/ideas/<IDEA_ID>/latest/existing_solution_map.md`
 - `docs/forge/ideas/<IDEA_ID>/latest/codebase_context.md`
-- `docs/forge/ideas/<IDEA_ID>/latest/idea_normalized.md`
 - `docs/forge/ideas/<IDEA_ID>/inputs/idea.md`
 
 ### Execution tracking (small, per-idea)
