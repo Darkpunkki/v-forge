@@ -16,9 +16,9 @@ The canonical source of truth is the **feature-grouped tasks** in:
 
 Supports optional arguments:
 
-- `/work-feat IDEA-0002-my-idea` → auto-pick the next not-yet-completed FEAT from tasks.md using the progress tracker
-- `/work-feat IDEA-0002-my-idea FEAT-003` → execute a specific feature
-- `/work-feat FEAT-003` → best-effort: locate the FEAT by scanning idea tasks (only if unique)
+- `/work-feat IDEA-0002-my-idea` -> auto-pick the next not-yet-completed FEAT from tasks.md using the progress tracker
+- `/work-feat IDEA-0002-my-idea FEAT-003` -> execute a specific feature
+- `/work-feat FEAT-003` -> best-effort: locate the FEAT by scanning idea tasks (only if unique)
 
 Use `$ARGUMENTS` for IDEA_ID and/or FEAT id.
 
@@ -60,7 +60,7 @@ Before using any idea-scoped paths:
 
 ---
 
-## Step 0 — Safety & Repo Context
+## Step 0 - Safety & Repo Context
 
 1) Read current repo state:
 - `git status -sb`
@@ -72,7 +72,7 @@ Before using any idea-scoped paths:
 
 ---
 
-## Step 1 — Determine target FEAT
+## Step 1 - Determine target FEAT
 
 ### Accepted invocation forms
 
@@ -85,7 +85,7 @@ Before using any idea-scoped paths:
 **Form B:** `$ARGUMENTS` is only `FEAT-XXX`
 - Scan all idea folders under `docs/forge/ideas/` for a `latest/tasks.md` containing that FEAT header.
 - If exactly one match is found, set `IDEA_ID` accordingly.
-- If zero matches: STOP and report “FEAT not found in any idea.”
+- If zero matches: STOP and report "FEAT not found in any idea."
 - If multiple matches: STOP and list candidates; ask the user to rerun with explicit `IDEA_ID`.
 
 If no `FEAT_ID` was provided:
@@ -96,11 +96,11 @@ When selecting or executing a feature:
 - Use targeted search within `latest/tasks.md` to locate the FEAT section header (e.g., `FEAT-003:` or `## FEAT-003`).
 - Extract ONLY the tasks under that FEAT section.
 
-If tasks.md format varies, adapt by finding a stable “feature header” pattern used in the file and extracting the block until the next feature header.
+If tasks.md format varies, adapt by finding a stable "feature header" pattern used in the file and extracting the block until the next feature header.
 
 ---
 
-## Step 2 — Confirm required files exist
+## Step 2 - Confirm required files exist
 
 Required:
 - `docs/forge/ideas/<IDEA_ID>/latest/tasks.md`
@@ -113,80 +113,80 @@ If `latest/tasks.md` is missing, STOP and report the expected path.
 
 ---
 
-## Step 3 — Build the Feature Workspace Checklist (short)
+## Step 3 - Build the Feature Workspace Checklist (short)
 
 Create (or update) a checklist doc for this feature:
 
 - `docs/forge/ideas/<IDEA_ID>/planning/FEC-<FEAT_ID>-workspace-checklist.md`
 
 Checklist requirements (keep it short):
-- Title: `<FEAT_ID> — <feature title>`
+- Title: `<FEAT_ID> - <feature title>`
 - Idea-ID and Run-ID
 - A checkbox list of the tasks in this feature (TASK-### ids + titles)
-- For each task: 1–2 bullets:
+- For each task: 1-2 bullets:
   - key files expected to change (from existing_solution_map if available; otherwise best-effort)
   - verify command(s) (best-effort)
-- “Notes / Decisions” section (append-only)
+- "Notes / Decisions" section (append-only)
 
 Do NOT create long plan docs. This is a working checklist.
 
 ---
 
-## Step 4 — Mark Feature as In Progress (progress tracker)
+## Step 4 - Mark Feature as In Progress (progress tracker)
 
 Update `docs/forge/ideas/<IDEA_ID>/latest/feature_execution_progress.md`:
 - If this FEAT is not present, add an entry:
-  - `FEAT-XXX — In Progress — <timestamp> — run <RUN_ID> — checklist: planning/FEC-FEAT-XXX-workspace-checklist.md`
+  - `FEAT-XXX - In Progress - <timestamp> - run <RUN_ID> - checklist: planning/FEC-FEAT-XXX-workspace-checklist.md`
 - If already present and In Progress, treat as resume.
 
 ---
 
-## Step 5 — Execute Tasks One at a Time (Iterative Loop)
+## Step 5 - Execute Tasks One at a Time (Iterative Loop)
 
-For each TASK in the feature’s section (in dependency order if stated; otherwise file order):
+For each TASK in the feature's section (in dependency order if stated; otherwise file order):
 
-### 5.1 — Preparation
+### 5.1 - Preparation
 - Use `existing_solution_map.md` if present to prefer extension of existing code.
 - Do minimal, focused changes.
 - Keep commits small; include `TASK-###` in commit messages.
 
-### 5.2 — Implement
+### 5.2 - Implement
 - Implement the smallest change meeting acceptance criteria.
 - Avoid parallel implementations; extend existing components where possible.
 
-### 5.3 — Verify
+### 5.3 - Verify
 - Run the most relevant verification (unit tests/lint/smoke).
 - If failing: attempt focused fix; re-run.
 
-### 5.4 — Update checklist
+### 5.4 - Update checklist
 In `planning/FEC-...-workspace-checklist.md`:
 - Check off the task only after verification passes.
-- Add 1–3 bullets:
+- Add 1-3 bullets:
   - files changed
   - commands run
   - anything learned
 
-### 5.5 — If blocked
+### 5.5 - If blocked
 - Record blocker under that task in the checklist
 - Update progress tracker to `Blocked` for this FEAT
 - STOP
 
 ---
 
-## Step 6 — Feature-level Close Out
+## Step 6 - Feature-level Close Out
 
 After all tasks are checked:
 1) Run a feature-level verification (best-effort):
    - run the main test suite subset relevant to changed areas
 2) If passes:
-   - Update progress tracker: `FEAT-XXX — Done — <timestamp> — run <RUN_ID>`
+   - Update progress tracker: `FEAT-XXX - Done - <timestamp> - run <RUN_ID>`
 3) If fails:
    - Keep FEAT as In Progress
    - Record failure summary in checklist and STOP
 
 ---
 
-## Step 7 — End-of-Run Summary (Always)
+## Step 7 - End-of-Run Summary (Always)
 
 Print a concise summary:
 - Feature executed: FEAT-XXX
