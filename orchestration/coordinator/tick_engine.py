@@ -15,6 +15,8 @@ One tick represents one atomic unit of simulation progress:
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+import hashlib
+import json
 from typing import Optional
 
 from apps.api.vibeforge_api.core.event_log import Event, EventLog, EventType
@@ -168,10 +170,46 @@ class TickEngine:
         """Get list of configured agent IDs from session."""
         return [agent.get("agent_id", "") for agent in self.session.agents]
 
+    def _message_expects_response(self, message: Message) -> bool:
+        """Check if a message should trigger an automated response."""
+        if not isinstance(message.content, dict):
+            return False
+        return bool(
+            message.content.get("expect_response")
+            or message.content.get("expects_response")
+        )
+
     def _is_orchestrator(self, agent_id: str) -> bool:
         """Check if agent is the orchestrator (can broadcast)."""
         role = self.session.agent_roles.get(agent_id)
         return role == "orchestrator"
+
+    def generate_stub_response(
+        self,
+        responding_agent: str,
+        source_agent: str,
+        message_content: dict,
+        tick_index: int,
+    ) -> dict:
+        """Generate a deterministic stub response payload."""
+        content_json = json.dumps(
+            message_content,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        content_hash = hashlib.sha256(content_json.encode("utf-8")).hexdigest()
+        stub_hash = content_hash[:10]
+        text = (
+            f"[STUB] {responding_agent} -> {source_agent} "
+            f"@ tick {tick_index} ({stub_hash})"
+        )
+        return {
+            "text": text,
+            "is_stub": True,
+            "stub_hash": stub_hash,
+            "expect_response": False,
+        }
 
     # =========================================================================
     # VF-203: Graph-gated messaging
@@ -262,7 +300,7 @@ class TickEngine:
         return MessageValidation(
             is_allowed=False,
             status=MessageValidationStatus.BLOCKED,
-            reason=f"{from_agent} η' {to_agent} not allowed",
+            reason=f"{from_agent} {chr(0x03B7)}' {to_agent} not allowed",
             from_agent=from_agent,
             to_agent=to_agent,
         )
@@ -321,6 +359,15 @@ class TickEngine:
         )
         self.message_queue.append(message)
 
+        metadata = {
+            "message_id": message.message_id,
+            "from_agent": from_agent,
+            "to_agent": to_agent,
+            "tick_index": self.session.tick_index,
+        }
+        if isinstance(content, dict) and content.get("is_stub"):
+            metadata["is_stub"] = True
+
         # Emit sent event
         self._emit_event(
             Event(
@@ -329,12 +376,7 @@ class TickEngine:
                 session_id=self.session.session_id,
                 message=f"Message sent: {from_agent}→{to_agent}",
                 phase=self.session.phase.value,
-                metadata={
-                    "message_id": message.message_id,
-                    "from_agent": from_agent,
-                    "to_agent": to_agent,
-                    "tick_index": self.session.tick_index,
-                },
+                metadata=metadata,
             )
         )
 
@@ -387,6 +429,20 @@ class TickEngine:
             self.deliver_message(message)
             messages_delivered.append(message)
             agents_acted.add(message.from_agent)
+            if self._message_expects_response(message):
+                stub_content = self.generate_stub_response(
+                    responding_agent=message.to_agent,
+                    source_agent=message.from_agent,
+                    message_content=message.content,
+                    tick_index=new_tick,
+                )
+                stub_content["in_response_to"] = message.message_id
+                self.send_message(
+                    message.to_agent,
+                    message.from_agent,
+                    stub_content,
+                    bypass_validation=True,
+                )
             break
 
         # Count messages sent this tick

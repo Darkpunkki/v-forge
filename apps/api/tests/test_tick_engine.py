@@ -322,3 +322,73 @@ class TestTickQueueProcessing:
         result2 = engine.advance_tick()
         assert len(result2.messages_delivered) == 1
         assert result2.messages_delivered[0].content["text"] == "second"
+
+
+class TestStubbedResponses:
+    """Tests for deterministic stubbed responses."""
+
+    def _create_test_session_with_agents(self):
+        session = session_store.create_session()
+        session.agents = [
+            AgentConfig(agent_id="agent-1").model_dump(),
+            AgentConfig(agent_id="agent-2").model_dump(),
+        ]
+        session.agent_roles = {
+            "agent-1": "orchestrator",
+            "agent-2": "worker",
+        }
+        session.agent_graph = AgentFlowGraph(
+            edges=[AgentFlowEdge(from_agent="agent-1", to_agent="agent-2")]
+        ).model_dump()
+        session.tick_status = "running"
+        session_store.update_session(session)
+        return session
+
+    def test_generate_stub_response_deterministic(self):
+        """Stub responses should be deterministic and labeled."""
+        session = self._create_test_session_with_agents()
+        engine = TickEngine(session)
+        content = {"text": "ping", "expect_response": True}
+
+        stub1 = engine.generate_stub_response("agent-2", "agent-1", content, 1)
+        stub2 = engine.generate_stub_response("agent-2", "agent-1", content, 1)
+        stub3 = engine.generate_stub_response("agent-2", "agent-1", {"text": "pong"}, 1)
+
+        assert stub1 == stub2
+        assert "[STUB]" in stub1["text"]
+        assert "agent-2" in stub1["text"]
+        assert "tick 1" in stub1["text"]
+        assert stub1["stub_hash"] != stub3["stub_hash"]
+
+    def test_stub_response_queued_on_delivery(self):
+        """Delivered messages expecting a response queue a stub reply."""
+        session = self._create_test_session_with_agents()
+        engine = TickEngine(session)
+
+        success, message = engine.send_message(
+            "agent-1",
+            "agent-2",
+            {"text": "ping", "expect_response": True},
+        )
+        assert success
+
+        result = engine.advance_tick()
+
+        assert len(result.messages_delivered) == 1
+        stub_messages = [
+            msg for msg in engine.message_queue
+            if isinstance(msg.content, dict) and msg.content.get("is_stub")
+        ]
+        assert len(stub_messages) == 1
+        stub_message = stub_messages[0]
+        assert stub_message.from_agent == "agent-2"
+        assert stub_message.to_agent == "agent-1"
+        assert not stub_message.is_delivered
+        assert stub_message.content["in_response_to"] == message.message_id
+
+        stub_events = [
+            event for event in engine.get_tick_events()
+            if event.event_type == EventType.MESSAGE_SENT
+            and event.metadata.get("is_stub")
+        ]
+        assert len(stub_events) == 1

@@ -299,3 +299,17 @@
   - Completed FEAT-005 tasks: standardized blocked-message reasons, added EventLog sink support to TickEngine, updated control tick endpoints to pass EventLog, and added integration coverage for blocked event logging and delivery separation.
   - Tests: python -m pytest apps/api/tests/test_graph_gated_messaging.py -v (warnings about model_id protected namespace and pytest_asyncio loop scope).
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-15T23:57:39.943Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T23-50-29.119Z_run-f5b8
+- Outputs:
+  - planning/FEC-FEAT-006-workspace-checklist.md
+  - latest/feature_execution_progress.md
+  - runs/2026-01-15T23-50-29.119Z_run-f5b8/outputs/feat-006-tasks.md
+  - orchestration/coordinator/tick_engine.py
+  - apps/api/tests/test_tick_engine.py
+- Notes:
+  - Completed FEAT-006 tasks: added deterministic stub response generation, queued stub replies during tick processing, and tagged stub events with is_stub metadata.
+  - Tests: python -m pytest apps/api/tests/test_tick_engine.py -k "stub" -v (warnings about model_id protected namespace and pytest_asyncio loop scope).
+- Status: SUCCESS_WITH_WARNINGS
