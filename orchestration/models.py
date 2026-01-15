@@ -369,10 +369,13 @@ class AgentFlowEdge(BaseModel):
     from_agent: str = Field(..., description="Source agent ID")
     to_agent: str = Field(..., description="Target agent ID")
     label: Optional[str] = Field(None, description="Edge label/description")
+    bidirectional: bool = Field(
+        False, description="Whether the edge allows traffic both directions"
+    )
 
 
 class AgentFlowGraph(BaseModel):
-    """DAG representing agent-to-agent communication topology (VF-191).
+    """Graph representing agent-to-agent communication topology (VF-191).
 
     Used by the control panel simulation mode to define which agents
     can communicate with each other. Messages are only allowed along
@@ -382,7 +385,7 @@ class AgentFlowGraph(BaseModel):
     edges: list[AgentFlowEdge] = Field(default_factory=list)
 
     def validate_dag(self, agent_ids: list[str]) -> tuple[bool, Optional[str]]:
-        """Validate graph is acyclic and references valid agents.
+        """Validate graph references valid agents.
 
         Args:
             agent_ids: List of valid agent IDs to check against
@@ -391,36 +394,32 @@ class AgentFlowGraph(BaseModel):
             (is_valid, error_message) tuple
         """
         # Check all referenced agents exist
-        for edge in self.edges:
-            if edge.from_agent not in agent_ids:
-                return False, f"Unknown agent: {edge.from_agent}"
-            if edge.to_agent not in agent_ids:
-                return False, f"Unknown agent: {edge.to_agent}"
+        unknown_sources = sorted(
+            {
+                edge.from_agent
+                for edge in self.edges
+                if edge.from_agent not in agent_ids
+            }
+        )
+        unknown_targets = sorted(
+            {
+                edge.to_agent
+                for edge in self.edges
+                if edge.to_agent not in agent_ids
+            }
+        )
 
-        # Check for cycles using DFS
-        visited = set()
-        rec_stack = set()
-
-        def has_cycle(node: str) -> bool:
-            visited.add(node)
-            rec_stack.add(node)
-
-            for edge in self.edges:
-                if edge.from_agent == node:
-                    neighbor = edge.to_agent
-                    if neighbor not in visited:
-                        if has_cycle(neighbor):
-                            return True
-                    elif neighbor in rec_stack:
-                        return True
-
-            rec_stack.remove(node)
-            return False
-
-        for agent_id in agent_ids:
-            if agent_id not in visited:
-                if has_cycle(agent_id):
-                    return False, "Cycle detected in agent flow graph"
+        if unknown_sources or unknown_targets:
+            messages = []
+            if unknown_sources:
+                messages.append(
+                    f"Unknown source agent(s): {', '.join(unknown_sources)}"
+                )
+            if unknown_targets:
+                messages.append(
+                    f"Unknown target agent(s): {', '.join(unknown_targets)}"
+                )
+            return False, "; ".join(messages)
 
         return True, None
 
@@ -433,7 +432,13 @@ class AgentFlowGraph(BaseModel):
         Returns:
             List of agent IDs that have edges pointing to this agent
         """
-        return [e.from_agent for e in self.edges if e.to_agent == agent_id]
+        predecessors = [e.from_agent for e in self.edges if e.to_agent == agent_id]
+        predecessors.extend(
+            e.to_agent
+            for e in self.edges
+            if e.bidirectional and e.from_agent == agent_id
+        )
+        return predecessors
 
     def get_successors(self, agent_id: str) -> list[str]:
         """Get agents this agent feeds into.
@@ -444,7 +449,13 @@ class AgentFlowGraph(BaseModel):
         Returns:
             List of agent IDs that this agent points to
         """
-        return [e.to_agent for e in self.edges if e.from_agent == agent_id]
+        successors = [e.to_agent for e in self.edges if e.from_agent == agent_id]
+        successors.extend(
+            e.from_agent
+            for e in self.edges
+            if e.bidirectional and e.to_agent == agent_id
+        )
+        return successors
 
 
 class SimulationConfig(BaseModel):

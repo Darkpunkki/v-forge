@@ -223,3 +223,17 @@
   - FEAT-001 executed: roster validation, simulation state roster/roles, UI role sourcing.
   - Tests: pytest apps/api/tests/test_control_api.py -k "initialize_agents or simulation_state" (pass, warnings about pydantic model_id protected namespace).
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-15T18:52:41.167Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T18-40-30.271Z_run-00a0
+- Outputs:
+  - runs/2026-01-15T18-40-30.271Z_run-00a0/outputs/feat-002-summary.md
+  - planning/FEC-FEAT-002-workspace-checklist.md
+  - latest/feature_execution_progress.md
+- Notes:
+  - Executed FEAT-002 (TASK-004/005/006).
+  - Updated agent flow validation to allow cycles and list invalid endpoints.
+  - Added bidirectional edge support with round-trip state exposure and tick-engine validation.
+  - Tests: pytest agent_flow_graph, configure_agent_flow_bidirectional_round_trip, graph_gated_messaging bidirectional, flow_validation, flow.
+- Status: SUCCESS

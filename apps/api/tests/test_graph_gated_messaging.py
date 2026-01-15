@@ -102,6 +102,26 @@ class TestMessageValidation:
         assert not validation.is_allowed
         assert validation.status == MessageValidationStatus.BLOCKED
 
+    def test_message_allowed_for_bidirectional_edge(self):
+        """Test that bidirectional edges allow reverse direction."""
+        session = self._create_test_session_with_graph()
+        session.agent_graph = AgentFlowGraph(
+            edges=[
+                AgentFlowEdge(
+                    from_agent="agent-1",
+                    to_agent="agent-2",
+                    bidirectional=True,
+                )
+            ]
+        ).model_dump()
+        session_store.update_session(session)
+        engine = TickEngine(session)
+
+        validation = engine.validate_message("agent-2", "agent-1")
+
+        assert validation.is_allowed
+        assert validation.status == MessageValidationStatus.ALLOWED
+
     def test_message_blocked_unknown_source(self):
         """Test that message from unknown agent is blocked."""
         session = self._create_test_session_with_graph()

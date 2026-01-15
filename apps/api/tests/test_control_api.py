@@ -664,8 +664,43 @@ class TestWorkflowEndpoints:
         assert len(updated_session.agent_graph["edges"]) == 2
 
     @pytest.mark.asyncio
-    async def test_configure_agent_flow_cycle_detection(self):
-        """Test configure_agent_flow rejects cycles."""
+    async def test_configure_agent_flow_bidirectional_round_trip(self):
+        """Test bidirectional edges are stored and returned in state."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            configure_agent_flow,
+            get_simulation_state,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            ConfigureAgentFlowRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        await initialize_agents(session.session_id, InitializeAgentsRequest(agent_count=2))
+
+        flow_req = ConfigureAgentFlowRequest(
+            edges=[
+                {
+                    "from_agent": "agent-1",
+                    "to_agent": "agent-2",
+                    "bidirectional": True,
+                }
+            ]
+        )
+        await configure_agent_flow(session.session_id, flow_req)
+
+        state = await get_simulation_state(session.session_id)
+        assert state.agent_graph is not None
+        assert len(state.agent_graph["edges"]) == 1
+        assert state.agent_graph["edges"][0]["from_agent"] == "agent-1"
+        assert state.agent_graph["edges"][0]["to_agent"] == "agent-2"
+        assert state.agent_graph["edges"][0]["bidirectional"] is True
+
+    @pytest.mark.asyncio
+    async def test_configure_agent_flow_allows_cycles(self):
+        """Test configure_agent_flow allows cycles."""
         from vibeforge_api.routers.control import (
             initialize_agents,
             configure_agent_flow,
@@ -681,7 +716,7 @@ class TestWorkflowEndpoints:
         init_req = InitializeAgentsRequest(agent_count=2)
         await initialize_agents(session.session_id, init_req)
 
-        # Try to create cycle
+        # Configure cycle
         flow_req = ConfigureAgentFlowRequest(
             edges=[
                 {"from_agent": "agent-1", "to_agent": "agent-2"},
@@ -689,11 +724,14 @@ class TestWorkflowEndpoints:
             ]
         )
 
-        with pytest.raises(HTTPException) as exc_info:
-            await configure_agent_flow(session.session_id, flow_req)
+        response = await configure_agent_flow(session.session_id, flow_req)
 
-        assert exc_info.value.status_code == 400
-        assert "Cycle" in exc_info.value.detail
+        assert response.edge_count == 2
+        assert "Configured flow" in response.message
+
+        updated_session = session_store.get_session(session.session_id)
+        assert updated_session.agent_graph is not None
+        assert len(updated_session.agent_graph["edges"]) == 2
 
     @pytest.mark.asyncio
     async def test_get_workflow_config(self):
@@ -940,7 +978,75 @@ class TestAgentWorkflowIntegration:
             )
 
         assert exc_info.value.status_code == 400
-        assert "unknown-agent" in exc_info.value.detail or "not found" in exc_info.value.detail.lower()
+        assert "Unknown target agent" in exc_info.value.detail
+        assert "unknown-agent" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_workflow_flow_validation_rejects_unknown_sources(self):
+        """Flow configuration should reject edges with unknown source IDs."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            configure_agent_flow,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            ConfigureAgentFlowRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        session_id = session.session_id
+
+        await initialize_agents(session_id, InitializeAgentsRequest(agent_count=2))
+
+        with pytest.raises(HTTPException) as exc_info:
+            await configure_agent_flow(
+                session_id,
+                ConfigureAgentFlowRequest(
+                    edges=[
+                        {"from_agent": "unknown-agent", "to_agent": "agent-1"},
+                    ]
+                ),
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "Unknown source agent" in exc_info.value.detail
+        assert "unknown-agent" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_workflow_flow_validation_reports_multiple_invalid_agents(self):
+        """Flow configuration should report all invalid agent references."""
+        from vibeforge_api.routers.control import (
+            initialize_agents,
+            configure_agent_flow,
+        )
+        from vibeforge_api.models import (
+            InitializeAgentsRequest,
+            ConfigureAgentFlowRequest,
+        )
+        from vibeforge_api.core.session import session_store
+
+        session = session_store.create_session()
+        session_id = session.session_id
+
+        await initialize_agents(session_id, InitializeAgentsRequest(agent_count=2))
+
+        with pytest.raises(HTTPException) as exc_info:
+            await configure_agent_flow(
+                session_id,
+                ConfigureAgentFlowRequest(
+                    edges=[
+                        {"from_agent": "unknown-source", "to_agent": "agent-1"},
+                        {"from_agent": "agent-2", "to_agent": "unknown-target"},
+                    ]
+                ),
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "Unknown source agent" in exc_info.value.detail
+        assert "unknown-source" in exc_info.value.detail
+        assert "Unknown target agent" in exc_info.value.detail
+        assert "unknown-target" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_workflow_multiple_role_updates(self):

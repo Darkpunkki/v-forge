@@ -82,12 +82,23 @@ class SetMainTaskRequest(BaseModel):
     main_task: str = Field(..., min_length=1, description="Main task description/goal")
 
 
+class AgentFlowEdgeRequest(BaseModel):
+    """Edge definition for agent flow configuration (VF-192)."""
+
+    from_agent: str = Field(..., description="Source agent ID")
+    to_agent: str = Field(..., description="Target agent ID")
+    label: Optional[str] = Field(None, description="Edge label/description")
+    bidirectional: bool = Field(
+        False, description="Whether the edge allows traffic both directions"
+    )
+
+
 class ConfigureAgentFlowRequest(BaseModel):
     """Request to configure agent-to-agent communication flow (VF-192)."""
 
-    edges: list[dict[str, str]] = Field(
+    edges: list[AgentFlowEdgeRequest] = Field(
         ...,
-        description="List of edges, each with 'from_agent' and 'to_agent' keys"
+        description="List of edges, each with from_agent/to_agent and optional directionality"
     )
 
 

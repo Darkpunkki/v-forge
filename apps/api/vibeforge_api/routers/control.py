@@ -547,7 +547,6 @@ async def configure_agent_flow(session_id: str, request: ConfigureAgentFlowReque
     Validates:
     - Session exists
     - All referenced agents exist
-    - Flow graph is acyclic
     """
     from vibeforge_api.core.session import session_store
     from vibeforge_api.models import ConfigureAgentFlowRequest, ConfigureAgentFlowResponse
@@ -569,8 +568,13 @@ async def configure_agent_flow(session_id: str, request: ConfigureAgentFlowReque
 
     # Build flow graph
     edges = [
-        AgentFlowEdge(from_agent=e["from_agent"], to_agent=e["to_agent"])
-        for e in request.edges
+        AgentFlowEdge(
+            from_agent=edge.from_agent,
+            to_agent=edge.to_agent,
+            label=edge.label,
+            bidirectional=edge.bidirectional,
+        )
+        for edge in request.edges
     ]
     flow_graph = AgentFlowGraph(edges=edges)
 
@@ -952,6 +956,7 @@ async def get_simulation_state(session_id: str):
         auto_delay_ms=session.auto_delay_ms,
         tick_budget=session.tick_budget,
         pending_work_summary=pending_work_summary,
+        agent_graph=session.agent_graph,
         agents=agents,
         available_roles=available_roles,
     )

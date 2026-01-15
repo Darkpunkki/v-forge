@@ -170,6 +170,7 @@ class SimulationStateResponse(BaseModel):
     auto_delay_ms: Optional[int]
     tick_budget: Optional[int]
     pending_work_summary: Optional[str]
+    agent_graph: Optional[dict[str, Any]] = None
     agents: list[dict[str, Any]] = Field(default_factory=list)
     available_roles: list[str] = Field(default_factory=list)
 

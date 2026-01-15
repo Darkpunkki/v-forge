@@ -192,7 +192,15 @@ class TickEngine:
 
         # Check if edge exists in graph
         edge_exists = any(
-            edge.from_agent == from_agent and edge.to_agent == to_agent
+            (
+                edge.from_agent == from_agent
+                and edge.to_agent == to_agent
+            )
+            or (
+                edge.bidirectional
+                and edge.from_agent == to_agent
+                and edge.to_agent == from_agent
+            )
             for edge in self.agent_graph.edges
         )
 

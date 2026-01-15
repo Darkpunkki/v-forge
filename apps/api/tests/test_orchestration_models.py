@@ -363,19 +363,34 @@ class TestAgentWorkflowModels:
         assert is_valid
         assert error is None
 
-    def test_agent_flow_graph_cycle_detection(self):
-        """Cyclic graph fails validation."""
+    def test_agent_flow_graph_cycle_allowed(self):
+        """Cyclic graph passes validation."""
         from orchestration.models import AgentFlowGraph, AgentFlowEdge
 
         graph = AgentFlowGraph(
             edges=[
                 AgentFlowEdge(from_agent="a", to_agent="b"),
-                AgentFlowEdge(from_agent="b", to_agent="a"),  # cycle!
+                AgentFlowEdge(from_agent="b", to_agent="c"),
+                AgentFlowEdge(from_agent="c", to_agent="a"),  # cycle!
+            ]
+        )
+        is_valid, error = graph.validate_dag(["a", "b", "c"])
+        assert is_valid
+        assert error is None
+
+    def test_agent_flow_graph_bidirectional_links_allowed(self):
+        """Bidirectional links pass validation."""
+        from orchestration.models import AgentFlowGraph, AgentFlowEdge
+
+        graph = AgentFlowGraph(
+            edges=[
+                AgentFlowEdge(from_agent="a", to_agent="b"),
+                AgentFlowEdge(from_agent="b", to_agent="a"),
             ]
         )
         is_valid, error = graph.validate_dag(["a", "b"])
-        assert not is_valid
-        assert "Cycle" in error
+        assert is_valid
+        assert error is None
 
     def test_agent_flow_graph_unknown_agent(self):
         """Unknown agent reference fails validation."""
@@ -388,7 +403,8 @@ class TestAgentWorkflowModels:
         )
         is_valid, error = graph.validate_dag(["a", "b"])
         assert not is_valid
-        assert "Unknown agent" in error
+        assert "Unknown target agent" in error
+        assert "unknown" in error
 
     def test_agent_flow_graph_get_predecessors(self):
         """get_predecessors returns agents that feed into target."""
