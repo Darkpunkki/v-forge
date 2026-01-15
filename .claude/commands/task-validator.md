@@ -1,5 +1,6 @@
 ---
-description: Validate tasks.md for an idea against concept_summary.md and features.md (writes report to ideas/<IDEA_ID>/runs and updates ideas/<IDEA_ID>/latest; optional patch if allowed)
+name: Validate tasks
+description: Validate tasks.md for an idea against concept_summary.md and features_backlog.md (writes report to ideas/<IDEA_ID>/runs and updates ideas/<IDEA_ID>/latest; optional patch if allowed)
 argument-hint: "<IDEA_ID>   (example: IDEA-0003_my-idea)"
 disable-model-invocation: true
 ---
@@ -14,9 +15,19 @@ Run this command with an idea folder id:
 
 Where:
 
-- `IDEA_ID = $ARGUMENTS` (must be a single folder name; no spaces)
+- `IDEA_REF = $ARGUMENTS` (must be a single token; no spaces)
 
-If `IDEA_ID` is missing/empty, STOP and ask the user to rerun with an idea id.
+If `IDEA_REF` is missing/empty, STOP and ask the user to rerun with an idea id.
+
+---
+
+## Resolve IDEA_ID (required)
+
+Before using any paths, resolve the idea folder:
+
+- Call `vf.resolve_idea_id` with `idea_ref = $ARGUMENTS`
+- Store the returned `idea_id` as `IDEA_ID`
+- Use `IDEA_ID` for all paths, YAML headers, and run log entries
 
 ---
 
@@ -24,32 +35,46 @@ If `IDEA_ID` is missing/empty, STOP and ask the user to rerun with an idea id.
 
 Idea root:
 
-- `docs/ai/forge/ideas/$ARGUMENTS/`
+- `docs/forge/ideas/<IDEA_ID>/`
 
 Inputs:
 
-- `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline input)
-- `docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md` (optional)
-- `docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md` (optional)
-- Prior report (optional): `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/task_validation_report.md`
+- `docs/forge/ideas/<IDEA_ID>/inputs/idea.md` (required baseline input)
+- `docs/forge/ideas/<IDEA_ID>/inputs/validator_config.md` (optional)
+- `docs/forge/ideas/<IDEA_ID>/inputs/task_config.md` (optional)
+- Prior report (optional): `docs/forge/ideas/<IDEA_ID>/latest/validators/task_validation_report.md`
 
 Upstream artifacts (required unless noted):
 
-- `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required; anchor)
-- `docs/ai/forge/ideas/$ARGUMENTS/latest/features.md` (required; feature boundaries)
-- `docs/ai/forge/ideas/$ARGUMENTS/latest/tasks.md` (required; subject)
-- `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` (optional but recommended; cross-check epic alignment)
-- `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (optional; preferred structured context)
+- `docs/forge/ideas/<IDEA_ID>/latest/concept_summary.md` (required; anchor)
+- `docs/forge/ideas/<IDEA_ID>/latest/features_backlog.md` (preferred; feature boundaries)
+- `docs/forge/ideas/<IDEA_ID>/latest/features.md` (fallback only if features_backlog is missing)
+- `docs/forge/ideas/<IDEA_ID>/latest/tasks.md` (required; subject)
+- `docs/forge/ideas/<IDEA_ID>/latest/epics_backlog.md` (optional but recommended; cross-check epic alignment)
+- `docs/forge/ideas/<IDEA_ID>/latest/epics.md` (fallback only if epics_backlog is missing)
+- `docs/forge/ideas/<IDEA_ID>/latest/idea_normalized.md` (optional; preferred structured context)
 
 Outputs:
 
-- Run folder: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/validators/`
-- Latest folder: `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/`
+- Run folder: `docs/forge/ideas/<IDEA_ID>/runs/<RUN_ID>/validators/`
+- Latest folder: `docs/forge/ideas/<IDEA_ID>/latest/validators/`
 
 Per-idea logs:
 
-- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md` (append-only)
-- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md` (rolling status/index)
+- `docs/forge/ideas/<IDEA_ID>/run_log.md` (append-only)
+- `docs/forge/ideas/<IDEA_ID>/manifest.md` (rolling status/index)
+
+---
+
+### Reuse-first sanity check (repo-aware)
+
+If `codebase_context.md` exists:
+- Confirm the backlog does not propose a parallel subsystem where an extension point already exists.
+- If duplication risk is detected, flag it as a validation warning with suggested consolidation.
+
+If validating tasks and `existing_solution_map.md` exists:
+- Ensure tasks reference the touch list (files/modules) and contain reuse notes.
+- Warn if tasks are generic (“create new service”) without mapping to existing components.
 
 ---
 
@@ -57,9 +82,11 @@ Per-idea logs:
 
 Ensure these directories exist (create them if missing):
 
-- `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/`
-- `docs/ai/forge/ideas/$ARGUMENTS/runs/`
-- `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/validators/`
+- `docs/forge/ideas/<IDEA_ID>/inputs/`
+
+- `docs/forge/ideas/<IDEA_ID>/latest/validators/`
+- `docs/forge/ideas/<IDEA_ID>/runs/`
+- `docs/forge/ideas/<IDEA_ID>/runs/<RUN_ID>/validators/`
 
 If you cannot create directories or write files directly, output artifacts as separate markdown blocks labeled with their target filenames and include a short note listing missing directories.
 
@@ -72,8 +99,8 @@ You are the **Task Validator** agent.
 Your job is to validate `tasks.md` against:
 
 - `concept_summary.md` (primary semantic anchor)
-- `features.md` (feature boundaries and acceptance criteria)
-- `epics.md` (optional cross-check for epic alignment)
+- `features_backlog.md` (feature boundaries and acceptance criteria; fallback to `features.md` only if backlog is missing)
+- `epics_backlog.md` (optional cross-check for epic alignment; fallback to `epics.md` only if backlog is missing)
 - `idea.md` and `idea_normalized.md` (supporting context)
 
 You produce:
@@ -89,20 +116,25 @@ This stage does NOT generate code. It ensures tasks are implementable, correctly
 
 You MUST read inputs in this order:
 
-1. `docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md` (required; anchor)
-2. `docs/ai/forge/ideas/$ARGUMENTS/latest/features.md` (required; primary upstream requirements)
-3. `docs/ai/forge/ideas/$ARGUMENTS/latest/tasks.md` (required; subject)
-4. `docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md` (if present; cross-check only)
-5. `docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md` (preferred if present)
-6. `docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md` (required baseline context)
+1. `docs/forge/ideas/<IDEA_ID>/latest/concept_summary.md` (required; anchor)
+2. `docs/forge/ideas/<IDEA_ID>/latest/features_backlog.md` (preferred; primary upstream requirements)
+3. `docs/forge/ideas/<IDEA_ID>/latest/features.md` (fallback if features_backlog is missing)
+4. `docs/forge/ideas/<IDEA_ID>/latest/tasks.md` (required; subject)
+5. `docs/forge/ideas/<IDEA_ID>/latest/epics_backlog.md` (if present; cross-check only)
+6. `docs/forge/ideas/<IDEA_ID>/latest/epics.md` (fallback if epics_backlog is missing)
+7. `docs/forge/ideas/<IDEA_ID>/latest/idea_normalized.md` (preferred if present)
+8. `docs/forge/ideas/<IDEA_ID>/inputs/idea.md` (required baseline context)
 
 Optional:
 
-- `docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md`
-- `docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md`
+- `docs/forge/ideas/<IDEA_ID>/inputs/validator_config.md`
+- `docs/forge/ideas/<IDEA_ID>/inputs/task_config.md`
 - prior report at `latest/validators/task_validation_report.md` (if present)
 
-If required files are missing, STOP and report expected paths.
+If `latest/concept_summary.md` is missing, STOP and report the expected path.
+If `latest/features_backlog.md` is missing AND `latest/features.md` is missing, STOP and report the expected path.
+If `latest/tasks.md` is missing, STOP and report the expected path.
+If `inputs/idea.md` is missing, STOP and report the expected path.
 
 ---
 
@@ -111,29 +143,31 @@ If required files are missing, STOP and report expected paths.
 Include content via file references:
 
 - Concept summary (required):
-  @docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
+  @docs/forge/ideas/<IDEA_ID>/latest/concept_summary.md
 
-- Features (required):
-  @docs/ai/forge/ideas/$ARGUMENTS/latest/features.md
+- Features (preferred; fallback to features.md if backlog missing):
+  @docs/forge/ideas/<IDEA_ID>/latest/features_backlog.md
+  @docs/forge/ideas/<IDEA_ID>/latest/features.md
 
 - Tasks (required):
-  @docs/ai/forge/ideas/$ARGUMENTS/latest/tasks.md
+  @docs/forge/ideas/<IDEA_ID>/latest/tasks.md
 
 - Epics (optional, if present):
-  @docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md
+  @docs/forge/ideas/<IDEA_ID>/latest/epics_backlog.md
+  @docs/forge/ideas/<IDEA_ID>/latest/epics.md
 
 - Preferred normalized idea (only if it exists):
-  @docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md
+  @docs/forge/ideas/<IDEA_ID>/latest/idea_normalized.md
 
 - Baseline raw idea (always):
-  @docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
+  @docs/forge/ideas/<IDEA_ID>/inputs/idea.md
 
 - Optional configs (only if they exist):
-  @docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md
-  @docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md
+  @docs/forge/ideas/<IDEA_ID>/inputs/validator_config.md
+  @docs/forge/ideas/<IDEA_ID>/inputs/task_config.md
 
 - Prior report (only if it exists):
-  @docs/ai/forge/ideas/$ARGUMENTS/latest/validators/task_validation_report.md
+  @docs/forge/ideas/<IDEA_ID>/latest/validators/task_validation_report.md
 
 ---
 
@@ -156,14 +190,14 @@ Also capture:
 
 1. Validation report:
 
-- Write to: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/validators/task_validation_report.md`
-- Also update: `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/task_validation_report.md` (overwrite allowed)
+- Write to: `docs/forge/ideas/<IDEA_ID>/runs/<RUN_ID>/validators/task_validation_report.md`
+- Also update: `docs/forge/ideas/<IDEA_ID>/latest/validators/task_validation_report.md` (overwrite allowed)
 
 2. Append a run entry to:
 
-- `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`
+- `docs/forge/ideas/<IDEA_ID>/run_log.md`
 
-3. Update `docs/ai/forge/ideas/$ARGUMENTS/manifest.md` with validation metadata
+3. Update `docs/forge/ideas/<IDEA_ID>/manifest.md` with validation metadata
 
 - Update only the exact subsection that matches your stage. Do not create unrelated headings.
 
@@ -171,8 +205,8 @@ Also capture:
 
 4. Patched tasks file:
 
-- Write to: `docs/ai/forge/ideas/$ARGUMENTS/runs/<RUN_ID>/validators/tasks.patched.md`
-- Also update: `docs/ai/forge/ideas/$ARGUMENTS/latest/validators/tasks.patched.md` (overwrite allowed)
+- Write to: `docs/forge/ideas/<IDEA_ID>/runs/<RUN_ID>/validators/tasks.patched.md`
+- Also update: `docs/forge/ideas/<IDEA_ID>/latest/validators/tasks.patched.md` (overwrite allowed)
 
 If patching is not allowed, do NOT output `tasks.patched.md`. Instead include a “Proposed Patch” section inside the report.
 
@@ -214,7 +248,7 @@ Metadata Defect:
 
 ### You MUST
 
-- Validate tasks against `features.md` and `concept_summary.md`.
+- Validate tasks against `features_backlog.md` (or fallback `features.md`) and `concept_summary.md`.
 - Verify tasks are:
   - Complete per feature (cover feature acceptance criteria)
   - Implementable (small, concrete)
@@ -239,14 +273,14 @@ Metadata Defect:
 1. Parse anchors (do not output scratch)
 
 - From `concept_summary.md`: invariants/exclusions and key constraints.
-- From `features.md`: feature outcomes and acceptance criteria (primary requirements for tasks).
-- From `epics.md` (optional): cross-check epic alignment.
+- From `features_backlog.md` (or fallback `features.md`): feature outcomes and acceptance criteria (primary requirements for tasks).
+- From `epics_backlog.md` (optional; fallback to `epics.md`): cross-check epic alignment.
 
 2. Parse tasks.md canonical YAML
 
 - YAML exists and is parseable.
 - Each task has required fields.
-- Each `feature_id` exists in `features.md`.
+- Each `feature_id` exists in `features_backlog.md` (or fallback `features.md`).
 - Each task’s `epic_id` matches the epic_id of its parent feature.
 
 3. Per-feature coverage check
@@ -310,20 +344,22 @@ YAML header (example):
 ```yaml
 ---
 doc_type: task_validation_report
-idea_id: "$ARGUMENTS"
+idea_id: "<IDEA_ID>"
 run_id: "<RUN_ID>"
 generated_by: "Task Validator"
 generated_at: "<ISO-8601>"
 source_inputs:
-  - "docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md"
-  - "docs/ai/forge/ideas/$ARGUMENTS/latest/features.md"
-  - "docs/ai/forge/ideas/$ARGUMENTS/latest/tasks.md"
-  - "docs/ai/forge/ideas/$ARGUMENTS/latest/epics.md (if present)"
-  - "docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)"
-  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md"
+  - "docs/forge/ideas/<IDEA_ID>/latest/concept_summary.md"
+  - "docs/forge/ideas/<IDEA_ID>/latest/features_backlog.md"
+  - "docs/forge/ideas/<IDEA_ID>/latest/features.md (fallback if backlog missing)"
+  - "docs/forge/ideas/<IDEA_ID>/latest/tasks.md"
+  - "docs/forge/ideas/<IDEA_ID>/latest/epics_backlog.md (if present)"
+  - "docs/forge/ideas/<IDEA_ID>/latest/epics.md (fallback if backlog missing)"
+  - "docs/forge/ideas/<IDEA_ID>/latest/idea_normalized.md (if present)"
+  - "docs/forge/ideas/<IDEA_ID>/inputs/idea.md"
 configs:
-  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md (if used)"
-  - "docs/ai/forge/ideas/$ARGUMENTS/inputs/task_config.md (if used)"
+  - "docs/forge/ideas/<IDEA_ID>/inputs/validator_config.md (if used)"
+  - "docs/forge/ideas/<IDEA_ID>/inputs/task_config.md (if used)"
 status: "Draft"
 ---
 ```
@@ -411,20 +447,23 @@ If produced:
 
 ## Logging Requirements: run_log.md (append-only)
 
-Append an entry to `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`:
+Append an entry to `docs/forge/ideas/<IDEA_ID>/run_log.md`:
 
 ```md
 ### <ISO-8601 timestamp> — Task Validator
 
-- Idea-ID: $ARGUMENTS
+- Idea-ID: <IDEA_ID>
 - Run-ID: <RUN_ID>
 - Inputs:
-  - docs/ai/forge/ideas/$ARGUMENTS/latest/concept_summary.md
-  - docs/ai/forge/ideas/$ARGUMENTS/latest/features.md
-  - docs/ai/forge/ideas/$ARGUMENTS/latest/tasks.md
-  - docs/ai/forge/ideas/$ARGUMENTS/latest/idea_normalized.md (if present)
-  - docs/ai/forge/ideas/$ARGUMENTS/inputs/idea.md
-  - docs/ai/forge/ideas/$ARGUMENTS/inputs/validator_config.md (if present)
+  - docs/forge/ideas/<IDEA_ID>/latest/concept_summary.md
+  - docs/forge/ideas/<IDEA_ID>/latest/features_backlog.md (preferred)
+  - docs/forge/ideas/<IDEA_ID>/latest/features.md (fallback if backlog missing)
+  - docs/forge/ideas/<IDEA_ID>/latest/tasks.md
+  - docs/forge/ideas/<IDEA_ID>/latest/epics_backlog.md (if present)
+  - docs/forge/ideas/<IDEA_ID>/latest/epics.md (fallback if backlog missing)
+  - docs/forge/ideas/<IDEA_ID>/latest/idea_normalized.md (if present)
+  - docs/forge/ideas/<IDEA_ID>/inputs/idea.md
+  - docs/forge/ideas/<IDEA_ID>/inputs/validator_config.md (if present)
 - Outputs:
   - runs/<RUN_ID>/validators/task_validation_report.md
   - latest/validators/task_validation_report.md
@@ -442,7 +481,7 @@ Append an entry to `docs/ai/forge/ideas/$ARGUMENTS/run_log.md`:
 
 Update or create a `Validation` section in:
 
-- `docs/ai/forge/ideas/$ARGUMENTS/manifest.md`
+- `docs/forge/ideas/<IDEA_ID>/manifest.md`
 
 Add an entry for this run:
 
@@ -467,7 +506,7 @@ If `tasks.md` YAML is malformed:
 - Explain parse issue
 - Provide a minimal corrected YAML skeleton in Proposed Patch (do not invent task content)
 
-If `features.md` is missing or inconsistent:
+If `features_backlog.md` is missing or inconsistent (and fallback `features.md` was used if present):
 
 - Validate what you can (IDs, invariants, duplicates, vague tasks).
 - Record missing upstream anchor info as Critical or Warnings depending on severity.

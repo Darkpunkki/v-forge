@@ -80,6 +80,8 @@ logs/
 
 # Workspaces (generated session apps)
 workspaces/
+docs/ai/forge/ideas/*/runs/*
+docs/forge/ideas/*/runs/*
 
 # Database
 *.db

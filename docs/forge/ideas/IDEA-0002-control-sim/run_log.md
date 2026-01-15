@@ -182,3 +182,34 @@
 - Critical issues: 0
 - Warnings: 2
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-15T15:17:01.496Z — codebase.existing_solution_map
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T15-13-38.903Z_run-b114
+- Outputs:
+  - runs/2026-01-15T15-13-38.903Z_run-b114/outputs/existing_solution_map.md
+  - latest/existing_solution_map.md
+- Notes:
+  - Created existing solution map for IDEA-0002-control-sim
+  - Identified substantial existing infrastructure: TickEngine, control endpoints, UI widgets
+  - Key gap: TickEngine not wired to API tick endpoints
+  - Key architectural conflict: AgentFlowGraph.validate_dag() rejects cycles but IDEA requires bidirectional links
+  - 15 files identified in touch list
+  - Reuse-first decisions documented for Session, TickEngine, EventLog, AgentFlowGraph, UI widgets
+- Status: SUCCESS
+
+### 2026-01-15T15:39:46.857Z — task.build
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T15-29-42.321Z_run-8474
+- Outputs:
+  - runs/2026-01-15T15-29-42.321Z_run-8474/tasks.md
+  - latest/tasks.md
+- Notes:
+  - Total tasks: 47
+  - By release target: MVP=47, V1=0, Full=0, Later=0
+  - By priority: P0=27, P1=20
+  - By epic: EPIC-001=10, EPIC-002=14, EPIC-003=7, EPIC-004=5, EPIC-005=11
+  - Tasks leverage existing solution map to extend existing components (TickEngine, Session, EventLog, UI widgets)
+  - Key architectural task: TASK-011 wires TickEngine to control API endpoints
+  - Key modification: TASK-004 removes DAG enforcement to allow cycles/bidirectional links
+- Status: SUCCESS
