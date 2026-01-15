@@ -269,3 +269,56 @@ class TestMessageDelivery:
 
         assert cleared == 1
         assert len(engine.message_queue) == 0
+
+
+class TestTickQueueProcessing:
+    """Tests for FIFO processing and per-agent activity cap."""
+
+    def _create_test_session_with_agents(self):
+        session = session_store.create_session()
+        session.agents = [
+            AgentConfig(agent_id="agent-1").model_dump(),
+            AgentConfig(agent_id="agent-2").model_dump(),
+        ]
+        session.agent_roles = {
+            "agent-1": "orchestrator",
+            "agent-2": "worker",
+        }
+        session.agent_graph = AgentFlowGraph(
+            edges=[AgentFlowEdge(from_agent="agent-1", to_agent="agent-2")]
+        ).model_dump()
+        session.tick_status = "running"
+        session_store.update_session(session)
+        return session
+
+    def test_fifo_single_event_per_tick(self):
+        """Only the first queued message is delivered per tick."""
+        session = self._create_test_session_with_agents()
+        engine = TickEngine(session)
+
+        engine.send_message("agent-1", "agent-2", {"text": "first"})
+        engine.send_message("agent-1", "agent-2", {"text": "second"})
+        engine.send_message("agent-1", "agent-2", {"text": "third"})
+
+        result = engine.advance_tick()
+
+        assert len(result.messages_delivered) == 1
+        assert result.messages_delivered[0].content["text"] == "first"
+        pending = [m for m in engine.message_queue if not m.is_delivered]
+        assert [m.content["text"] for m in pending] == ["second", "third"]
+
+    def test_activity_cap_defers_same_agent_until_next_tick(self):
+        """Messages from the same agent are deferred to the next tick."""
+        session = self._create_test_session_with_agents()
+        engine = TickEngine(session)
+
+        engine.send_message("agent-1", "agent-2", {"text": "first"})
+        engine.send_message("agent-1", "agent-2", {"text": "second"})
+
+        result1 = engine.advance_tick()
+        assert len(result1.messages_delivered) == 1
+        assert result1.messages_delivered[0].content["text"] == "first"
+
+        result2 = engine.advance_tick()
+        assert len(result2.messages_delivered) == 1
+        assert result2.messages_delivered[0].content["text"] == "second"

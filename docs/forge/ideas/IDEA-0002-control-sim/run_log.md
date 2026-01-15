@@ -266,3 +266,21 @@
 - Notes:
   - Wrote run summary snapshot for FEAT-003.
 - Status: SUCCESS
+
+### 2026-01-15T23:25:14.604Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T23-05-06.253Z_run-7cb8
+- Outputs:
+  - planning/FEC-FEAT-004-workspace-checklist.md
+  - latest/feature_execution_progress.md
+  - apps/api/vibeforge_api/routers/control.py
+  - orchestration/coordinator/tick_engine.py
+  - apps/api/vibeforge_api/core/session.py
+  - apps/api/vibeforge_api/models/responses.py
+  - apps/ui/src/api/controlClient.ts
+  - apps/api/tests/test_tick_engine.py
+  - apps/api/tests/test_simulation_api.py
+- Notes:
+  - Completed FEAT-004 tasks: wired TickEngine into tick endpoints with session state sync and event logging; added FIFO single-event-per-tick processing and per-agent activity cap; added tick summary fields to API responses and client types.
+  - Tests: python -m pytest apps/api/tests/test_tick_engine.py -v; python -m pytest apps/api/tests/test_simulation_api.py -k "advance_tick or advance_ticks" -v (warnings about model_id protected namespace and pytest_asyncio loop scope).
+- Status: SUCCESS_WITH_WARNINGS

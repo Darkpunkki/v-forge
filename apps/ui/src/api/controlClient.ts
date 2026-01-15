@@ -159,10 +159,24 @@ export interface SimulationStartResponse {
   message: string
 }
 
+export interface TickSummary {
+  new_tick_index: number
+  processed_event_count: number
+  processed_events: SessionEvent[]
+  messages_sent: number
+  messages_blocked: number
+}
+
 export interface TickResponse {
   tick_index: number
+  new_tick_index: number
   tick_status: string
   events_processed: number
+  processed_event_count: number
+  processed_events: SessionEvent[]
+  messages_sent: number
+  messages_blocked: number
+  tick_summaries: TickSummary[]
   message: string
 }
 

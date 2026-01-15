@@ -803,6 +803,8 @@ async def reset_simulation(session_id: str, request: SimulationResetRequest):
     session.tick_status = "idle"
     session.initial_prompt = None
     session.first_agent_id = None
+    session.simulation_message_queue = []
+    session.simulation_message_counter = 0
 
     # Optionally clear workflow config
     if not request.preserve_workflow:
@@ -831,10 +833,13 @@ async def advance_tick(session_id: str):
 
     Validates simulation is started (tick_status != "idle").
     Increments tick_index by 1.
-    Returns events produced (placeholder for now - actual tick engine is VF-202).
+    Returns tick engine event summary for the tick.
     """
+    from vibeforge_api.core.event_log import EventLog
     from vibeforge_api.core.session import session_store
+    from vibeforge_api.core.workspace import WorkspaceManager
     from vibeforge_api.models import TickResponse
+    from orchestration.coordinator.tick_engine import TickEngine
 
     # Get session
     session = session_store.get_session(session_id)
@@ -848,19 +853,37 @@ async def advance_tick(session_id: str):
             detail="Cannot advance tick: simulation not started. Call /simulation/start first."
         )
 
-    # Advance tick
-    session.tick_index += 1
+    # Advance tick using TickEngine
+    engine = TickEngine(session)
+    result = engine.advance_tick()
+    engine.sync_session_state()
 
-    # TODO (VF-202): Actual tick engine processing goes here
-    # For now, just increment the counter
-    events_processed = 0
+    workspace_manager = WorkspaceManager()
+    event_log = EventLog(workspace_manager.workspace_root)
+    processed_events = [event.to_dict() for event in result.events]
+    for event in result.events:
+        event_log.append(event)
 
     session_store.update_session(session)
 
+    tick_summary = {
+        "new_tick_index": result.tick_index,
+        "processed_event_count": len(processed_events),
+        "processed_events": processed_events,
+        "messages_sent": len(result.messages_delivered),
+        "messages_blocked": result.messages_blocked,
+    }
+
     return TickResponse(
         tick_index=session.tick_index,
+        new_tick_index=result.tick_index,
         tick_status=session.tick_status,
-        events_processed=events_processed,
+        events_processed=len(processed_events),
+        processed_event_count=len(processed_events),
+        processed_events=processed_events,
+        messages_sent=len(result.messages_delivered),
+        messages_blocked=result.messages_blocked,
+        tick_summaries=[tick_summary],
         message=f"Advanced to tick {session.tick_index}"
     )
 
@@ -871,10 +894,13 @@ async def advance_ticks(session_id: str, request: TickRequest):
 
     Validates simulation is started.
     Advances tick_index by N (with safety limit of 100).
-    Returns aggregated events produced.
+    Returns per-tick summaries and aggregated events.
     """
+    from vibeforge_api.core.event_log import EventLog
     from vibeforge_api.core.session import session_store
+    from vibeforge_api.core.workspace import WorkspaceManager
     from vibeforge_api.models import TickRequest, TickResponse
+    from orchestration.coordinator.tick_engine import TickEngine
 
     # Get session
     session = session_store.get_session(session_id)
@@ -888,20 +914,48 @@ async def advance_ticks(session_id: str, request: TickRequest):
             detail="Cannot advance ticks: simulation not started. Call /simulation/start first."
         )
 
-    # Advance ticks
+    # Advance ticks using TickEngine
     starting_tick = session.tick_index
-    session.tick_index += request.tick_count
+    engine = TickEngine(session)
+    workspace_manager = WorkspaceManager()
+    event_log = EventLog(workspace_manager.workspace_root)
+    tick_summaries = []
+    processed_events: list[dict] = []
+    messages_sent_total = 0
+    messages_blocked_total = 0
 
-    # TODO (VF-202): Actual tick engine processing goes here
-    # For now, just increment the counter
-    events_processed = 0
+    for _ in range(request.tick_count):
+        result = engine.advance_tick()
+        tick_events = [event.to_dict() for event in result.events]
+        processed_events.extend(tick_events)
+        for event in result.events:
+            event_log.append(event)
 
+        tick_summaries.append(
+            {
+                "new_tick_index": result.tick_index,
+                "processed_event_count": len(tick_events),
+                "processed_events": tick_events,
+                "messages_sent": len(result.messages_delivered),
+                "messages_blocked": result.messages_blocked,
+            }
+        )
+        messages_sent_total += len(result.messages_delivered)
+        messages_blocked_total += result.messages_blocked
+
+    engine.sync_session_state()
     session_store.update_session(session)
 
     return TickResponse(
         tick_index=session.tick_index,
+        new_tick_index=session.tick_index,
         tick_status=session.tick_status,
-        events_processed=events_processed,
+        events_processed=len(processed_events),
+        processed_event_count=len(processed_events),
+        processed_events=processed_events,
+        messages_sent=messages_sent_total,
+        messages_blocked=messages_blocked_total,
+        tick_summaries=tick_summaries,
         message=f"Advanced {request.tick_count} ticks ({starting_tick} -> {session.tick_index})"
     )
 

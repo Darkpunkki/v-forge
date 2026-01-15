@@ -152,12 +152,28 @@ class SimulationStartResponse(BaseModel):
     message: str
 
 
+class TickSummary(BaseModel):
+    """Summary of a single tick's processing results."""
+
+    new_tick_index: int
+    processed_event_count: int
+    processed_events: list[dict[str, Any]] = Field(default_factory=list)
+    messages_sent: int
+    messages_blocked: int
+
+
 class TickResponse(BaseModel):
     """Response from executing tick(s) (VF-192)."""
 
     tick_index: int
+    new_tick_index: int
     tick_status: str
     events_processed: int
+    processed_event_count: int
+    processed_events: list[dict[str, Any]] = Field(default_factory=list)
+    messages_sent: int
+    messages_blocked: int
+    tick_summaries: list[TickSummary] = Field(default_factory=list)
     message: str
 
 

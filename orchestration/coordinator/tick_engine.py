@@ -54,6 +54,35 @@ class Message:
     is_blocked: bool = False
     blocked_reason: Optional[str] = None
 
+    def to_dict(self) -> dict:
+        """Serialize message to a dict for session persistence."""
+        return {
+            "message_id": self.message_id,
+            "from_agent": self.from_agent,
+            "to_agent": self.to_agent,
+            "content": self.content,
+            "tick_created": self.tick_created,
+            "tick_delivered": self.tick_delivered,
+            "is_delivered": self.is_delivered,
+            "is_blocked": self.is_blocked,
+            "blocked_reason": self.blocked_reason,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Message":
+        """Restore message from session storage."""
+        return cls(
+            message_id=data.get("message_id", ""),
+            from_agent=data.get("from_agent", ""),
+            to_agent=data.get("to_agent", ""),
+            content=data.get("content", {}),
+            tick_created=data.get("tick_created", 0),
+            tick_delivered=data.get("tick_delivered"),
+            is_delivered=data.get("is_delivered", False),
+            is_blocked=data.get("is_blocked", False),
+            blocked_reason=data.get("blocked_reason"),
+        )
+
 
 @dataclass
 class TickResult:
@@ -93,7 +122,7 @@ class TickEngine:
             agent_graph: Agent communication graph (loaded from session if None)
         """
         self.session = session
-        self._message_counter = 0
+        self._message_counter = getattr(session, "simulation_message_counter", 0)
 
         # Load agent graph from session if not provided
         if agent_graph is not None:
@@ -105,7 +134,11 @@ class TickEngine:
             self.agent_graph = AgentFlowGraph(edges=[])
 
         # Message queue (persisted across ticks)
-        self.message_queue: list[Message] = []
+        queue_state = getattr(session, "simulation_message_queue", None)
+        if queue_state:
+            self.message_queue = [Message.from_dict(item) for item in queue_state]
+        else:
+            self.message_queue = []
 
         # Events for current tick only (reset each tick)
         self._tick_events: list[Event] = []
@@ -118,6 +151,13 @@ class TickEngine:
     def _emit_event(self, event: Event) -> None:
         """Emit an event for the current tick."""
         self._tick_events.append(event)
+
+    def sync_session_state(self) -> None:
+        """Persist message queue state into the session."""
+        self.session.simulation_message_queue = [
+            message.to_dict() for message in self.message_queue
+        ]
+        self.session.simulation_message_counter = self._message_counter
 
     def _get_agent_ids(self) -> list[str]:
         """Get list of configured agent IDs from session."""
@@ -331,17 +371,23 @@ class TickEngine:
         self.session.tick_index += 1
         new_tick = self.session.tick_index
 
-        # Process message deliveries
+        # Process a single pending message in FIFO order
         messages_delivered = []
+        agents_acted: set[str] = set()
         for message in self.message_queue:
-            if not message.is_delivered and not message.is_blocked:
-                self.deliver_message(message)
-                messages_delivered.append(message)
+            if message.is_delivered or message.is_blocked:
+                continue
+            if message.from_agent in agents_acted:
+                continue
+            self.deliver_message(message)
+            messages_delivered.append(message)
+            agents_acted.add(message.from_agent)
+            break
 
         # Count messages sent this tick
         messages_sent = [
             msg for msg in self.message_queue
-            if msg.tick_created == old_tick
+            if msg.tick_created == new_tick
         ]
 
         # Count blocked messages
@@ -363,6 +409,7 @@ class TickEngine:
                     "new_tick": new_tick,
                     "messages_delivered": len(messages_delivered),
                     "messages_blocked": messages_blocked,
+                    "messages_sent": len(messages_sent),
                 },
             )
         )

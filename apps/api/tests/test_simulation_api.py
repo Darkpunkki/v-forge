@@ -369,8 +369,12 @@ class TestTickAdvance:
         response = await advance_tick(session.session_id)
 
         assert response.tick_index == 6
+        assert response.new_tick_index == 6
         assert response.tick_status == "running"
         assert "tick 6" in response.message
+        assert response.processed_event_count == len(response.processed_events)
+        assert len(response.tick_summaries) == 1
+        assert response.tick_summaries[0].new_tick_index == 6
 
     @pytest.mark.asyncio
     async def test_advance_tick_not_started(self):
@@ -415,8 +419,12 @@ class TestTicksAdvance:
         response = await advance_ticks(session.session_id, request)
 
         assert response.tick_index == 10
+        assert response.new_tick_index == 10
         assert "10 ticks" in response.message
         assert "0 -> 10" in response.message
+        assert response.processed_event_count == len(response.processed_events)
+        assert len(response.tick_summaries) == 10
+        assert response.tick_summaries[-1].new_tick_index == 10
 
     @pytest.mark.asyncio
     async def test_advance_ticks_not_started(self):

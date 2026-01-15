@@ -66,6 +66,8 @@ class Session:
         self.tick_status: str = "idle"  # "idle" | "running" | "blocked" | "completed"
         self.auto_delay_ms: Optional[int] = None
         self.tick_budget: Optional[int] = None  # Max events/messages per tick
+        self.simulation_message_queue: list[dict[str, Any]] = []
+        self.simulation_message_counter: int = 0
 
     def update_phase(self, new_phase: SessionPhase):
         """Update session phase."""
@@ -195,6 +197,8 @@ class Session:
             "tick_status": self.tick_status,
             "auto_delay_ms": self.auto_delay_ms,
             "tick_budget": self.tick_budget,
+            "simulation_message_queue": self.simulation_message_queue,
+            "simulation_message_counter": self.simulation_message_counter,
         }
 
     @classmethod
@@ -268,6 +272,8 @@ class Session:
         session.tick_status = data.get("tick_status", "idle")
         session.auto_delay_ms = data.get("auto_delay_ms")
         session.tick_budget = data.get("tick_budget")
+        session.simulation_message_queue = data.get("simulation_message_queue", [])
+        session.simulation_message_counter = data.get("simulation_message_counter", 0)
 
         return session
 
