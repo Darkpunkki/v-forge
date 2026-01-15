@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
-from apps.api.vibeforge_api.core.event_log import Event, EventType
+from apps.api.vibeforge_api.core.event_log import Event, EventLog, EventType
 from apps.api.vibeforge_api.core.session import Session
 from orchestration.models import AgentFlowGraph
 
@@ -107,6 +107,7 @@ class TickEngine:
         session: The session being simulated
         agent_graph: The agent communication graph for message validation
         message_queue: Queue of pending messages to process
+        event_log: Optional EventLog for persisting emitted events
         tick_events: Events produced during the current tick
     """
 
@@ -114,6 +115,7 @@ class TickEngine:
         self,
         session: Session,
         agent_graph: Optional[AgentFlowGraph] = None,
+        event_log: Optional[EventLog] = None,
     ):
         """Initialize the tick engine.
 
@@ -123,6 +125,7 @@ class TickEngine:
         """
         self.session = session
         self._message_counter = getattr(session, "simulation_message_counter", 0)
+        self.event_log = event_log
 
         # Load agent graph from session if not provided
         if agent_graph is not None:
@@ -151,6 +154,8 @@ class TickEngine:
     def _emit_event(self, event: Event) -> None:
         """Emit an event for the current tick."""
         self._tick_events.append(event)
+        if self.event_log is not None:
+            self.event_log.append(event)
 
     def sync_session_state(self) -> None:
         """Persist message queue state into the session."""
@@ -257,7 +262,7 @@ class TickEngine:
         return MessageValidation(
             is_allowed=False,
             status=MessageValidationStatus.BLOCKED,
-            reason=f"No edge {from_agent}→{to_agent} in agent graph",
+            reason=f"{from_agent} η' {to_agent} not allowed",
             from_agent=from_agent,
             to_agent=to_agent,
         )

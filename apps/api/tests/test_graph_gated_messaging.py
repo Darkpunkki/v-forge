@@ -2,7 +2,7 @@
 
 import pytest
 
-from apps.api.vibeforge_api.core.event_log import EventType
+from apps.api.vibeforge_api.core.event_log import EventLog, EventType
 from apps.api.vibeforge_api.core.session import session_store
 from orchestration.coordinator.tick_engine import (
     TickEngine,
@@ -89,7 +89,7 @@ class TestMessageValidation:
 
         assert not validation.is_allowed
         assert validation.status == MessageValidationStatus.BLOCKED
-        assert "no edge" in validation.reason.lower()
+        assert "not allowed" in validation.reason.lower()
 
     def test_message_blocked_reverse_edge(self):
         """Test that reverse direction is blocked (edges are directional)."""
@@ -209,6 +209,9 @@ class TestSendMessage:
         assert "blocked" in blocked_events[0].message.lower()
         assert blocked_events[0].metadata["from_agent"] == "agent-3"
         assert blocked_events[0].metadata["to_agent"] == "agent-2"
+        assert blocked_events[0].metadata["tick_index"] == session.tick_index
+        expected_reason = f"agent-3 {chr(0x03B7)}' agent-2 not allowed"
+        assert blocked_events[0].metadata["reason"] == expected_reason
 
     def test_send_message_success_emits_event(self):
         """Test that successful send emits MESSAGE_SENT event."""
@@ -302,6 +305,35 @@ class TestGraphGatedIntegration:
         events = engine.get_tick_events()
         blocked = [e for e in events if e.event_type == EventType.MESSAGE_BLOCKED_BY_GRAPH]
         assert len(blocked) == 2
+
+    def test_blocked_events_logged_and_not_delivered(self, tmp_path):
+        """Blocked messages should be logged and excluded from delivered messages."""
+        session = self._create_test_session_with_graph()
+        log = EventLog(tmp_path / "workspaces")
+        engine = TickEngine(session, event_log=log)
+
+        blocked, _ = engine.send_message("worker-1", "orchestrator", {"reverse": True})
+        assert not blocked
+        assert len(engine.message_queue) == 0
+
+        allowed, msg = engine.send_message("orchestrator", "worker-1", {"valid": True})
+        assert allowed
+        assert len(engine.message_queue) == 1
+
+        result = engine.advance_tick()
+
+        assert len(result.messages_delivered) == 1
+        assert result.messages_delivered[0].message_id == msg.message_id
+
+        blocked_events = log.get_events(
+            session.session_id,
+            event_type=EventType.MESSAGE_BLOCKED_BY_GRAPH,
+        )
+        assert len(blocked_events) == 1
+        assert blocked_events[0].metadata["from_agent"] == "worker-1"
+        assert blocked_events[0].metadata["to_agent"] == "orchestrator"
+        expected_reason = f"worker-1 {chr(0x03B7)}' orchestrator not allowed"
+        assert blocked_events[0].metadata["reason"] == expected_reason
 
     def test_orchestrator_can_broadcast_anywhere(self):
         """Test orchestrator can send to any agent in the system."""

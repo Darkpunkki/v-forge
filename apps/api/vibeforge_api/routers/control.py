@@ -853,16 +853,15 @@ async def advance_tick(session_id: str):
             detail="Cannot advance tick: simulation not started. Call /simulation/start first."
         )
 
+    workspace_manager = WorkspaceManager()
+    event_log = EventLog(workspace_manager.workspace_root)
+
     # Advance tick using TickEngine
-    engine = TickEngine(session)
+    engine = TickEngine(session, event_log=event_log)
     result = engine.advance_tick()
     engine.sync_session_state()
 
-    workspace_manager = WorkspaceManager()
-    event_log = EventLog(workspace_manager.workspace_root)
     processed_events = [event.to_dict() for event in result.events]
-    for event in result.events:
-        event_log.append(event)
 
     session_store.update_session(session)
 
@@ -916,9 +915,9 @@ async def advance_ticks(session_id: str, request: TickRequest):
 
     # Advance ticks using TickEngine
     starting_tick = session.tick_index
-    engine = TickEngine(session)
     workspace_manager = WorkspaceManager()
     event_log = EventLog(workspace_manager.workspace_root)
+    engine = TickEngine(session, event_log=event_log)
     tick_summaries = []
     processed_events: list[dict] = []
     messages_sent_total = 0
@@ -928,8 +927,6 @@ async def advance_ticks(session_id: str, request: TickRequest):
         result = engine.advance_tick()
         tick_events = [event.to_dict() for event in result.events]
         processed_events.extend(tick_events)
-        for event in result.events:
-            event_log.append(event)
 
         tick_summaries.append(
             {

@@ -284,3 +284,18 @@
   - Completed FEAT-004 tasks: wired TickEngine into tick endpoints with session state sync and event logging; added FIFO single-event-per-tick processing and per-agent activity cap; added tick summary fields to API responses and client types.
   - Tests: python -m pytest apps/api/tests/test_tick_engine.py -v; python -m pytest apps/api/tests/test_simulation_api.py -k "advance_tick or advance_ticks" -v (warnings about model_id protected namespace and pytest_asyncio loop scope).
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-15T23:44:45.407Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T23-36-00.234Z_run-f96a
+- Outputs:
+  - planning/FEC-FEAT-005-workspace-checklist.md
+  - latest/feature_execution_progress.md
+  - runs/2026-01-15T23-36-00.234Z_run-f96a/outputs/feat-005-tasks.md
+  - orchestration/coordinator/tick_engine.py
+  - apps/api/vibeforge_api/routers/control.py
+  - apps/api/tests/test_graph_gated_messaging.py
+- Notes:
+  - Completed FEAT-005 tasks: standardized blocked-message reasons, added EventLog sink support to TickEngine, updated control tick endpoints to pass EventLog, and added integration coverage for blocked event logging and delivery separation.
+  - Tests: python -m pytest apps/api/tests/test_graph_gated_messaging.py -v (warnings about model_id protected namespace and pytest_asyncio loop scope).
+- Status: SUCCESS_WITH_WARNINGS
