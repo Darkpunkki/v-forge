@@ -164,6 +164,8 @@ class TickResponse(BaseModel):
 class SimulationStateResponse(BaseModel):
     """Response containing current simulation state (VF-192)."""
 
+    initial_prompt: Optional[str]
+    first_agent_id: Optional[str]
     simulation_mode: str
     tick_index: int
     tick_status: str

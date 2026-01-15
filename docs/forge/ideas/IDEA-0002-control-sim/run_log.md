@@ -237,3 +237,32 @@
   - Added bidirectional edge support with round-trip state exposure and tick-engine validation.
   - Tests: pytest agent_flow_graph, configure_agent_flow_bidirectional_round_trip, graph_gated_messaging bidirectional, flow_validation, flow.
 - Status: SUCCESS
+
+### 2026-01-15T19:45:34.580Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T19-44-19.716Z_run-ca96
+- Outputs:
+  - docs/forge/ideas/IDEA-0002-control-sim/planning/FEC-FEAT-003-workspace-checklist.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/feature_execution_progress.md
+- Notes:
+  - Prepared FEAT-003 workspace checklist and marked feature In Progress.
+- Status: SUCCESS
+
+### 2026-01-15T20:01:02.069Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T19-44-19.716Z_run-ca96
+- Outputs:
+  - docs/forge/ideas/IDEA-0002-control-sim/planning/FEC-FEAT-003-workspace-checklist.md
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/feature_execution_progress.md
+- Notes:
+  - Completed FEAT-003 tasks and verified backend tests + UI build (build needed escalated permissions).
+- Status: SUCCESS
+
+### 2026-01-15T20:01:22.119Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-15T19-44-19.716Z_run-ca96
+- Outputs:
+  - docs/forge/ideas/IDEA-0002-control-sim/runs/2026-01-15T19-44-19.716Z_run-ca96/outputs/feat-003-summary.md
+- Notes:
+  - Wrote run summary snapshot for FEAT-003.
+- Status: SUCCESS

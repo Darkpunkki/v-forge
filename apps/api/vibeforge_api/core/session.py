@@ -59,6 +59,8 @@ class Session:
         self.main_task: Optional[str] = None  # Orchestration goal
 
         # Simulation control fields (VF-190: tick-based simulation)
+        self.initial_prompt: Optional[str] = None
+        self.first_agent_id: Optional[str] = None
         self.simulation_mode: str = "manual"  # "manual" | "auto"
         self.tick_index: int = 0
         self.tick_status: str = "idle"  # "idle" | "running" | "blocked" | "completed"
@@ -186,6 +188,8 @@ class Session:
             "agent_graph": self.agent_graph,
             "main_task": self.main_task,
             # Simulation control fields
+            "initial_prompt": self.initial_prompt,
+            "first_agent_id": self.first_agent_id,
             "simulation_mode": self.simulation_mode,
             "tick_index": self.tick_index,
             "tick_status": self.tick_status,
@@ -257,6 +261,8 @@ class Session:
         session.main_task = data.get("main_task")
 
         # Simulation control fields
+        session.initial_prompt = data.get("initial_prompt")
+        session.first_agent_id = data.get("first_agent_id")
         session.simulation_mode = data.get("simulation_mode", "manual")
         session.tick_index = data.get("tick_index", 0)
         session.tick_status = data.get("tick_status", "idle")

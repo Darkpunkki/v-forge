@@ -22,6 +22,7 @@ from vibeforge_api.models import (
     ConfigureAgentFlowRequest,
     # VF-200/VF-201: Simulation request/response models
     SimulationConfigRequest,
+    SimulationStartRequest,
     SimulationResetRequest,
     TickRequest,
 )
@@ -672,7 +673,9 @@ async def configure_simulation(session_id: str, request: SimulationConfigRequest
 
 
 @router.post("/sessions/{session_id}/simulation/start")
-async def start_simulation(session_id: str):
+async def start_simulation(
+    session_id: str, request: SimulationStartRequest | None = None
+):
     """Start simulation - validates workflow is complete (VF-200).
 
     Validates:
@@ -737,6 +740,28 @@ async def start_simulation(session_id: str):
             detail="Cannot start simulation: main task not set. Call /task first."
         )
 
+    # Start context validation
+    if request is None or not request.initial_prompt or not request.initial_prompt.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="initial_prompt is required to start simulation"
+        )
+    if not request.first_agent_id or not request.first_agent_id.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="first_agent_id is required to start simulation"
+        )
+
+    first_agent_id = request.first_agent_id.strip()
+    if first_agent_id not in agent_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=f"first_agent_id '{first_agent_id}' is not in agent roster"
+        )
+
+    session.initial_prompt = request.initial_prompt.strip()
+    session.first_agent_id = first_agent_id
+
     # Start simulation
     session.tick_status = "running"
     session.tick_index = 0  # Reset tick index on start
@@ -776,6 +801,8 @@ async def reset_simulation(session_id: str, request: SimulationResetRequest):
     # Reset tick state
     session.tick_index = 0
     session.tick_status = "idle"
+    session.initial_prompt = None
+    session.first_agent_id = None
 
     # Optionally clear workflow config
     if not request.preserve_workflow:
@@ -950,6 +977,8 @@ async def get_simulation_state(session_id: str):
         pending_work_summary = f"{len(session.agents)} agents configured"
 
     return SimulationStateResponse(
+        initial_prompt=session.initial_prompt,
+        first_agent_id=session.first_agent_id,
         simulation_mode=session.simulation_mode,
         tick_index=session.tick_index,
         tick_status=session.tick_status,

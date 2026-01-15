@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   configureSimulation,
+  type AgentConfig,
   type SimulationConfigRequest,
 } from '../../../api/controlClient'
 
@@ -9,7 +10,14 @@ type SimulationConfigProps = {
   currentMode?: string
   currentDelayMs?: number | null
   currentTickBudget?: number | null
+  agents?: AgentConfig[]
+  initialPrompt?: string
+  firstAgentId?: string
   onConfigured?: () => void
+  onStartContextChange?: (context: {
+    initialPrompt: string
+    firstAgentId: string
+  }) => void
 }
 
 export function SimulationConfig({
@@ -17,7 +25,11 @@ export function SimulationConfig({
   currentMode = 'manual',
   currentDelayMs = null,
   currentTickBudget = null,
+  agents = [],
+  initialPrompt = '',
+  firstAgentId = '',
   onConfigured,
+  onStartContextChange,
 }: SimulationConfigProps) {
   const [mode, setMode] = useState<'manual' | 'auto'>(
     currentMode === 'auto' ? 'auto' : 'manual'
@@ -31,6 +43,14 @@ export function SimulationConfig({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const handleInitialPromptChange = (value: string) => {
+    onStartContextChange?.({ initialPrompt: value, firstAgentId })
+  }
+
+  const handleFirstAgentChange = (value: string) => {
+    onStartContextChange?.({ initialPrompt, firstAgentId: value })
+  }
 
   const handleSubmit = async () => {
     setSubmitting(true)
@@ -171,6 +191,71 @@ export function SimulationConfig({
         />
         <p style={{ fontSize: '12px', opacity: 0.6, marginTop: '4px' }}>
           Maximum events to process per tick (optional)
+        </p>
+      </div>
+
+      {/* Start context inputs */}
+      <div style={{ marginBottom: '16px' }}>
+        <label
+          htmlFor="sim-initial-prompt"
+          style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}
+        >
+          Initial Prompt (required to start)
+        </label>
+        <textarea
+          id="sim-initial-prompt"
+          rows={3}
+          value={initialPrompt}
+          onChange={(e) => handleInitialPromptChange(e.target.value)}
+          placeholder="Describe the opening instruction for the simulation"
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            border: '1px solid #ccc',
+            borderRadius: '6px',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+            resize: 'vertical',
+          }}
+        />
+        <p style={{ fontSize: '12px', opacity: 0.6, marginTop: '4px' }}>
+          Sets the first instruction sent when the simulation starts.
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '16px' }}>
+        <label
+          htmlFor="sim-first-agent"
+          style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}
+        >
+          First Agent (required to start)
+        </label>
+        <select
+          id="sim-first-agent"
+          value={firstAgentId}
+          onChange={(e) => handleFirstAgentChange(e.target.value)}
+          disabled={agents.length === 0}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            border: '1px solid #ccc',
+            borderRadius: '6px',
+            fontSize: '14px',
+            boxSizing: 'border-box',
+            background: agents.length === 0 ? '#eee' : '#fff',
+          }}
+        >
+          <option value="">Select an agent</option>
+          {agents.map((agent) => (
+            <option key={agent.agent_id} value={agent.agent_id}>
+              {agent.display_name
+                ? `${agent.display_name} (${agent.agent_id})`
+                : agent.agent_id}
+            </option>
+          ))}
+        </select>
+        <p style={{ fontSize: '12px', opacity: 0.6, marginTop: '4px' }}>
+          Choose which agent should receive the first prompt.
         </p>
       </div>
 

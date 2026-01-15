@@ -11,6 +11,8 @@ import {
 
 type TickControlsProps = {
   sessionId: string
+  initialPrompt?: string
+  firstAgentId?: string
   onStateChange?: () => void
 }
 
@@ -41,13 +43,21 @@ function getStatusLabel(status: string): TickStatus {
   return 'idle'
 }
 
-export function TickControls({ sessionId, onStateChange }: TickControlsProps) {
+export function TickControls({
+  sessionId,
+  initialPrompt,
+  firstAgentId,
+  onStateChange,
+}: TickControlsProps) {
   const [state, setState] = useState<SimulationStateResponse | null>(null)
   const [ticksInput, setTicksInput] = useState('5')
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const initialPromptValue = initialPrompt?.trim() ?? ''
+  const firstAgentIdValue = firstAgentId?.trim() ?? ''
+  const canStart = initialPromptValue.length > 0 && firstAgentIdValue.length > 0
 
   // Load simulation state
   useEffect(() => {
@@ -103,8 +113,18 @@ export function TickControls({ sessionId, onStateChange }: TickControlsProps) {
     }
   }
 
-  const handleStart = () =>
-    handleAction('start', () => startSimulation(sessionId))
+  const handleStart = () => {
+    if (!canStart) {
+      setError('Set an initial prompt and first agent before starting.')
+      return
+    }
+    return handleAction('start', () =>
+      startSimulation(sessionId, {
+        initial_prompt: initialPromptValue,
+        first_agent_id: firstAgentIdValue,
+      })
+    )
+  }
 
   const handleTick = () =>
     handleAction('tick', () => advanceTick(sessionId))
@@ -266,14 +286,14 @@ export function TickControls({ sessionId, onStateChange }: TickControlsProps) {
             <button
               type="button"
               onClick={handleStart}
-              disabled={actionLoading !== null}
+              disabled={actionLoading !== null || !canStart}
               style={{
                 padding: '12px',
-                background: actionLoading ? '#9e9e9e' : '#4caf50',
+                background: actionLoading || !canStart ? '#9e9e9e' : '#4caf50',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: actionLoading ? 'not-allowed' : 'pointer',
+                cursor: actionLoading || !canStart ? 'not-allowed' : 'pointer',
                 fontWeight: 600,
                 fontSize: '14px',
               }}

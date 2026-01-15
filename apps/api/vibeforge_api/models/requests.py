@@ -121,6 +121,17 @@ class SimulationConfigRequest(BaseModel):
         return v
 
 
+class SimulationStartRequest(BaseModel):
+    """Request to start simulation (VF-200)."""
+
+    initial_prompt: Optional[str] = Field(
+        None, description="Initial prompt to start the simulation"
+    )
+    first_agent_id: Optional[str] = Field(
+        None, description="Agent ID to start the simulation"
+    )
+
+
 class TickRequest(BaseModel):
     """Request to execute one or more ticks (VF-192)."""
 

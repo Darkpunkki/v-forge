@@ -46,6 +46,8 @@ export function ControlPanelScreen() {
   const [sseError, setSseError] = useState<string | null>(null);
   const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfigResponse | null>(null);
   const [simulationState, setSimulationState] = useState<SimulationStateResponse | null>(null);
+  const [initialPrompt, setInitialPrompt] = useState<string>("");
+  const [firstAgentId, setFirstAgentId] = useState<string>("");
   const artifactKeys = ["concept", "build_spec", "task_graph"];
 
   const getArtifactCount = (session: SessionListItem, key: string) =>
@@ -80,6 +82,8 @@ export function ControlPanelScreen() {
       setSseError(null);
       setWorkflowConfig(null);
       setSimulationState(null);
+      setInitialPrompt("");
+      setFirstAgentId("");
       setLoadingSession(false);
       return;
     }
@@ -148,6 +152,18 @@ export function ControlPanelScreen() {
       eventSource.close();
     };
   }, [selectedSessionId]);
+
+  useEffect(() => {
+    if (!simulationState) {
+      return;
+    }
+    if (simulationState.initial_prompt !== null && simulationState.initial_prompt !== undefined) {
+      setInitialPrompt(simulationState.initial_prompt);
+    }
+    if (simulationState.first_agent_id !== null && simulationState.first_agent_id !== undefined) {
+      setFirstAgentId(simulationState.first_agent_id);
+    }
+  }, [simulationState?.initial_prompt, simulationState?.first_agent_id]);
 
   // Handler to refresh workflow configuration
   const refreshWorkflowConfig = async () => {
@@ -532,10 +548,19 @@ export function ControlPanelScreen() {
                         currentMode={simulationState?.simulation_mode}
                         currentDelayMs={simulationState?.auto_delay_ms}
                         currentTickBudget={simulationState?.tick_budget}
+                        agents={workflowConfig?.agents || []}
+                        initialPrompt={initialPrompt}
+                        firstAgentId={firstAgentId}
+                        onStartContextChange={(context) => {
+                          setInitialPrompt(context.initialPrompt);
+                          setFirstAgentId(context.firstAgentId);
+                        }}
                         onConfigured={refreshSimulationState}
                       />
                       <TickControls
                         sessionId={selectedSessionId}
+                        initialPrompt={initialPrompt}
+                        firstAgentId={firstAgentId}
                         onStateChange={refreshSimulationState}
                       />
                     </div>

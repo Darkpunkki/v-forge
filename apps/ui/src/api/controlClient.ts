@@ -141,6 +141,11 @@ export interface SimulationConfigRequest {
   tick_budget?: number | null
 }
 
+export interface SimulationStartRequest {
+  initial_prompt: string
+  first_agent_id: string
+}
+
 export interface SimulationConfigResponse {
   simulation_mode: string
   auto_delay_ms: number | null
@@ -162,6 +167,8 @@ export interface TickResponse {
 }
 
 export interface SimulationStateResponse {
+  initial_prompt: string | null
+  first_agent_id: string | null
   simulation_mode: string
   tick_index: number
   tick_status: string
@@ -401,12 +408,14 @@ export async function configureSimulation(
  * Start simulation (VF-204)
  */
 export async function startSimulation(
-  sessionId: string
+  sessionId: string,
+  request: SimulationStartRequest
 ): Promise<SimulationStartResponse> {
   return fetchJson<SimulationStartResponse>(
     `/control/sessions/${sessionId}/simulation/start`,
     {
       method: 'POST',
+      body: JSON.stringify(request),
     }
   )
 }

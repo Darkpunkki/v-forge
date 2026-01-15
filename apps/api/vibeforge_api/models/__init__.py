@@ -18,6 +18,7 @@ from vibeforge_api.models.requests import (
     ConfigureAgentFlowRequest,
     # VF-192/VF-200: Simulation requests
     SimulationConfigRequest,
+    SimulationStartRequest,
     TickRequest,
     SimulationResetRequest,
 )
@@ -74,6 +75,7 @@ __all__ = [
     "WorkflowConfigResponse",
     # VF-192/VF-200/VF-201: Simulation
     "SimulationConfigRequest",
+    "SimulationStartRequest",
     "TickRequest",
     "SimulationResetRequest",
     "SimulationConfigResponse",

@@ -83,6 +83,18 @@ class TestSimulationConfig:
 class TestSimulationStart:
     """Tests for VF-200: POST /control/sessions/{id}/simulation/start."""
 
+    def _build_start_request(
+        self,
+        initial_prompt: str | None = "Begin simulation",
+        first_agent_id: str | None = "agent-1",
+    ):
+        from vibeforge_api.models import SimulationStartRequest
+
+        return SimulationStartRequest(
+            initial_prompt=initial_prompt,
+            first_agent_id=first_agent_id,
+        )
+
     def _setup_complete_workflow(self, session: Session) -> None:
         """Helper to set up a complete workflow configuration."""
         from orchestration.models import AgentConfig, AgentFlowGraph, AgentFlowEdge
@@ -110,19 +122,67 @@ class TestSimulationStart:
         session = session_store.create_session()
         self._setup_complete_workflow(session)
 
-        response = await start_simulation(session.session_id)
+        response = await start_simulation(
+            session.session_id, self._build_start_request()
+        )
 
         assert response.tick_status == "running"
         assert response.tick_index == 0
         assert "started" in response.message.lower()
 
     @pytest.mark.asyncio
+    async def test_start_simulation_missing_initial_prompt(self):
+        """Test start rejected when initial prompt is missing."""
+        from vibeforge_api.routers.control import start_simulation
+
+        session = session_store.create_session()
+        self._setup_complete_workflow(session)
+
+        request = self._build_start_request(initial_prompt=None)
+        with pytest.raises(HTTPException) as exc_info:
+            await start_simulation(session.session_id, request)
+
+        assert exc_info.value.status_code == 400
+        assert "initial_prompt" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_start_simulation_missing_first_agent(self):
+        """Test start rejected when first agent is missing."""
+        from vibeforge_api.routers.control import start_simulation
+
+        session = session_store.create_session()
+        self._setup_complete_workflow(session)
+
+        request = self._build_start_request(first_agent_id=None)
+        with pytest.raises(HTTPException) as exc_info:
+            await start_simulation(session.session_id, request)
+
+        assert exc_info.value.status_code == 400
+        assert "first_agent_id" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_start_simulation_invalid_first_agent(self):
+        """Test start rejected when first agent is not in roster."""
+        from vibeforge_api.routers.control import start_simulation
+
+        session = session_store.create_session()
+        self._setup_complete_workflow(session)
+
+        request = self._build_start_request(first_agent_id="unknown-agent")
+        with pytest.raises(HTTPException) as exc_info:
+            await start_simulation(session.session_id, request)
+
+        assert exc_info.value.status_code == 400
+        assert "unknown-agent" in exc_info.value.detail
+
+    @pytest.mark.asyncio
     async def test_start_simulation_session_not_found(self):
         """Test start with non-existent session."""
         from vibeforge_api.routers.control import start_simulation
 
+        request = self._build_start_request()
         with pytest.raises(HTTPException) as exc_info:
-            await start_simulation("nonexistent")
+            await start_simulation("nonexistent", request)
 
         assert exc_info.value.status_code == 404
 
@@ -134,8 +194,9 @@ class TestSimulationStart:
         session = session_store.create_session()
         # Don't set up agents
 
+        request = self._build_start_request()
         with pytest.raises(HTTPException) as exc_info:
-            await start_simulation(session.session_id)
+            await start_simulation(session.session_id, request)
 
         assert exc_info.value.status_code == 400
         assert "no agents" in exc_info.value.detail.lower()
@@ -151,8 +212,9 @@ class TestSimulationStart:
         # Don't assign roles
         session_store.update_session(session)
 
+        request = self._build_start_request()
         with pytest.raises(HTTPException) as exc_info:
-            await start_simulation(session.session_id)
+            await start_simulation(session.session_id, request)
 
         assert exc_info.value.status_code == 400
         assert "without roles" in exc_info.value.detail.lower()
@@ -169,8 +231,9 @@ class TestSimulationStart:
         # Don't configure flow graph
         session_store.update_session(session)
 
+        request = self._build_start_request()
         with pytest.raises(HTTPException) as exc_info:
-            await start_simulation(session.session_id)
+            await start_simulation(session.session_id, request)
 
         assert exc_info.value.status_code == 400
         assert "flow graph" in exc_info.value.detail.lower()
@@ -190,8 +253,9 @@ class TestSimulationStart:
         # Don't set main task
         session_store.update_session(session)
 
+        request = self._build_start_request()
         with pytest.raises(HTTPException) as exc_info:
-            await start_simulation(session.session_id)
+            await start_simulation(session.session_id, request)
 
         assert exc_info.value.status_code == 400
         assert "main task" in exc_info.value.detail.lower()
@@ -206,8 +270,9 @@ class TestSimulationStart:
         session.tick_status = "running"
         session_store.update_session(session)
 
+        request = self._build_start_request()
         with pytest.raises(HTTPException) as exc_info:
-            await start_simulation(session.session_id)
+            await start_simulation(session.session_id, request)
 
         assert exc_info.value.status_code == 400
         assert "already running" in exc_info.value.detail.lower()
@@ -229,6 +294,8 @@ class TestSimulationReset:
         session.main_task = "Test task"
         session.tick_index = 10
         session.tick_status = "running"
+        session.initial_prompt = "Seed prompt"
+        session.first_agent_id = "agent-1"
         session_store.update_session(session)
 
         request = SimulationResetRequest(preserve_workflow=True)
@@ -242,6 +309,8 @@ class TestSimulationReset:
         updated = session_store.get_session(session.session_id)
         assert len(updated.agents) == 1
         assert updated.main_task == "Test task"
+        assert updated.initial_prompt is None
+        assert updated.first_agent_id is None
 
     @pytest.mark.asyncio
     async def test_reset_simulation_clear_workflow(self):
@@ -438,6 +507,8 @@ class TestSimulationState:
         session.tick_status = "running"
         session.auto_delay_ms = 500
         session.tick_budget = 25
+        session.initial_prompt = "Kickoff"
+        session.first_agent_id = "agent-1"
         session.agents = [AgentConfig(agent_id="agent-1").model_dump()]
         session_store.update_session(session)
 
@@ -448,6 +519,8 @@ class TestSimulationState:
         assert response.tick_status == "running"
         assert response.auto_delay_ms == 500
         assert response.tick_budget == 25
+        assert response.initial_prompt == "Kickoff"
+        assert response.first_agent_id == "agent-1"
         assert "1 agents" in response.pending_work_summary
 
     @pytest.mark.asyncio
@@ -462,6 +535,8 @@ class TestSimulationState:
         assert response.simulation_mode == "manual"  # default
         assert response.tick_index == 0
         assert response.tick_status == "idle"
+        assert response.initial_prompt is None
+        assert response.first_agent_id is None
         assert response.pending_work_summary is None
 
     @pytest.mark.asyncio
@@ -499,6 +574,7 @@ class TestSimulationIntegration:
             SetMainTaskRequest,
             ConfigureAgentFlowRequest,
             SimulationConfigRequest,
+            SimulationStartRequest,
             SimulationResetRequest,
         )
 
@@ -536,7 +612,13 @@ class TestSimulationIntegration:
         assert config_resp.simulation_mode == "manual"
 
         # Step 3: Start simulation
-        start_resp = await start_simulation(session_id)
+        start_resp = await start_simulation(
+            session_id,
+            SimulationStartRequest(
+                initial_prompt="Integration test kickoff",
+                first_agent_id="agent-1",
+            ),
+        )
         assert start_resp.tick_status == "running"
         assert start_resp.tick_index == 0
 
