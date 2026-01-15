@@ -78,3 +78,14 @@
   - Graph-violation handling is undefined.
   - Tick ordering rules remain open.
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-15T02:47:12.624Z — codebase.context
+- Idea-ID: IDEA-0002-control-sim
+- Outputs:
+  - runs/2026-01-15T02-41-17.238Z_run-0fbb/outputs/codebase_context.md
+  - latest/codebase_context.md
+- Notes:
+  - Control panel endpoints and UI already exist; simulation tick endpoints are placeholders.
+  - Tick engine provides graph-gated messaging but is not wired into API flow yet.
+  - Agent flow graph validation enforces DAG, which constrains bidirectional links.
+- Status: SUCCESS
