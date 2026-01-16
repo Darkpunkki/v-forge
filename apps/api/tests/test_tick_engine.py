@@ -122,6 +122,8 @@ class TestTickAdvancement:
         tick_events = [e for e in result.events if e.event_type == EventType.TICK_ADVANCED]
 
         assert len(tick_events) == 1
+        assert tick_events[0].metadata["old_tick_index"] == 0
+        assert tick_events[0].metadata["new_tick_index"] == 1
         assert tick_events[0].metadata["old_tick"] == 0
         assert tick_events[0].metadata["new_tick"] == 1
 

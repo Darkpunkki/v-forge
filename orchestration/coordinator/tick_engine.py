@@ -364,6 +364,7 @@ class TickEngine:
             "from_agent": from_agent,
             "to_agent": to_agent,
             "tick_index": self.session.tick_index,
+            "content": content if not isinstance(content, dict) else dict(content),
         }
         if isinstance(content, dict) and content.get("is_stub"):
             metadata["is_stub"] = True
@@ -468,6 +469,8 @@ class TickEngine:
                 metadata={
                     "old_tick": old_tick,
                     "new_tick": new_tick,
+                    "old_tick_index": old_tick,
+                    "new_tick_index": new_tick,
                     "messages_delivered": len(messages_delivered),
                     "messages_blocked": messages_blocked,
                     "messages_sent": len(messages_sent),

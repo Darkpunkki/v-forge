@@ -427,6 +427,61 @@ class TestTicksAdvance:
         assert response.tick_summaries[-1].new_tick_index == 10
 
     @pytest.mark.asyncio
+    async def test_advance_ticks_emits_per_tick_events(self):
+        """Multi-tick advance should emit per-tick events with tick metadata."""
+        from vibeforge_api.routers.control import advance_ticks
+        from vibeforge_api.models import TickRequest
+        from orchestration.coordinator.tick_engine import TickEngine
+        from orchestration.models import AgentConfig, AgentFlowGraph, AgentFlowEdge
+
+        session = session_store.create_session()
+        session.tick_status = "running"
+        session.tick_index = 0
+        session.agents = [
+            AgentConfig(agent_id="agent-1").model_dump(),
+            AgentConfig(agent_id="agent-2").model_dump(),
+        ]
+        session.agent_roles = {
+            "agent-1": "orchestrator",
+            "agent-2": "worker",
+        }
+        session.agent_graph = AgentFlowGraph(
+            edges=[AgentFlowEdge(from_agent="agent-1", to_agent="agent-2")]
+        ).model_dump()
+        session_store.update_session(session)
+
+        engine = TickEngine(session)
+        success, _ = engine.send_message(
+            "agent-1",
+            "agent-2",
+            {"text": "ping", "expect_response": True},
+        )
+        assert success
+        engine.sync_session_state()
+        session_store.update_session(session)
+
+        request = TickRequest(tick_count=3)
+        response = await advance_ticks(session.session_id, request)
+
+        tick_events = [
+            event for event in response.processed_events
+            if event.get("event_type") == "tick_advanced"
+        ]
+        assert len(tick_events) == 3
+        assert tick_events[0]["metadata"]["old_tick_index"] == 0
+        assert tick_events[0]["metadata"]["new_tick_index"] == 1
+        assert tick_events[-1]["metadata"]["new_tick_index"] == 3
+
+        message_events = [
+            event for event in response.processed_events
+            if event.get("event_type") == "message_sent"
+        ]
+        assert any(
+            event.get("metadata", {}).get("tick_index") == 1
+            for event in message_events
+        )
+
+    @pytest.mark.asyncio
     async def test_advance_ticks_not_started(self):
         """Test multi-tick advance rejected when simulation not started."""
         from vibeforge_api.routers.control import advance_ticks

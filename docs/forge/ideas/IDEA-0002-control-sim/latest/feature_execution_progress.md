@@ -1,6 +1,6 @@
 # Feature Execution Progress <IDEA_ID>
 
-- last_updated: 2026-01-16T01:57:03.2488142+02:00
+- last_updated: 2026-01-16T02:09:20.2620064+02:00
 - policy:
   - Unit of execution: 1 feature (FEAT-XXX) per run
   - Source of truth: latest/tasks.md (search by FEAT id)
@@ -37,14 +37,16 @@
 | 2026-01-16T01:44:16.3161279+02:00 | FEAT-005 | Done | 2026-01-15T23-36-00.234Z_run-f96a | planning/FEC-FEAT-005-workspace-checklist.md | tests passing |
 | 2026-01-16T01:50:49.4172321+02:00 | FEAT-006 | In Progress | 2026-01-15T23-50-29.119Z_run-f5b8 | planning/FEC-FEAT-006-workspace-checklist.md | started |
 | 2026-01-16T01:57:03.2488142+02:00 | FEAT-006 | Done | 2026-01-15T23-50-29.119Z_run-f5b8 | planning/FEC-FEAT-006-workspace-checklist.md | tests passing |
+| 2026-01-16T02:07:04.9974421+02:00 | FEAT-007 | In Progress | 2026-01-16T00-06-54.631Z_run-df83 | planning/FEC-FEAT-007-workspace-checklist.md | started |
+| 2026-01-16T02:09:20.2620064+02:00 | FEAT-007 | Done | 2026-01-16T00-06-54.631Z_run-df83 | planning/FEC-FEAT-007-workspace-checklist.md | tests passing |
 
 ---
 
 ## Current pointer
 
-- next_feature: FEAT-007
-- last_completed_feature: FEAT-006
-- last_run_id: 2026-01-15T23-50-29.119Z_run-f5b8
+- next_feature: FEAT-008
+- last_completed_feature: FEAT-007
+- last_run_id: 2026-01-16T00-06-54.631Z_run-df83
 
 ---
 

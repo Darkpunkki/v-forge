@@ -313,3 +313,19 @@
   - Completed FEAT-006 tasks: added deterministic stub response generation, queued stub replies during tick processing, and tagged stub events with is_stub metadata.
   - Tests: python -m pytest apps/api/tests/test_tick_engine.py -k "stub" -v (warnings about model_id protected namespace and pytest_asyncio loop scope).
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-16T00:09:43.929Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-16T00-06-54.631Z_run-df83
+- Outputs:
+  - planning/FEC-FEAT-007-workspace-checklist.md
+  - latest/feature_execution_progress.md
+  - runs/2026-01-16T00-06-54.631Z_run-df83/outputs/feat-007-tasks.md
+  - orchestration/coordinator/tick_engine.py
+  - apps/api/tests/test_graph_gated_messaging.py
+  - apps/api/tests/test_tick_engine.py
+  - apps/api/tests/test_simulation_api.py
+- Notes:
+  - Completed FEAT-007 tasks: added content metadata to MESSAGE_SENT, added old/new tick index fields to TICK_ADVANCED metadata, and verified multi-tick event consistency via API response events.
+  - Tests: python -m pytest apps/api/tests/test_graph_gated_messaging.py -k "message" -v; python -m pytest apps/api/tests/test_tick_engine.py -k "advance_tick_emits_event" -v; python -m pytest apps/api/tests/test_simulation_api.py -k "advance_ticks" -v (warnings about model_id protected namespace and pytest_asyncio loop scope).
+- Status: SUCCESS_WITH_WARNINGS

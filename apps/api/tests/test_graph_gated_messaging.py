@@ -228,6 +228,8 @@ class TestSendMessage:
         assert len(sent_events) == 1
         assert sent_events[0].metadata["from_agent"] == "agent-1"
         assert sent_events[0].metadata["to_agent"] == "agent-2"
+        assert sent_events[0].metadata["tick_index"] == session.tick_index
+        assert sent_events[0].metadata["content"] == {"text": "hello"}
 
     def test_send_message_bypass_validation(self):
         """Test that bypass_validation skips graph check."""
