@@ -42,6 +42,7 @@ from vibeforge_api.models.responses import (
     SimulationStateResponse,
     SimulationResetResponse,
     SimulationPauseResponse,
+    SimulationStopResponse,
 )
 
 __all__ = [
@@ -84,4 +85,5 @@ __all__ = [
     "SimulationStateResponse",
     "SimulationResetResponse",
     "SimulationPauseResponse",
+    "SimulationStopResponse",
 ]

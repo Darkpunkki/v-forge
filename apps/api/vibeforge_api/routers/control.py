@@ -710,56 +710,52 @@ async def start_simulation(
             detail="Simulation is already running"
         )
 
+    missing: list[str] = []
+
     # Workflow validation: agents initialized
     if not session.agents:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot start simulation: no agents initialized. Call /agents/init first."
-        )
+        missing.append("agents")
 
     # Workflow validation: all agents have roles
-    agent_ids = [a.get("agent_id") for a in session.agents]
+    agent_ids = [a.get("agent_id") for a in session.agents if a.get("agent_id")]
     agents_without_roles = [aid for aid in agent_ids if aid not in session.agent_roles]
-    if agents_without_roles:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot start simulation: agents without roles: {agents_without_roles}"
-        )
+    if session.agents and agents_without_roles:
+        missing.append(f"roles (missing for {', '.join(agents_without_roles)})")
 
     # Workflow validation: agent flow graph configured
     if not session.agent_graph or not session.agent_graph.get("edges"):
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot start simulation: agent flow graph not configured. Call /flows first."
-        )
+        missing.append("flow graph")
 
     # Workflow validation: main task set
     if not session.main_task:
+        missing.append("main task")
+
+    initial_prompt = ""
+    first_agent_id = ""
+    if request is not None:
+        initial_prompt = request.initial_prompt or ""
+        first_agent_id = request.first_agent_id or ""
+
+    if not initial_prompt.strip():
+        missing.append("initial_prompt")
+    if not first_agent_id.strip():
+        missing.append("first_agent_id")
+
+    if missing:
         raise HTTPException(
             status_code=400,
-            detail="Cannot start simulation: main task not set. Call /task first."
+            detail="Cannot start simulation: missing prerequisites: " + ", ".join(missing),
         )
 
-    # Start context validation
-    if request is None or not request.initial_prompt or not request.initial_prompt.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="initial_prompt is required to start simulation"
-        )
-    if not request.first_agent_id or not request.first_agent_id.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="first_agent_id is required to start simulation"
-        )
-
-    first_agent_id = request.first_agent_id.strip()
+    initial_prompt = initial_prompt.strip()
+    first_agent_id = first_agent_id.strip()
     if first_agent_id not in agent_ids:
         raise HTTPException(
             status_code=400,
             detail=f"first_agent_id '{first_agent_id}' is not in agent roster"
         )
 
-    session.initial_prompt = request.initial_prompt.strip()
+    session.initial_prompt = initial_prompt
     session.first_agent_id = first_agent_id
 
     # Start simulation
@@ -782,6 +778,7 @@ async def reset_simulation(session_id: str, request: SimulationResetRequest):
     Optionally clears workflow config based on preserve_workflow flag.
     """
     from vibeforge_api.core.session import session_store
+    from vibeforge_api.core.workspace import WorkspaceManager
     from vibeforge_api.models import SimulationResetRequest, SimulationResetResponse
     from vibeforge_api.models.types import SessionPhase
 
@@ -805,6 +802,14 @@ async def reset_simulation(session_id: str, request: SimulationResetRequest):
     session.first_agent_id = None
     session.simulation_message_queue = []
     session.simulation_message_counter = 0
+
+    workspace_manager = WorkspaceManager()
+    event_log_path = workspace_manager.workspace_root / session_id / "events.jsonl"
+    if event_log_path.exists():
+        try:
+            event_log_path.unlink()
+        except PermissionError:
+            event_log_path.write_text("")
 
     # Optionally clear workflow config
     if not request.preserve_workflow:
@@ -831,7 +836,7 @@ async def reset_simulation(session_id: str, request: SimulationResetRequest):
 async def advance_tick(session_id: str):
     """Advance simulation by exactly one tick (VF-201).
 
-    Validates simulation is started (tick_status != "idle").
+    Validates simulation is running (tick_status == "running").
     Increments tick_index by 1.
     Returns tick engine event summary for the tick.
     """
@@ -847,10 +852,10 @@ async def advance_tick(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Must be started to tick
-    if session.tick_status == "idle":
+    if session.tick_status != "running":
         raise HTTPException(
             status_code=400,
-            detail="Cannot advance tick: simulation not started. Call /simulation/start first."
+            detail=f"Cannot advance tick: simulation not running (status: {session.tick_status})."
         )
 
     workspace_manager = WorkspaceManager()
@@ -891,7 +896,7 @@ async def advance_tick(session_id: str):
 async def advance_ticks(session_id: str, request: TickRequest):
     """Advance simulation by N ticks (VF-201).
 
-    Validates simulation is started.
+    Validates simulation is running.
     Advances tick_index by N (with safety limit of 100).
     Returns per-tick summaries and aggregated events.
     """
@@ -907,10 +912,10 @@ async def advance_ticks(session_id: str, request: TickRequest):
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Must be started to tick
-    if session.tick_status == "idle":
+    if session.tick_status != "running":
         raise HTTPException(
             status_code=400,
-            detail="Cannot advance ticks: simulation not started. Call /simulation/start first."
+            detail=f"Cannot advance ticks: simulation not running (status: {session.tick_status})."
         )
 
     # Advance ticks using TickEngine
@@ -973,10 +978,20 @@ async def pause_simulation(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     # Must be running to pause
+    if session.tick_status == "paused":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot pause: simulation already paused"
+        )
+    if session.tick_status == "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot pause: simulation already completed"
+        )
     if session.tick_status != "running":
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot pause: simulation is not running (status: {session.tick_status})"
+            detail="Cannot pause: simulation not running"
         )
 
     # Pause simulation
@@ -987,6 +1002,44 @@ async def pause_simulation(session_id: str):
         tick_index=session.tick_index,
         tick_status=session.tick_status,
         message="Simulation paused"
+    )
+
+
+@router.post("/sessions/{session_id}/simulation/stop")
+async def stop_simulation(session_id: str):
+    """Stop simulation (VF-201).
+
+    Transitions tick_status to "completed" to prevent further ticks.
+    """
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.models import SimulationStopResponse
+    from vibeforge_api.models.types import SessionPhase
+
+    # Get session
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Phase guardrail
+    terminal_phases = {SessionPhase.COMPLETE, SessionPhase.FAILED}
+    if session.phase in terminal_phases:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot stop simulation in {session.phase.value} phase"
+        )
+
+    if session.tick_status == "idle":
+        raise HTTPException(status_code=400, detail="Cannot stop: simulation not running")
+    if session.tick_status == "completed":
+        raise HTTPException(status_code=400, detail="Cannot stop: simulation already completed")
+
+    session.tick_status = "completed"
+    session_store.update_session(session)
+
+    return SimulationStopResponse(
+        tick_index=session.tick_index,
+        tick_status=session.tick_status,
+        message="Simulation stopped"
     )
 
 

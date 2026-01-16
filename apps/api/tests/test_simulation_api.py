@@ -1,5 +1,7 @@
 """Tests for simulation API endpoints (VF-200, VF-201)."""
 
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import HTTPException
 
@@ -161,6 +163,21 @@ class TestSimulationStart:
         assert "first_agent_id" in exc_info.value.detail
 
     @pytest.mark.asyncio
+    async def test_start_simulation_missing_prompt_and_first_agent(self):
+        """Test start rejected when prompt and first agent are both missing."""
+        from vibeforge_api.routers.control import start_simulation
+
+        session = session_store.create_session()
+        self._setup_complete_workflow(session)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await start_simulation(session.session_id, None)
+
+        assert exc_info.value.status_code == 400
+        assert "initial_prompt" in exc_info.value.detail
+        assert "first_agent_id" in exc_info.value.detail
+
+    @pytest.mark.asyncio
     async def test_start_simulation_invalid_first_agent(self):
         """Test start rejected when first agent is not in roster."""
         from vibeforge_api.routers.control import start_simulation
@@ -199,7 +216,7 @@ class TestSimulationStart:
             await start_simulation(session.session_id, request)
 
         assert exc_info.value.status_code == 400
-        assert "no agents" in exc_info.value.detail.lower()
+        assert "agents" in exc_info.value.detail.lower()
 
     @pytest.mark.asyncio
     async def test_start_simulation_agents_without_roles(self):
@@ -217,7 +234,9 @@ class TestSimulationStart:
             await start_simulation(session.session_id, request)
 
         assert exc_info.value.status_code == 400
-        assert "without roles" in exc_info.value.detail.lower()
+        detail = exc_info.value.detail.lower()
+        assert "roles" in detail
+        assert "agent-1" in detail
 
     @pytest.mark.asyncio
     async def test_start_simulation_no_flow_graph(self):
@@ -296,6 +315,9 @@ class TestSimulationReset:
         session.tick_status = "running"
         session.initial_prompt = "Seed prompt"
         session.first_agent_id = "agent-1"
+        session.simulation_mode = "auto"
+        session.auto_delay_ms = 250
+        session.tick_budget = 42
         session_store.update_session(session)
 
         request = SimulationResetRequest(preserve_workflow=True)
@@ -311,6 +333,9 @@ class TestSimulationReset:
         assert updated.main_task == "Test task"
         assert updated.initial_prompt is None
         assert updated.first_agent_id is None
+        assert updated.simulation_mode == "auto"
+        assert updated.auto_delay_ms == 250
+        assert updated.tick_budget == 42
 
     @pytest.mark.asyncio
     async def test_reset_simulation_clear_workflow(self):
@@ -338,6 +363,34 @@ class TestSimulationReset:
         updated = session_store.get_session(session.session_id)
         assert len(updated.agents) == 0
         assert updated.main_task is None
+
+    @pytest.mark.asyncio
+    async def test_reset_simulation_clears_event_log(self):
+        """Test reset clears the session event log."""
+        from vibeforge_api.core.event_log import Event, EventLog, EventType
+        from vibeforge_api.core.workspace import WorkspaceManager
+        from vibeforge_api.models import SimulationResetRequest
+        from vibeforge_api.routers.control import reset_simulation
+
+        session = session_store.create_session()
+        workspace_manager = WorkspaceManager()
+        log = EventLog(workspace_manager.workspace_root)
+        log.append(
+            Event(
+                event_type=EventType.INFO,
+                timestamp=datetime.now(timezone.utc),
+                session_id=session.session_id,
+                message="seed",
+            )
+        )
+        event_log_path = workspace_manager.workspace_root / session.session_id / "events.jsonl"
+        assert event_log_path.exists()
+
+        request = SimulationResetRequest(preserve_workflow=True)
+        await reset_simulation(session.session_id, request)
+
+        if event_log_path.exists():
+            assert event_log_path.read_text().strip() == ""
 
     @pytest.mark.asyncio
     async def test_reset_simulation_session_not_found(self):
@@ -378,7 +431,7 @@ class TestTickAdvance:
 
     @pytest.mark.asyncio
     async def test_advance_tick_not_started(self):
-        """Test tick advance rejected when simulation not started."""
+        """Test tick advance rejected when simulation not running."""
         from vibeforge_api.routers.control import advance_tick
 
         session = session_store.create_session()
@@ -388,7 +441,7 @@ class TestTickAdvance:
             await advance_tick(session.session_id)
 
         assert exc_info.value.status_code == 400
-        assert "not started" in exc_info.value.detail.lower()
+        assert "not running" in exc_info.value.detail.lower()
 
     @pytest.mark.asyncio
     async def test_advance_tick_session_not_found(self):
@@ -483,7 +536,7 @@ class TestTicksAdvance:
 
     @pytest.mark.asyncio
     async def test_advance_ticks_not_started(self):
-        """Test multi-tick advance rejected when simulation not started."""
+        """Test multi-tick advance rejected when simulation not running."""
         from vibeforge_api.routers.control import advance_ticks
         from vibeforge_api.models import TickRequest
 
@@ -494,7 +547,7 @@ class TestTicksAdvance:
             await advance_ticks(session.session_id, request)
 
         assert exc_info.value.status_code == 400
-        assert "not started" in exc_info.value.detail.lower()
+        assert "not running" in exc_info.value.detail.lower()
 
     @pytest.mark.asyncio
     async def test_advance_ticks_session_not_found(self):
@@ -545,6 +598,36 @@ class TestSimulationPause:
         assert "not running" in exc_info.value.detail.lower()
 
     @pytest.mark.asyncio
+    async def test_pause_simulation_already_paused(self):
+        """Test pause rejected when simulation already paused."""
+        from vibeforge_api.routers.control import pause_simulation
+
+        session = session_store.create_session()
+        session.tick_status = "paused"
+        session_store.update_session(session)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await pause_simulation(session.session_id)
+
+        assert exc_info.value.status_code == 400
+        assert "already paused" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_pause_simulation_completed(self):
+        """Test pause rejected when simulation already completed."""
+        from vibeforge_api.routers.control import pause_simulation
+
+        session = session_store.create_session()
+        session.tick_status = "completed"
+        session_store.update_session(session)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await pause_simulation(session.session_id)
+
+        assert exc_info.value.status_code == 400
+        assert "already completed" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
     async def test_pause_simulation_session_not_found(self):
         """Test pause with non-existent session."""
         from vibeforge_api.routers.control import pause_simulation
@@ -553,6 +636,41 @@ class TestSimulationPause:
             await pause_simulation("nonexistent")
 
         assert exc_info.value.status_code == 404
+
+
+class TestSimulationStop:
+    """Tests for VF-201: POST /control/sessions/{id}/simulation/stop."""
+
+    @pytest.mark.asyncio
+    async def test_stop_simulation_success(self):
+        """Test successful simulation stop."""
+        from vibeforge_api.routers.control import stop_simulation
+
+        session = session_store.create_session()
+        session.tick_status = "running"
+        session.tick_index = 5
+        session_store.update_session(session)
+
+        response = await stop_simulation(session.session_id)
+
+        assert response.tick_status == "completed"
+        assert response.tick_index == 5
+        assert "stopped" in response.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_stop_simulation_not_running(self):
+        """Test stop rejected when simulation not running."""
+        from vibeforge_api.routers.control import stop_simulation
+
+        session = session_store.create_session()
+        session.tick_status = "idle"
+        session_store.update_session(session)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await stop_simulation(session.session_id)
+
+        assert exc_info.value.status_code == 400
+        assert "not running" in exc_info.value.detail.lower()
 
 
 class TestSimulationState:
@@ -714,6 +832,53 @@ class TestSimulationIntegration:
         final_state = await get_simulation_state(session_id)
         assert final_state.tick_index == 0
         assert "2 agents" in final_state.pending_work_summary
+
+    @pytest.mark.asyncio
+    async def test_stop_blocks_ticks_and_allows_restart(self):
+        """Stop should block ticks and allow a new start with fresh prompt."""
+        from vibeforge_api.routers.control import advance_tick, start_simulation, stop_simulation
+        from vibeforge_api.models import SimulationStartRequest
+        from orchestration.models import AgentConfig, AgentFlowGraph, AgentFlowEdge
+
+        session = session_store.create_session()
+        session.agents = [
+            AgentConfig(agent_id="agent-1").model_dump(),
+            AgentConfig(agent_id="agent-2").model_dump(),
+        ]
+        session.agent_roles = {"agent-1": "worker", "agent-2": "reviewer"}
+        session.agent_graph = AgentFlowGraph(
+            edges=[AgentFlowEdge(from_agent="agent-1", to_agent="agent-2")]
+        ).model_dump()
+        session.main_task = "Test task"
+        session_store.update_session(session)
+        session_id = session.session_id
+
+        start_resp = await start_simulation(
+            session_id,
+            SimulationStartRequest(
+                initial_prompt="First run",
+                first_agent_id="agent-1",
+            ),
+        )
+        assert start_resp.tick_status == "running"
+
+        stop_resp = await stop_simulation(session_id)
+        assert stop_resp.tick_status == "completed"
+
+        with pytest.raises(HTTPException) as exc_info:
+            await advance_tick(session_id)
+        assert exc_info.value.status_code == 400
+        assert "not running" in exc_info.value.detail.lower()
+
+        restart_resp = await start_simulation(
+            session_id,
+            SimulationStartRequest(
+                initial_prompt="Second run",
+                first_agent_id="agent-2",
+            ),
+        )
+        assert restart_resp.tick_status == "running"
+        assert restart_resp.tick_index == 0
 
 
 class TestFilteredEventsEndpoint:

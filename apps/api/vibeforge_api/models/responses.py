@@ -208,3 +208,11 @@ class SimulationPauseResponse(BaseModel):
     tick_index: int
     tick_status: str
     message: str
+
+
+class SimulationStopResponse(BaseModel):
+    """Response from stopping simulation (VF-201)."""
+
+    tick_index: int
+    tick_status: str
+    message: str
