@@ -324,6 +324,12 @@ export function SimulationScreen() {
                   currentMode={simulationState?.simulation_mode}
                   currentDelayMs={simulationState?.auto_delay_ms}
                   currentTickBudget={simulationState?.tick_budget}
+                  currentUseRealLlm={simulationState?.use_real_llm}
+                  currentDefaultModel={simulationState?.default_model}
+                  currentDefaultTemperature={simulationState?.default_temperature}
+                  currentMaxCostUsd={simulationState?.max_cost_usd}
+                  currentTickRateLimitMs={simulationState?.tick_rate_limit_ms}
+                  tickStatus={simulationState?.tick_status}
                   agents={agents}
                   initialPrompt={initialPrompt}
                   firstAgentId={firstAgentId}

@@ -69,6 +69,7 @@ class TestTickEngineBasic:
         assert len(engine.agent_graph.edges) == 0
 
 
+@pytest.mark.asyncio
 class TestTickAdvancement:
     """Tests for VF-202: tick advancement."""
 
@@ -91,24 +92,24 @@ class TestTickAdvancement:
         session_store.update_session(session)
         return session
 
-    def test_advance_tick_increments_index(self):
+    async def test_advance_tick_increments_index(self):
         """Test that advance_tick increments tick_index."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
 
         assert session.tick_index == 0
 
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
 
         assert session.tick_index == 1
         assert result.tick_index == 1
 
-    def test_advance_tick_returns_tick_result(self):
+    async def test_advance_tick_returns_tick_result(self):
         """Test that advance_tick returns proper TickResult."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
 
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
 
         assert isinstance(result, TickResult)
         assert result.tick_index == 1
@@ -116,12 +117,12 @@ class TestTickAdvancement:
         assert result.messages_in_tick == 0
         assert result.messages_blocked == 0
 
-    def test_advance_tick_emits_event(self):
+    async def test_advance_tick_emits_event(self):
         """Test that advance_tick emits TICK_ADVANCED event."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
 
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
         tick_events = [e for e in result.events if e.event_type == EventType.TICK_ADVANCED]
 
         assert len(tick_events) == 1
@@ -130,14 +131,14 @@ class TestTickAdvancement:
         assert tick_events[0].metadata["old_tick"] == 0
         assert tick_events[0].metadata["new_tick"] == 1
 
-    def test_multiple_tick_advancement(self):
+    async def test_multiple_tick_advancement(self):
         """Test advancing multiple ticks sequentially."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
 
-        result1 = engine.advance_tick()
-        result2 = engine.advance_tick()
-        result3 = engine.advance_tick()
+        result1 = await engine.advance_tick()
+        result2 = await engine.advance_tick()
+        result3 = await engine.advance_tick()
 
         assert result1.tick_index == 1
         assert result2.tick_index == 2
@@ -145,6 +146,7 @@ class TestTickAdvancement:
         assert session.tick_index == 3
 
 
+@pytest.mark.asyncio
 class TestTickState:
     """Tests for tick state retrieval."""
 
@@ -166,7 +168,7 @@ class TestTickState:
         session_store.update_session(session)
         return session
 
-    def test_get_tick_state(self):
+    async def test_get_tick_state(self):
         """Test get_tick_state returns correct state."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
@@ -179,7 +181,7 @@ class TestTickState:
         assert state["delivered_messages"] == 0
         assert state["total_messages"] == 0
 
-    def test_get_tick_state_with_messages(self):
+    async def test_get_tick_state_with_messages(self):
         """Test get_tick_state reflects message counts."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
@@ -192,19 +194,20 @@ class TestTickState:
         assert state["pending_messages"] == 1
         assert state["total_messages"] == 1
 
-    def test_get_tick_events(self):
+    async def test_get_tick_events(self):
         """Test get_tick_events returns events from current tick."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
 
         # Advance tick to generate events
-        engine.advance_tick()
+        await engine.advance_tick()
         events = engine.get_tick_events()
 
         assert len(events) >= 1
         assert any(e.event_type == EventType.TICK_ADVANCED for e in events)
 
 
+@pytest.mark.asyncio
 class TestMessageDelivery:
     """Tests for message delivery during ticks."""
 
@@ -226,7 +229,7 @@ class TestMessageDelivery:
         session_store.update_session(session)
         return session
 
-    def test_messages_delivered_on_tick(self):
+    async def test_messages_delivered_on_tick(self):
         """Test that pending messages are delivered on tick advance."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
@@ -237,13 +240,13 @@ class TestMessageDelivery:
         assert not msg.is_delivered
 
         # Advance tick
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
 
         assert len(result.messages_delivered) == 1
         assert msg.is_delivered
         assert msg.tick_delivered == 1
 
-    def test_get_pending_messages_for_agent(self):
+    async def test_get_pending_messages_for_agent(self):
         """Test getting pending messages for a specific agent."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
@@ -257,14 +260,14 @@ class TestMessageDelivery:
         assert len(pending_for_1) == 0  # No messages for agent-1
         assert len(pending_for_2) == 1  # One message for agent-2
 
-    def test_clear_delivered_messages(self):
+    async def test_clear_delivered_messages(self):
         """Test clearing delivered messages from queue."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
 
         # Send and deliver a message
         engine.send_message("agent-1", "agent-2", {"text": "hello"})
-        engine.advance_tick()
+        await engine.advance_tick()
 
         assert len(engine.message_queue) == 1
         assert engine.message_queue[0].is_delivered
@@ -276,6 +279,7 @@ class TestMessageDelivery:
         assert len(engine.message_queue) == 0
 
 
+@pytest.mark.asyncio
 class TestTickQueueProcessing:
     """Tests for FIFO processing and per-agent activity cap."""
 
@@ -296,7 +300,7 @@ class TestTickQueueProcessing:
         session_store.update_session(session)
         return session
 
-    def test_fifo_single_event_per_tick(self):
+    async def test_fifo_single_event_per_tick(self):
         """Only the first queued message is delivered per tick."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
@@ -305,14 +309,14 @@ class TestTickQueueProcessing:
         engine.send_message("agent-1", "agent-2", {"text": "second"})
         engine.send_message("agent-1", "agent-2", {"text": "third"})
 
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
 
         assert len(result.messages_delivered) == 1
         assert result.messages_delivered[0].content["text"] == "first"
         pending = [m for m in engine.message_queue if not m.is_delivered]
         assert [m.content["text"] for m in pending] == ["second", "third"]
 
-    def test_activity_cap_defers_same_agent_until_next_tick(self):
+    async def test_activity_cap_defers_same_agent_until_next_tick(self):
         """Messages from the same agent are deferred to the next tick."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
@@ -320,15 +324,16 @@ class TestTickQueueProcessing:
         engine.send_message("agent-1", "agent-2", {"text": "first"})
         engine.send_message("agent-1", "agent-2", {"text": "second"})
 
-        result1 = engine.advance_tick()
+        result1 = await engine.advance_tick()
         assert len(result1.messages_delivered) == 1
         assert result1.messages_delivered[0].content["text"] == "first"
 
-        result2 = engine.advance_tick()
+        result2 = await engine.advance_tick()
         assert len(result2.messages_delivered) == 1
         assert result2.messages_delivered[0].content["text"] == "second"
 
 
+@pytest.mark.asyncio
 class TestStubbedResponses:
     """Tests for deterministic stubbed responses."""
 
@@ -349,7 +354,7 @@ class TestStubbedResponses:
         session_store.update_session(session)
         return session
 
-    def test_generate_stub_response_deterministic(self):
+    async def test_generate_stub_response_deterministic(self):
         """Stub responses should be deterministic and labeled."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
@@ -365,7 +370,7 @@ class TestStubbedResponses:
         assert "tick 1" in stub1["text"]
         assert stub1["stub_hash"] != stub3["stub_hash"]
 
-    def test_stub_response_queued_on_delivery(self):
+    async def test_stub_response_queued_on_delivery(self):
         """Delivered messages expecting a response queue a stub reply."""
         session = self._create_test_session_with_agents()
         engine = TickEngine(session)
@@ -377,7 +382,7 @@ class TestStubbedResponses:
         )
         assert success
 
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
 
         assert len(result.messages_delivered) == 1
         stub_messages = [
@@ -399,6 +404,68 @@ class TestStubbedResponses:
         assert len(stub_events) == 1
 
 
+@pytest.mark.asyncio
+class TestConversationHistory:
+    """Tests for per-agent conversation history tracking."""
+
+    def _create_test_session_with_agents(self):
+        session = session_store.create_session()
+        session.agents = [
+            AgentConfig(agent_id="agent-1").model_dump(),
+            AgentConfig(agent_id="agent-2").model_dump(),
+        ]
+        session.agent_roles = {
+            "agent-1": "orchestrator",
+            "agent-2": "worker",
+        }
+        session.agent_graph = AgentFlowGraph(
+            edges=[AgentFlowEdge(from_agent="agent-1", to_agent="agent-2")]
+        ).model_dump()
+        session.tick_status = "running"
+        session_store.update_session(session)
+        return session
+
+    async def test_conversation_history_persists(self):
+        session = self._create_test_session_with_agents()
+        engine = TickEngine(session)
+
+        success, _ = engine.send_message(
+            "agent-1",
+            "agent-2",
+            {"text": "ping", "expect_response": True},
+        )
+        assert success
+
+        await engine.advance_tick()
+        engine.sync_session_state()
+
+        history = session.simulation_agent_conversations["agent-2"]
+        assert history[0]["role"] == "user"
+        assert history[0]["content"]["text"] == "ping"
+        assert history[1]["role"] == "assistant"
+        assert history[1]["content"]["is_stub"] is True
+
+    async def test_conversation_history_respects_max_depth(self):
+        session = self._create_test_session_with_agents()
+        session.max_history_depth = 1
+        engine = TickEngine(session)
+
+        success, _ = engine.send_message(
+            "agent-1",
+            "agent-2",
+            {"text": "ping", "expect_response": True},
+        )
+        assert success
+
+        await engine.advance_tick()
+        engine.sync_session_state()
+
+        history = session.simulation_agent_conversations["agent-2"]
+        assert len(history) == 1
+        assert history[0]["role"] == "assistant"
+
+
+@pytest.mark.asyncio
 class TestEventLogPersistence:
     """Tests for event log persistence and resilience."""
 
@@ -420,14 +487,14 @@ class TestEventLogPersistence:
         session_store.update_session(session)
         return session
 
-    def test_tick_events_persisted_to_event_log(self, tmp_path):
+    async def test_tick_events_persisted_to_event_log(self, tmp_path):
         """Tick events should be persisted with timestamps and metadata."""
         session = self._create_test_session_with_agents()
         workspace_root = tmp_path / "workspaces"
         event_log = EventLog(workspace_root)
         engine = TickEngine(session, event_log=event_log)
 
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
 
         fresh_log = EventLog(workspace_root)
         events = fresh_log.get_events(session.session_id)
@@ -440,7 +507,7 @@ class TestEventLogPersistence:
         assert "T" in tick_event.timestamp.isoformat()
         assert tick_event.metadata["new_tick_index"] == result.tick_index
 
-    def test_message_events_persisted_to_event_log(self, tmp_path):
+    async def test_message_events_persisted_to_event_log(self, tmp_path):
         """Message events should persist sender/receiver metadata."""
         session = self._create_test_session_with_agents()
         workspace_root = tmp_path / "workspaces"
@@ -474,7 +541,7 @@ class TestEventLogPersistence:
         assert blocked_meta["tick_index"] == 0
         assert "reason" in blocked_meta
 
-    def test_event_log_failure_does_not_block_tick(self, caplog):
+    async def test_event_log_failure_does_not_block_tick(self, caplog):
         """Event log failures should not stop tick processing."""
         session = self._create_test_session_with_agents()
 
@@ -484,7 +551,7 @@ class TestEventLogPersistence:
 
         engine = TickEngine(session, event_log=FailingEventLog())
         with caplog.at_level(logging.WARNING):
-            result = engine.advance_tick()
+            result = await engine.advance_tick()
 
         assert result.tick_index == 1
         assert session.tick_index == 1

@@ -111,6 +111,16 @@ class SimulationConfigRequest(BaseModel):
     simulation_mode: str = Field(..., description="Simulation mode: 'manual' or 'auto'")
     auto_delay_ms: Optional[int] = Field(None, ge=0, description="Auto-run delay (ms)")
     tick_budget: Optional[int] = Field(None, ge=1, description="Max events per tick")
+    use_real_llm: Optional[bool] = Field(None, description="Enable real LLM calls")
+    llm_provider: Optional[str] = Field(None, description="LLM provider identifier")
+    default_model: Optional[str] = Field(None, description="Default LLM model name")
+    default_temperature: Optional[float] = Field(
+        None, ge=0, le=1, description="Default LLM temperature"
+    )
+    max_cost_usd: Optional[float] = Field(None, ge=0, description="Maximum allowed cost (USD)")
+    tick_rate_limit_ms: Optional[int] = Field(
+        None, ge=0, description="Minimum delay between ticks (ms)"
+    )
 
     @field_validator("simulation_mode")
     @classmethod

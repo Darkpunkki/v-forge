@@ -661,6 +661,18 @@ async def configure_simulation(session_id: str, request: SimulationConfigRequest
     session.auto_delay_ms = request.auto_delay_ms
     if request.tick_budget is not None:
         session.tick_budget = request.tick_budget
+    if request.use_real_llm is not None:
+        session.use_real_llm = request.use_real_llm
+    if request.llm_provider is not None:
+        session.llm_provider = request.llm_provider
+    if request.default_model is not None:
+        session.default_model = request.default_model
+    if request.default_temperature is not None:
+        session.default_temperature = request.default_temperature
+    if request.max_cost_usd is not None:
+        session.max_cost_usd = request.max_cost_usd
+    if request.tick_rate_limit_ms is not None:
+        session.tick_rate_limit_ms = request.tick_rate_limit_ms
 
     session_store.update_session(session)
 
@@ -832,6 +844,31 @@ async def reset_simulation(session_id: str, request: SimulationResetRequest):
 # VF-201: Tick control endpoints
 
 
+def _enforce_tick_guardrails(session) -> None:
+    if session.simulation_cost_usd >= session.max_cost_usd:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Cost budget exceeded: ${session.simulation_cost_usd:.2f} / "
+                f"${session.max_cost_usd:.2f}"
+            ),
+        )
+
+    if not session.use_real_llm:
+        return
+
+    if session.last_tick_timestamp and session.tick_rate_limit_ms is not None:
+        elapsed_ms = (
+            datetime.now(timezone.utc) - session.last_tick_timestamp
+        ).total_seconds() * 1000
+        if elapsed_ms < session.tick_rate_limit_ms:
+            remaining_ms = int(session.tick_rate_limit_ms - elapsed_ms)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Rate limit: wait {remaining_ms}ms",
+            )
+
+
 @router.post("/sessions/{session_id}/simulation/tick")
 async def advance_tick(session_id: str):
     """Advance simulation by exactly one tick (VF-201).
@@ -858,6 +895,8 @@ async def advance_tick(session_id: str):
             detail=f"Cannot advance tick: simulation not running (status: {session.tick_status})."
         )
 
+    _enforce_tick_guardrails(session)
+
     workspace_manager = WorkspaceManager()
     event_log = EventLog(workspace_manager.workspace_root)
 
@@ -883,9 +922,10 @@ async def advance_tick(session_id: str):
         )
 
     # Advance tick using TickEngine
-    result = engine.advance_tick()
+    result = await engine.advance_tick()
     engine.sync_session_state()
 
+    session.last_tick_timestamp = datetime.now(timezone.utc)
     processed_events = [event.to_dict() for event in result.events]
 
     session_store.update_session(session)
@@ -938,6 +978,8 @@ async def advance_ticks(session_id: str, request: TickRequest):
             detail=f"Cannot advance ticks: simulation not running (status: {session.tick_status})."
         )
 
+    _enforce_tick_guardrails(session)
+
     # Advance ticks using TickEngine
     starting_tick = session.tick_index
     workspace_manager = WorkspaceManager()
@@ -968,7 +1010,7 @@ async def advance_ticks(session_id: str, request: TickRequest):
     messages_blocked_total = 0
 
     for _ in range(request.tick_count):
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
         tick_events = [event.to_dict() for event in result.events]
         processed_events.extend(tick_events)
 
@@ -985,6 +1027,7 @@ async def advance_ticks(session_id: str, request: TickRequest):
         messages_blocked_total += result.messages_blocked
 
     engine.sync_session_state()
+    session.last_tick_timestamp = datetime.now(timezone.utc)
     session_store.update_session(session)
 
     return TickResponse(
@@ -1128,6 +1171,15 @@ async def get_simulation_state(session_id: str):
         auto_delay_ms=session.auto_delay_ms,
         tick_budget=session.tick_budget,
         pending_work_summary=pending_work_summary,
+        use_real_llm=session.use_real_llm,
+        llm_provider=session.llm_provider,
+        default_model=session.default_model,
+        default_temperature=session.default_temperature,
+        simulation_cost_usd=session.simulation_cost_usd,
+        max_history_depth=session.max_history_depth,
+        max_cost_usd=session.max_cost_usd,
+        tick_rate_limit_ms=session.tick_rate_limit_ms,
+        last_tick_timestamp=session.last_tick_timestamp,
         agent_graph=session.agent_graph,
         agents=agents,
         available_roles=available_roles,

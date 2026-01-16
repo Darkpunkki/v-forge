@@ -140,6 +140,12 @@ export interface SimulationConfigRequest {
   simulation_mode: 'manual' | 'auto'
   auto_delay_ms?: number | null
   tick_budget?: number | null
+  use_real_llm?: boolean
+  llm_provider?: string | null
+  default_model?: string | null
+  default_temperature?: number | null
+  max_cost_usd?: number | null
+  tick_rate_limit_ms?: number | null
 }
 
 export interface SimulationStartRequest {
@@ -190,6 +196,15 @@ export interface SimulationStateResponse {
   auto_delay_ms: number | null
   tick_budget: number | null
   pending_work_summary: string | null
+  use_real_llm: boolean
+  llm_provider: string
+  default_model: string
+  default_temperature: number
+  simulation_cost_usd: number
+  max_history_depth: number
+  max_cost_usd: number
+  tick_rate_limit_ms: number
+  last_tick_timestamp: string | null
   agent_graph: { edges: AgentFlowEdge[] } | null
   agents: AgentConfig[]
   available_roles: string[]

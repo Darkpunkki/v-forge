@@ -27,6 +27,7 @@ class EventType(str, Enum):
     AGENT_COMPLETED = "agent_completed"
     LLM_REQUEST_SENT = "llm_request_sent"
     LLM_RESPONSE_RECEIVED = "llm_response_received"
+    LLM_FAILURE = "llm_failure"
     VERIFICATION_STARTED = "verification_started"
     VERIFICATION_COMPLETED = "verification_completed"
     MODEL_ROUTED = "model_routed"
@@ -48,6 +49,7 @@ class EventType(str, Enum):
     TICK_COMPLETED = "tick_completed"
     TICK_BLOCKED = "tick_blocked"
     AGENT_MESSAGE_SENT = "agent_message_sent"
+    COST_TRACKING = "cost_tracking"
 
 
 @dataclass

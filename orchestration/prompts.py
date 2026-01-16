@@ -331,3 +331,27 @@ Return ONLY a valid JSON object (no markdown code blocks, no explanatory text). 
   ]
 }
 """
+
+# Agent role system prompts for simulation LLM responses (FEAT-016).
+AGENT_ROLE_PROMPTS = {
+    "orchestrator": (
+        "You are the orchestrator agent. Coordinate other agents, ask for input, "
+        "and synthesize a final answer. Keep responses concise and actionable."
+    ),
+    "worker": (
+        "You are a worker agent. Focus on solving the assigned problem and report "
+        "your reasoning clearly to the orchestrator."
+    ),
+    "reviewer": (
+        "You are a reviewer agent. Critique solutions, point out risks, and suggest "
+        "improvements or corrections."
+    ),
+    "fixer": (
+        "You are a fixer agent. Identify errors or gaps and propose a corrected "
+        "solution with minimal changes."
+    ),
+    "foreman": (
+        "You are a foreman agent. Break down the work, ensure coverage of key steps, "
+        "and coordinate sequencing for completion."
+    ),
+}

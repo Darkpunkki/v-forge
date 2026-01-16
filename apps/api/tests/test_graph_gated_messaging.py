@@ -308,7 +308,8 @@ class TestGraphGatedIntegration:
         blocked = [e for e in events if e.event_type == EventType.MESSAGE_BLOCKED_BY_GRAPH]
         assert len(blocked) == 2
 
-    def test_blocked_events_logged_and_not_delivered(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_blocked_events_logged_and_not_delivered(self, tmp_path):
         """Blocked messages should be logged and excluded from delivered messages."""
         session = self._create_test_session_with_graph()
         log = EventLog(tmp_path / "workspaces")
@@ -322,7 +323,7 @@ class TestGraphGatedIntegration:
         assert allowed
         assert len(engine.message_queue) == 1
 
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
 
         assert len(result.messages_delivered) == 1
         assert result.messages_delivered[0].message_id == msg.message_id
@@ -361,7 +362,8 @@ class TestGraphGatedIntegration:
         assert not success
         assert len(engine.message_queue) == 0
 
-    def test_tick_counts_blocked_messages(self):
+    @pytest.mark.asyncio
+    async def test_tick_counts_blocked_messages(self):
         """Test that tick result includes blocked message count."""
         session = self._create_test_session_with_graph()
         engine = TickEngine(session)
@@ -371,7 +373,7 @@ class TestGraphGatedIntegration:
         engine.send_message("worker-1", "orchestrator", {"invalid": True})
         engine.send_message("reviewer", "worker-1", {"invalid": True})
 
-        result = engine.advance_tick()
+        result = await engine.advance_tick()
 
         # The blocked count is from events emitted during send, not tick
         # Check events include blocked messages

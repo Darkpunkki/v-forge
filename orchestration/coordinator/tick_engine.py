@@ -21,8 +21,15 @@ import logging
 from typing import Optional
 
 from apps.api.vibeforge_api.core.event_log import Event, EventLog, EventType
+from apps.api.vibeforge_api.core.llm_provider import get_llm_client
 from apps.api.vibeforge_api.core.session import Session
+from models.base.llm_client import LlmClient, LlmUsage
+from orchestration.coordinator.llm_response_generator import LlmResponseGenerator
 from orchestration.models import AgentFlowGraph
+
+MODEL_PRICING_USD_PER_M_TOKEN = {
+    "gpt-4o-mini": {"prompt": 0.15, "completion": 0.60},
+}
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +128,7 @@ class TickEngine:
         session: Session,
         agent_graph: Optional[AgentFlowGraph] = None,
         event_log: Optional[EventLog] = None,
+        llm_client: Optional[LlmClient] = None,
     ):
         """Initialize the tick engine.
 
@@ -131,6 +139,8 @@ class TickEngine:
         self.session = session
         self._message_counter = getattr(session, "simulation_message_counter", 0)
         self.event_log = event_log
+        self.llm_client = llm_client or get_llm_client()
+        self.llm_generator: Optional[LlmResponseGenerator] = None
 
         # Load agent graph from session if not provided
         if agent_graph is not None:
@@ -147,6 +157,11 @@ class TickEngine:
             self.message_queue = [Message.from_dict(item) for item in queue_state]
         else:
             self.message_queue = []
+
+        # Conversation history per agent (persisted across ticks)
+        self.agent_conversations = getattr(
+            session, "simulation_agent_conversations", {}
+        ) or {}
 
         # Events for current tick only (reset each tick)
         self._tick_events: list[Event] = []
@@ -175,6 +190,62 @@ class TickEngine:
             message.to_dict() for message in self.message_queue
         ]
         self.session.simulation_message_counter = self._message_counter
+        self.session.simulation_agent_conversations = self.agent_conversations
+
+    def _append_history(self, agent_id: str, role: str, content: dict) -> None:
+        if not agent_id:
+            return
+        history = self.agent_conversations.setdefault(agent_id, [])
+        history.append({"role": role, "content": content})
+        max_depth = getattr(self.session, "max_history_depth", 20) or 20
+        if max_depth > 0 and len(history) > max_depth:
+            del history[:-max_depth]
+
+    def _get_llm_generator(self) -> LlmResponseGenerator:
+        if self.llm_generator is None:
+            self.llm_generator = LlmResponseGenerator(self.llm_client)
+        self.llm_generator.default_temperature = self.session.default_temperature
+        self.llm_generator.default_model = self.session.default_model
+        return self.llm_generator
+
+    def _calculate_llm_cost(self, model: str, usage: Optional[LlmUsage]) -> float:
+        if not usage:
+            return 0.0
+        rates = MODEL_PRICING_USD_PER_M_TOKEN.get(model)
+        if not rates:
+            return 0.0
+        prompt_cost = (usage.prompt_tokens or 0) / 1_000_000 * rates["prompt"]
+        completion_cost = (usage.completion_tokens or 0) / 1_000_000 * rates["completion"]
+        return prompt_cost + completion_cost
+
+    def _emit_cost_event(
+        self,
+        agent_id: str,
+        model: str,
+        usage: Optional[LlmUsage],
+        cost_usd: float,
+        tick_index: int,
+    ) -> None:
+        usage = usage or LlmUsage()
+        self._emit_event(
+            Event(
+                event_type=EventType.COST_TRACKING,
+                timestamp=datetime.now(timezone.utc),
+                session_id=self.session.session_id,
+                message=f"Cost tracked: ${cost_usd:.6f}",
+                phase=self.session.phase.value,
+                metadata={
+                    "tick_index": tick_index,
+                    "agent_id": agent_id,
+                    "model": model,
+                    "prompt_tokens": usage.prompt_tokens,
+                    "completion_tokens": usage.completion_tokens,
+                    "total_tokens": usage.total_tokens,
+                    "cost_usd": cost_usd,
+                    "total_cost_usd": self.session.simulation_cost_usd,
+                },
+            )
+        )
 
     def _get_agent_ids(self) -> list[str]:
         """Get list of configured agent IDs from session."""
@@ -409,7 +480,7 @@ class TickEngine:
         message.is_delivered = True
         message.tick_delivered = self.session.tick_index
 
-    def advance_tick(self) -> TickResult:
+    async def advance_tick(self) -> TickResult:
         """Advance simulation by one tick (VF-202).
 
         One tick performs:
@@ -440,18 +511,77 @@ class TickEngine:
             self.deliver_message(message)
             messages_delivered.append(message)
             agents_acted.add(message.from_agent)
+            self._append_history(message.to_agent, "user", message.content)
             if self._message_expects_response(message):
-                stub_content = self.generate_stub_response(
-                    responding_agent=message.to_agent,
-                    source_agent=message.from_agent,
-                    message_content=message.content,
-                    tick_index=new_tick,
-                )
-                stub_content["in_response_to"] = message.message_id
+                response_payload = None
+                if self.session.use_real_llm:
+                    generator = self._get_llm_generator()
+                    agent_model = self.session.agent_models.get(
+                        message.to_agent, self.session.default_model
+                    )
+                    agent_role = self.session.agent_roles.get(message.to_agent)
+                    try:
+                        response = await generator.generate_response(
+                            agent_id=message.to_agent,
+                            agent_role=agent_role,
+                            agent_model=agent_model,
+                            message_history=self.agent_conversations.get(
+                                message.to_agent, []
+                            ),
+                            incoming_message=message.content,
+                        )
+                        response_payload = (
+                            response.metadata.get("content") if response.metadata else None
+                        )
+                        if not isinstance(response_payload, dict):
+                            response_payload = {
+                                "text": response.content,
+                                "is_stub": False,
+                                "expect_response": False,
+                            }
+                        cost_usd = self._calculate_llm_cost(
+                            response.model, response.usage
+                        )
+                        if cost_usd > 0:
+                            self.session.simulation_cost_usd += cost_usd
+                            self._emit_cost_event(
+                                agent_id=message.to_agent,
+                                model=response.model,
+                                usage=response.usage,
+                                cost_usd=cost_usd,
+                                tick_index=new_tick,
+                            )
+                    except Exception as exc:
+                        self._emit_event(
+                            Event(
+                                event_type=EventType.LLM_FAILURE,
+                                timestamp=datetime.now(timezone.utc),
+                                session_id=self.session.session_id,
+                                message="LLM response generation failed",
+                                phase=self.session.phase.value,
+                                metadata={
+                                    "tick_index": new_tick,
+                                    "agent_id": message.to_agent,
+                                    "error": str(exc),
+                                },
+                            )
+                        )
+                        response_payload = None
+
+                if response_payload is None:
+                    response_payload = self.generate_stub_response(
+                        responding_agent=message.to_agent,
+                        source_agent=message.from_agent,
+                        message_content=message.content,
+                        tick_index=new_tick,
+                    )
+
+                response_payload["in_response_to"] = message.message_id
+                self._append_history(message.to_agent, "assistant", response_payload)
                 self.send_message(
                     message.to_agent,
                     message.from_agent,
-                    stub_content,
+                    response_payload,
                     bypass_validation=True,
                 )
             break

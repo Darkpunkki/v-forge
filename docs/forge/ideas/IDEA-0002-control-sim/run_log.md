@@ -329,3 +329,25 @@
   - Completed FEAT-007 tasks: added content metadata to MESSAGE_SENT, added old/new tick index fields to TICK_ADVANCED metadata, and verified multi-tick event consistency via API response events.
   - Tests: python -m pytest apps/api/tests/test_graph_gated_messaging.py -k "message" -v; python -m pytest apps/api/tests/test_tick_engine.py -k "advance_tick_emits_event" -v; python -m pytest apps/api/tests/test_simulation_api.py -k "advance_ticks" -v (warnings about model_id protected namespace and pytest_asyncio loop scope).
 - Status: SUCCESS_WITH_WARNINGS
+
+### 2026-01-16T06:00:41.246Z — execute.feature
+- Idea-ID: IDEA-0002-control-sim
+- Run-ID: 2026-01-16T05-03-35.654Z_run-8911
+- Outputs:
+  - apps/api/tests/test_graph_gated_messaging.py
+  - apps/api/tests/test_tick_engine.py
+  - apps/api/tests/test_llm_integration.py
+  - apps/api/tests/test_llm_simulation_integration.py
+  - apps/api/vibeforge_api/models/requests.py
+  - apps/api/vibeforge_api/routers/control.py
+  - apps/ui/src/api/controlClient.ts
+  - apps/ui/src/screens/Simulation.tsx
+  - apps/ui/src/screens/control/widgets/SimulationConfig.tsx
+  - apps/ui/src/screens/control/widgets/TickControls.tsx
+  - docs/forge/ideas/IDEA-0002-control-sim/latest/feature_execution_progress.md
+  - docs/forge/ideas/IDEA-0002-control-sim/planning/FEC-FEAT-016-workspace-checklist.md
+- Notes:
+  - Completed FEAT-016 tasks 064-067 (async tick wiring tests, UI LLM controls + cost display, LLM unit/integration tests).
+  - Updated simulation config API to accept LLM settings; UI disables config when running and polls state for cost updates.
+  - Verified: pytest test_graph_gated_messaging, test_tick_engine, test_llm_integration, test_llm_simulation_integration; UI tsc --noEmit.
+- Status: SUCCESS

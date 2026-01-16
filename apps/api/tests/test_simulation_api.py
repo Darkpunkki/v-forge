@@ -430,6 +430,41 @@ class TestTickAdvance:
         assert response.tick_summaries[0].new_tick_index == 6
 
     @pytest.mark.asyncio
+    async def test_advance_tick_cost_budget_exceeded(self):
+        """Reject ticks when cost budget is exceeded."""
+        from vibeforge_api.routers.control import advance_tick
+
+        session = session_store.create_session()
+        session.tick_status = "running"
+        session.simulation_cost_usd = 1.5
+        session.max_cost_usd = 1.0
+        session_store.update_session(session)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await advance_tick(session.session_id)
+
+        assert exc_info.value.status_code == 429
+        assert "cost budget exceeded" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_advance_tick_rate_limit_exceeded(self):
+        """Reject ticks when rate limit is exceeded in real LLM mode."""
+        from vibeforge_api.routers.control import advance_tick
+
+        session = session_store.create_session()
+        session.tick_status = "running"
+        session.use_real_llm = True
+        session.tick_rate_limit_ms = 1000
+        session.last_tick_timestamp = datetime.now(timezone.utc)
+        session_store.update_session(session)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await advance_tick(session.session_id)
+
+        assert exc_info.value.status_code == 429
+        assert "rate limit" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
     async def test_advance_tick_not_started(self):
         """Test tick advance rejected when simulation not running."""
         from vibeforge_api.routers.control import advance_tick

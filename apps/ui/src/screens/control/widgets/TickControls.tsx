@@ -94,6 +94,38 @@ export function TickControls({
     }
   }
 
+  const tickStatus = state ? getStatusLabel(state.tick_status) : 'idle'
+  const isRunning = tickStatus === 'running'
+  const isAutoMode = state?.simulation_mode === 'auto'
+  const isConfigured = state?.simulation_mode !== undefined
+  const currentCost = state?.simulation_cost_usd ?? 0
+  const maxCost = state?.max_cost_usd ?? 0
+  const costRatio = maxCost > 0 ? currentCost / maxCost : 0
+  const costColor = costRatio > 0.8 ? '#d32f2f' : '#424242'
+
+  useEffect(() => {
+    if (!isRunning) {
+      return
+    }
+
+    let mounted = true
+    const interval = setInterval(async () => {
+      try {
+        const result = await getSimulationState(sessionId)
+        if (mounted) {
+          setState(result)
+        }
+      } catch (err) {
+        console.error('Failed to poll simulation state:', err)
+      }
+    }, 1500)
+
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
+  }, [sessionId, isRunning])
+
   const handleAction = async (
     actionName: string,
     action: () => Promise<{ message: string }>
@@ -160,11 +192,6 @@ export function TickControls({
     )
   }
 
-  const tickStatus = state ? getStatusLabel(state.tick_status) : 'idle'
-  const isRunning = tickStatus === 'running'
-  const isAutoMode = state?.simulation_mode === 'auto'
-  const isConfigured = state?.simulation_mode !== undefined
-
   return (
     <div
       style={{
@@ -223,6 +250,26 @@ export function TickControls({
           <div style={{ fontSize: '16px', fontWeight: 600, textTransform: 'capitalize' }}>
             {state?.simulation_mode ?? 'Not configured'}
           </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 12px',
+          background: '#fff',
+          borderRadius: '6px',
+          border: '1px solid #e0e0e0',
+          marginBottom: '16px',
+        }}
+      >
+        <div style={{ fontSize: '12px', opacity: 0.7, textTransform: 'uppercase' }}>
+          Cost
+        </div>
+        <div style={{ fontSize: '16px', fontWeight: 600, color: costColor }}>
+          ${currentCost.toFixed(2)} / ${maxCost.toFixed(2)}
         </div>
       </div>
 

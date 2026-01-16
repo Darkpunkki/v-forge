@@ -68,6 +68,16 @@ class Session:
         self.tick_budget: Optional[int] = None  # Max events/messages per tick
         self.simulation_message_queue: list[dict[str, Any]] = []
         self.simulation_message_counter: int = 0
+        self.simulation_agent_conversations: dict[str, list[dict[str, Any]]] = {}
+        self.use_real_llm: bool = False
+        self.llm_provider: str = "openai"
+        self.default_model: str = "gpt-4o-mini"
+        self.default_temperature: float = 0.7
+        self.simulation_cost_usd: float = 0.0
+        self.max_history_depth: int = 20
+        self.max_cost_usd: float = 1.0
+        self.tick_rate_limit_ms: int = 1000
+        self.last_tick_timestamp: Optional[datetime] = None
 
     def update_phase(self, new_phase: SessionPhase):
         """Update session phase."""
@@ -199,6 +209,20 @@ class Session:
             "tick_budget": self.tick_budget,
             "simulation_message_queue": self.simulation_message_queue,
             "simulation_message_counter": self.simulation_message_counter,
+            "simulation_agent_conversations": self.simulation_agent_conversations,
+            "use_real_llm": self.use_real_llm,
+            "llm_provider": self.llm_provider,
+            "default_model": self.default_model,
+            "default_temperature": self.default_temperature,
+            "simulation_cost_usd": self.simulation_cost_usd,
+            "max_history_depth": self.max_history_depth,
+            "max_cost_usd": self.max_cost_usd,
+            "tick_rate_limit_ms": self.tick_rate_limit_ms,
+            "last_tick_timestamp": (
+                self.last_tick_timestamp.isoformat()
+                if self.last_tick_timestamp
+                else None
+            ),
         }
 
     @classmethod
@@ -274,6 +298,20 @@ class Session:
         session.tick_budget = data.get("tick_budget")
         session.simulation_message_queue = data.get("simulation_message_queue", [])
         session.simulation_message_counter = data.get("simulation_message_counter", 0)
+        session.simulation_agent_conversations = data.get(
+            "simulation_agent_conversations", {}
+        )
+        session.use_real_llm = data.get("use_real_llm", False)
+        session.llm_provider = data.get("llm_provider", "openai")
+        session.default_model = data.get("default_model", "gpt-4o-mini")
+        session.default_temperature = data.get("default_temperature", 0.7)
+        session.simulation_cost_usd = data.get("simulation_cost_usd", 0.0)
+        session.max_history_depth = data.get("max_history_depth", 20)
+        session.max_cost_usd = data.get("max_cost_usd", 1.0)
+        session.tick_rate_limit_ms = data.get("tick_rate_limit_ms", 1000)
+        last_tick_timestamp = data.get("last_tick_timestamp")
+        if last_tick_timestamp:
+            session.last_tick_timestamp = datetime.fromisoformat(last_tick_timestamp)
 
         return session
 

@@ -1,5 +1,6 @@
 """Response models for API endpoints."""
 
+from datetime import datetime
 from typing import Any, Optional
 from pydantic import BaseModel, Field
 
@@ -188,6 +189,15 @@ class SimulationStateResponse(BaseModel):
     auto_delay_ms: Optional[int]
     tick_budget: Optional[int]
     pending_work_summary: Optional[str]
+    use_real_llm: bool = False
+    llm_provider: str = "openai"
+    default_model: str = "gpt-4o-mini"
+    default_temperature: float = 0.7
+    simulation_cost_usd: float = 0.0
+    max_history_depth: int = 20
+    max_cost_usd: float = 1.0
+    tick_rate_limit_ms: int = 1000
+    last_tick_timestamp: Optional[datetime] = None
     agent_graph: Optional[dict[str, Any]] = None
     agents: list[dict[str, Any]] = Field(default_factory=list)
     available_roles: list[str] = Field(default_factory=list)
