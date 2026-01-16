@@ -1683,8 +1683,44 @@ tasks:
     estimate: "S"
     tags: ["ui", "messages", "formatting"]
 
-  # FEAT-016: Real LLM Agent Responses with Guardrails
   - id: "TASK-052"
+    feature_id: "FEAT-015"
+    epic_id: "EPIC-005"
+    title: "Create standalone simulation screen"
+    description: "Add a dedicated /simulation screen that auto-creates a session and reuses existing widgets for a focused sandbox UI. This enables manual testing without the questionnaire or planning flows."
+    acceptance_criteria:
+      - "Create apps/ui/src/screens/Simulation.tsx."
+      - "Add /simulation route in App.tsx."
+      - "Session auto-creates on load without user input."
+      - "Page composes AgentInitializer, AgentAssignment, AgentFlowEditor, SimulationConfig, TickControls, MultiAgentMessages."
+      - "Questionnaire/planning UI is not shown on the /simulation screen."
+      - "New button creates a fresh session and resets state."
+    dependencies: []
+    release_target: "MVP"
+    priority: "P0"
+    estimate: "M"
+    tags: ["ui", "routing", "sandbox"]
+
+  - id: "TASK-053"
+    feature_id: "FEAT-015"
+    epic_id: "EPIC-005"
+    title: "Move simulation UI to /simulation route"
+    description: "Relocate simulation-related UI from /control to /simulation, keeping the control panel focused on session monitoring. Update routing and navigation to point to the new simulation screen."
+    acceptance_criteria:
+      - "Simulation UI is accessible at /simulation."
+      - "Control panel no longer renders simulation widgets."
+      - "Routing uses Simulation.tsx for the /simulation screen."
+      - "Navigation links for simulation point to /simulation."
+      - "Questionnaire/planning UI is not shown on /simulation."
+    dependencies:
+      - "TASK-052"
+    release_target: "MVP"
+    priority: "P1"
+    estimate: "M"
+    tags: ["ui", "routing", "navigation"]
+
+  # FEAT-016: Real LLM Agent Responses with Guardrails
+  - id: "TASK-060"
     feature_id: "FEAT-016"
     epic_id: "EPIC-006"
     title: "Add session-level LLM configuration fields"
@@ -1702,7 +1738,7 @@ tasks:
     estimate: "S"
     tags: ["api", "session", "config"]
 
-  - id: "TASK-053"
+  - id: "TASK-061"
     feature_id: "FEAT-016"
     epic_id: "EPIC-006"
     title: "Add LLM cost and rate limiting guardrails to Session"
@@ -1716,13 +1752,13 @@ tasks:
       - "POST /control/sessions/{id}/simulation/configure accepts max_cost_usd and tick_rate_limit_ms."
       - "Unit tests cover both guardrails."
     dependencies:
-      - "TASK-052"
+      - "TASK-060"
     release_target: "V1"
     priority: "P0"
     estimate: "M"
     tags: ["api", "guardrails", "safety"]
 
-  - id: "TASK-054"
+  - id: "TASK-062"
     feature_id: "FEAT-016"
     epic_id: "EPIC-006"
     title: "Create LlmResponseGenerator service with role-based prompts"
@@ -1737,13 +1773,13 @@ tasks:
       - "Response content extracted and returned as dict (matching stub format structure)."
       - "Error handling: if LLM call fails, log error and raise exception (caller handles fallback)."
     dependencies:
-      - "TASK-052"
+      - "TASK-060"
     release_target: "V1"
     priority: "P0"
     estimate: "M"
     tags: ["orchestration", "llm", "prompts"]
 
-  - id: "TASK-055"
+  - id: "TASK-063"
     feature_id: "FEAT-016"
     epic_id: "EPIC-006"
     title: "Add agent conversation history tracking to TickEngine"
@@ -1757,13 +1793,13 @@ tasks:
       - "TickEngine.__init__ restores histories from session state."
       - "sync_session_state() persists histories to session."
     dependencies:
-      - "TASK-052"
+      - "TASK-060"
     release_target: "V1"
     priority: "P0"
     estimate: "M"
     tags: ["orchestration", "conversation", "memory"]
 
-  - id: "TASK-056"
+  - id: "TASK-064"
     feature_id: "FEAT-016"
     epic_id: "EPIC-006"
     title: "Wire real LLM calls into TickEngine with cost tracking"
@@ -1779,15 +1815,15 @@ tasks:
       - "Update API endpoint handlers in control.py to await engine.advance_tick()."
       - "Error handling: log LLM failures, emit error event, use stub as fallback."
     dependencies:
-      - "TASK-053"
-      - "TASK-054"
-      - "TASK-055"
+      - "TASK-061"
+      - "TASK-062"
+      - "TASK-063"
     release_target: "V1"
     priority: "P0"
     estimate: "L"
     tags: ["orchestration", "llm", "async", "cost-tracking"]
 
-  - id: "TASK-057"
+  - id: "TASK-065"
     feature_id: "FEAT-016"
     epic_id: "EPIC-006"
     title: "Add UI controls for LLM mode and cost display"
@@ -1801,14 +1837,14 @@ tasks:
       - "Cost display updates after each tick (via polling or state refresh)."
       - "Cost displayed in red when approaching budget (>80%)."
     dependencies:
-      - "TASK-052"
-      - "TASK-053"
+      - "TASK-060"
+      - "TASK-061"
     release_target: "V1"
     priority: "P0"
     estimate: "M"
     tags: ["ui", "config", "cost"]
 
-  - id: "TASK-058"
+  - id: "TASK-066"
     feature_id: "FEAT-016"
     epic_id: "EPIC-006"
     title: "Add unit tests for LLM integration and guardrails"
@@ -1825,13 +1861,13 @@ tasks:
       - "Test: use_real_llm=False always uses stubs (no LLM calls)."
       - "All tests in apps/api/tests/test_llm_integration.py."
     dependencies:
-      - "TASK-056"
+      - "TASK-064"
     release_target: "V1"
     priority: "P1"
     estimate: "M"
     tags: ["testing", "qa", "guardrails"]
 
-  - id: "TASK-059"
+  - id: "TASK-067"
     feature_id: "FEAT-016"
     epic_id: "EPIC-006"
     title: "Add integration test for end-to-end LLM simulation"
@@ -1845,7 +1881,7 @@ tasks:
       - "Test uses mock LLM client or test API key (not production)."
       - "Test in apps/api/tests/test_llm_simulation_integration.py."
     dependencies:
-      - "TASK-056"
+      - "TASK-064"
     release_target: "V1"
     priority: "P1"
     estimate: "M"

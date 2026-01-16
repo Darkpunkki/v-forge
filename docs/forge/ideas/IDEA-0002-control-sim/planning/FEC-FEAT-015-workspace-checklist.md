@@ -19,6 +19,12 @@
 - [ ] TASK-051: Format blocked and stub messages in message log
   - Files: `apps/ui/src/screens/control/widgets/MultiAgentMessages.tsx`
   - Verify: `cd apps/ui && npx tsc --noEmit`
+- [ ] TASK-052: Create standalone simulation screen
+  - Files: `apps/ui/src/screens/Simulation.tsx`, `apps/ui/src/App.tsx`
+  - Verify: `cd apps/ui && npx tsc --noEmit`
+- [ ] TASK-053: Move simulation UI to /simulation route
+  - Files: `apps/ui/src/App.tsx`, `apps/ui/src/screens/ControlPanel.tsx`
+  - Verify: `cd apps/ui && npx tsc --noEmit`
 
 ## Notes / Decisions
 
