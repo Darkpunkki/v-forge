@@ -46,14 +46,15 @@
 | 2026-01-16T03:39:56.5469330+02:00 | FEAT-009 | Done | 2026-01-16T00-48-50.459Z_run-00e9 | planning/FEC-FEAT-009-workspace-checklist.md | tests passing |
 | 2026-01-16T03:51:53.419964+02:00 | FEAT-010 | In Progress | 2026-01-16T01-50-10.718Z_run-2a18 | planning/FEC-FEAT-010-workspace-checklist.md | started |
 | 2026-01-16T03:53:30.4464375+02:00 | FEAT-010 | Done | 2026-01-16T01-50-10.718Z_run-2a18 | planning/FEC-FEAT-010-workspace-checklist.md | tests passing |
+| 2026-01-16T04:52:45.460Z | FEAT-015 | In Progress | 2026-01-16T02-52-45.460Z_run-697f | planning/FEC-FEAT-015-workspace-checklist.md | started |
 
 ---
 
 ## Current pointer
 
-- next_feature: FEAT-011
+- next_feature: FEAT-015
 - last_completed_feature: FEAT-010
-- last_run_id: 2026-01-16T01-50-10.718Z_run-2a18
+- last_run_id: 2026-01-16T02-52-45.460Z_run-697f
 
 ---
 

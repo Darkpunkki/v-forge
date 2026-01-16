@@ -861,8 +861,28 @@ async def advance_tick(session_id: str):
     workspace_manager = WorkspaceManager()
     event_log = EventLog(workspace_manager.workspace_root)
 
-    # Advance tick using TickEngine
+    # Create TickEngine
     engine = TickEngine(session, event_log=event_log)
+
+    # Queue initial prompt as first message if this is the first tick
+    # and initial_prompt exists but message queue is empty
+    if (
+        session.tick_index == 0
+        and session.initial_prompt
+        and session.first_agent_id
+        and not engine.message_queue
+    ):
+        engine.send_message(
+            from_agent="user",
+            to_agent=session.first_agent_id,
+            content={
+                "text": session.initial_prompt,
+                "expect_response": True,
+            },
+            bypass_validation=True,  # System message bypasses graph validation
+        )
+
+    # Advance tick using TickEngine
     result = engine.advance_tick()
     engine.sync_session_state()
 
@@ -923,6 +943,25 @@ async def advance_ticks(session_id: str, request: TickRequest):
     workspace_manager = WorkspaceManager()
     event_log = EventLog(workspace_manager.workspace_root)
     engine = TickEngine(session, event_log=event_log)
+
+    # Queue initial prompt as first message if this is the first tick
+    # and initial_prompt exists but message queue is empty
+    if (
+        session.tick_index == 0
+        and session.initial_prompt
+        and session.first_agent_id
+        and not engine.message_queue
+    ):
+        engine.send_message(
+            from_agent="user",
+            to_agent=session.first_agent_id,
+            content={
+                "text": session.initial_prompt,
+                "expect_response": True,
+            },
+            bypass_validation=True,  # System message bypasses graph validation
+        )
+
     tick_summaries = []
     processed_events: list[dict] = []
     messages_sent_total = 0
