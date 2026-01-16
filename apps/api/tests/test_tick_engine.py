@@ -1,8 +1,11 @@
 """Tests for TickEngine (VF-202)."""
 
+import logging
+from datetime import datetime
+
 import pytest
 
-from apps.api.vibeforge_api.core.event_log import EventType
+from apps.api.vibeforge_api.core.event_log import EventLog, EventType
 from apps.api.vibeforge_api.core.session import session_store
 from orchestration.coordinator.tick_engine import TickEngine, TickResult
 from orchestration.models import AgentConfig, AgentFlowGraph, AgentFlowEdge
@@ -394,3 +397,98 @@ class TestStubbedResponses:
             and event.metadata.get("is_stub")
         ]
         assert len(stub_events) == 1
+
+
+class TestEventLogPersistence:
+    """Tests for event log persistence and resilience."""
+
+    def _create_test_session_with_agents(self):
+        session = session_store.create_session()
+        session.agents = [
+            AgentConfig(agent_id="agent-1").model_dump(),
+            AgentConfig(agent_id="agent-2").model_dump(),
+        ]
+        session.agent_roles = {
+            "agent-1": "orchestrator",
+            "agent-2": "worker",
+        }
+        session.agent_graph = AgentFlowGraph(
+            edges=[AgentFlowEdge(from_agent="agent-1", to_agent="agent-2")]
+        ).model_dump()
+        session.tick_status = "running"
+        session.tick_index = 0
+        session_store.update_session(session)
+        return session
+
+    def test_tick_events_persisted_to_event_log(self, tmp_path):
+        """Tick events should be persisted with timestamps and metadata."""
+        session = self._create_test_session_with_agents()
+        workspace_root = tmp_path / "workspaces"
+        event_log = EventLog(workspace_root)
+        engine = TickEngine(session, event_log=event_log)
+
+        result = engine.advance_tick()
+
+        fresh_log = EventLog(workspace_root)
+        events = fresh_log.get_events(session.session_id)
+        tick_events = [e for e in events if e.event_type == EventType.TICK_ADVANCED]
+
+        assert len(tick_events) == 1
+        tick_event = tick_events[0]
+        assert tick_event.session_id == session.session_id
+        assert isinstance(tick_event.timestamp, datetime)
+        assert "T" in tick_event.timestamp.isoformat()
+        assert tick_event.metadata["new_tick_index"] == result.tick_index
+
+    def test_message_events_persisted_to_event_log(self, tmp_path):
+        """Message events should persist sender/receiver metadata."""
+        session = self._create_test_session_with_agents()
+        workspace_root = tmp_path / "workspaces"
+        event_log = EventLog(workspace_root)
+        engine = TickEngine(session, event_log=event_log)
+
+        success, _ = engine.send_message("agent-1", "agent-2", {"text": "hello"})
+        assert success
+        blocked, _ = engine.send_message("agent-2", "agent-1", {"text": "blocked"})
+        assert not blocked
+
+        fresh_log = EventLog(workspace_root)
+        events = fresh_log.get_events(session.session_id)
+
+        sent_events = [e for e in events if e.event_type == EventType.MESSAGE_SENT]
+        blocked_events = [
+            e for e in events if e.event_type == EventType.MESSAGE_BLOCKED_BY_GRAPH
+        ]
+
+        assert sent_events
+        sent_meta = sent_events[-1].metadata
+        assert sent_meta["from_agent"] == "agent-1"
+        assert sent_meta["to_agent"] == "agent-2"
+        assert sent_meta["tick_index"] == 0
+        assert sent_meta["content"]["text"] == "hello"
+
+        assert blocked_events
+        blocked_meta = blocked_events[-1].metadata
+        assert blocked_meta["from_agent"] == "agent-2"
+        assert blocked_meta["to_agent"] == "agent-1"
+        assert blocked_meta["tick_index"] == 0
+        assert "reason" in blocked_meta
+
+    def test_event_log_failure_does_not_block_tick(self, caplog):
+        """Event log failures should not stop tick processing."""
+        session = self._create_test_session_with_agents()
+
+        class FailingEventLog:
+            def append(self, event):  # pragma: no cover - executed in test
+                raise OSError("disk error")
+
+        engine = TickEngine(session, event_log=FailingEventLog())
+        with caplog.at_level(logging.WARNING):
+            result = engine.advance_tick()
+
+        assert result.tick_index == 1
+        assert session.tick_index == 1
+        assert any(
+            "Failed to append event log" in record.message
+            for record in caplog.records
+        )

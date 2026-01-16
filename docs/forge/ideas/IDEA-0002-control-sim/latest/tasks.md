@@ -1597,3 +1597,256 @@ tasks:
 **Dependencies:**
 
 - None
+
+  # ============================================================================
+  # EPIC-006: Real LLM Agent Responses
+  # ============================================================================
+
+  # FEAT-015: UI Testing Verification
+  - id: "TASK-048"
+    feature_id: "FEAT-015"
+    epic_id: "EPIC-005"
+    title: "Manual UI workflow verification with stub responses"
+    description: "Manually test the complete simulation workflow via the browser UI at http://localhost:5173/control. Document each step, verify stub responses appear correctly, and identify any broken flows or UX issues. This validates the simulation works before adding real LLM integration."
+    acceptance_criteria:
+      - "Can initialize agents via UI (set count, prefix)."
+      - "Can assign roles and models to each agent."
+      - "Can configure communication graph using AgentFlowEditor."
+      - "Can set initial prompt and select first agent."
+      - "Can start simulation successfully."
+      - "Can advance ticks and see stub responses in message log."
+      - "Stub responses are clearly labeled with [STUB] marker."
+      - "Blocked messages show appropriate error messages."
+      - "Can pause simulation."
+      - "Can reset simulation (config preserved, messages cleared)."
+      - "Document any bugs or UX issues found during testing."
+    dependencies: []
+    release_target: "MVP"
+    priority: "P0"
+    estimate: "S"
+    tags: ["ui", "qa", "manual-test"]
+
+  - id: "TASK-049"
+    feature_id: "FEAT-015"
+    epic_id: "EPIC-005"
+    title: "Add polling fallback for simulation state updates"
+    description: "Add a 2-second polling interval to ControlPanel.tsx to fetch simulation state when status is 'running'. This provides 'live enough' updates until SSE is implemented (FEAT-011). Polling automatically stops when simulation is paused or completed."
+    acceptance_criteria:
+      - "When simulation status is 'running', ControlPanel polls simulation state every 2000ms."
+      - "Polling stops when status changes to 'paused', 'idle', or 'completed'."
+      - "Polling clears when user switches sessions."
+      - "New messages appear within 2 seconds of tick advancement."
+      - "No duplicate requests (clear interval before setting new one)."
+      - "useEffect cleanup prevents memory leaks."
+    dependencies:
+      - "TASK-048"
+    release_target: "MVP"
+    priority: "P1"
+    estimate: "S"
+    tags: ["ui", "polling", "workaround"]
+
+  - id: "TASK-050"
+    feature_id: "FEAT-015"
+    epic_id: "EPIC-005"
+    title: "Update AgentGraph to render simulation communication links"
+    description: "Modify AgentGraph.tsx to display the configured agent communication graph from simulationState.agent_graph instead of task-based edges. Show directionality with arrows, support bidirectional links. This fixes the current issue where the graph shows irrelevant task edges instead of the configured agent communication topology."
+    acceptance_criteria:
+      - "Graph reads edges from simulationState.agent_graph.edges."
+      - "Each agent in roster appears as a node with label."
+      - "Directed links show single arrow pointing to target."
+      - "Bidirectional links show arrows in both directions."
+      - "Empty state shows 'Configure communication graph' when no links exist."
+      - "Graph updates when flow configuration changes."
+      - "Graph persists during simulation and after reset."
+    dependencies:
+      - "TASK-048"
+    release_target: "MVP"
+    priority: "P1"
+    estimate: "M"
+    tags: ["ui", "visualization", "graph"]
+
+  - id: "TASK-051"
+    feature_id: "FEAT-015"
+    epic_id: "EPIC-005"
+    title: "Format blocked and stub messages in message log"
+    description: "Enhance MultiAgentMessages.tsx to visually distinguish blocked messages and stub responses. Add tick number to each message row for clarity. This improves readability and helps users understand simulation state at a glance."
+    acceptance_criteria:
+      - "Stub messages display '[STUB]' badge in distinct color (e.g., blue)."
+      - "Blocked messages display '(BLOCKED)' badge in warning color (e.g., orange/red)."
+      - "Each message row shows tick number."
+      - "Blocked messages show reason below content (e.g., 'agent-1 → agent-3 not allowed')."
+      - "Visual styling differentiates message types (border, background, or badge)."
+    dependencies:
+      - "TASK-048"
+    release_target: "MVP"
+    priority: "P1"
+    estimate: "S"
+    tags: ["ui", "messages", "formatting"]
+
+  # FEAT-016: Real LLM Agent Responses with Guardrails
+  - id: "TASK-052"
+    feature_id: "FEAT-016"
+    epic_id: "EPIC-006"
+    title: "Add session-level LLM configuration fields"
+    description: "Extend Session model in apps/api/vibeforge_api/core/session.py to include LLM mode toggle, provider selection, model name, temperature, and cost tracking fields. Update serialization and API responses. Session defaults to stub mode (use_real_llm=False) for safety."
+    acceptance_criteria:
+      - "Session model includes: use_real_llm (bool, default False), llm_provider (str, default 'openai'), default_model (str, default 'gpt-4o-mini'), default_temperature (float, default 0.7), simulation_cost_usd (float, default 0.0)."
+      - "Session.to_dict() serializes new fields correctly."
+      - "Session.from_dict() deserializes new fields correctly."
+      - "GET /control/sessions/{id}/simulation/state includes new fields in response."
+      - "TypeScript types in controlClient.ts updated to include new fields."
+      - "Session defaults to stub mode (use_real_llm=False) for safety."
+    dependencies: []
+    release_target: "V1"
+    priority: "P0"
+    estimate: "S"
+    tags: ["api", "session", "config"]
+
+  - id: "TASK-053"
+    feature_id: "FEAT-016"
+    epic_id: "EPIC-006"
+    title: "Add LLM cost and rate limiting guardrails to Session"
+    description: "Add cost budget and rate limiting fields to Session model. Implement validation logic to prevent runaway API costs and enforce tick rate limits. This is a critical safety feature to prevent accidental high API bills from simulation bugs or runaway loops."
+    acceptance_criteria:
+      - "Session includes: max_cost_usd (float, default 1.0), tick_rate_limit_ms (int, default 1000 = 1 tick per second max), last_tick_timestamp (datetime, nullable)."
+      - "Before each tick, validate: current cost < max_cost_usd."
+      - "Before each tick when use_real_llm=True, validate: time since last_tick >= tick_rate_limit_ms."
+      - "If cost budget exceeded, return HTTP 429 with message 'Cost budget exceeded: ${current} / ${max}'."
+      - "If rate limit exceeded, return HTTP 429 with message 'Rate limit: wait {remaining}ms'."
+      - "POST /control/sessions/{id}/simulation/configure accepts max_cost_usd and tick_rate_limit_ms."
+      - "Unit tests cover both guardrails."
+    dependencies:
+      - "TASK-052"
+    release_target: "V1"
+    priority: "P0"
+    estimate: "M"
+    tags: ["api", "guardrails", "safety"]
+
+  - id: "TASK-054"
+    feature_id: "FEAT-016"
+    epic_id: "EPIC-006"
+    title: "Create LlmResponseGenerator service with role-based prompts"
+    description: "Create orchestration/coordinator/llm_response_generator.py with LlmResponseGenerator class. Implement role-based system prompts (orchestrator, worker, reviewer, fixer, foreman) and conversation history building. This service handles all LLM interactions for agent responses."
+    acceptance_criteria:
+      - "LlmResponseGenerator class accepts LlmClient in constructor."
+      - "Async method generate_response(agent_id, agent_role, agent_model, message_history, incoming_message) returns LlmResponse."
+      - "System prompts defined for all 5 roles in orchestration/prompts.py."
+      - "System prompt is prepended to conversation history."
+      - "Incoming message appended as user message."
+      - "LLM request uses agent's configured model and temperature."
+      - "Response content extracted and returned as dict (matching stub format structure)."
+      - "Error handling: if LLM call fails, log error and raise exception (caller handles fallback)."
+    dependencies:
+      - "TASK-052"
+    release_target: "V1"
+    priority: "P0"
+    estimate: "M"
+    tags: ["orchestration", "llm", "prompts"]
+
+  - id: "TASK-055"
+    feature_id: "FEAT-016"
+    epic_id: "EPIC-006"
+    title: "Add agent conversation history tracking to TickEngine"
+    description: "Extend TickEngine to maintain per-agent conversation history. Persist histories to session state. Limit history depth to prevent unbounded memory growth. Each agent maintains its own conversation context across ticks."
+    acceptance_criteria:
+      - "TickEngine includes: agent_conversations dict[str, list[dict]] mapping agent_id to message history."
+      - "When message delivered, append to recipient's history as {'role': 'user', 'content': message.content}."
+      - "When response generated, append to responder's history as {'role': 'assistant', 'content': response_content}."
+      - "History limited to last 20 messages per agent (configurable via session.max_history_depth, default 20)."
+      - "Conversation histories persisted to session.simulation_agent_conversations."
+      - "TickEngine.__init__ restores histories from session state."
+      - "sync_session_state() persists histories to session."
+    dependencies:
+      - "TASK-052"
+    release_target: "V1"
+    priority: "P0"
+    estimate: "M"
+    tags: ["orchestration", "conversation", "memory"]
+
+  - id: "TASK-056"
+    feature_id: "FEAT-016"
+    epic_id: "EPIC-006"
+    title: "Wire real LLM calls into TickEngine with cost tracking"
+    description: "Modify TickEngine.advance_tick() to conditionally call LlmResponseGenerator when session.use_real_llm is True. Track token usage and update session cost. Handle async LLM calls. Implement fallback to stub on LLM failure. This is the core integration point between the simulation engine and real LLM providers."
+    acceptance_criteria:
+      - "TickEngine.__init__ accepts optional llm_client parameter (defaults to get_llm_client())."
+      - "If session.use_real_llm is True, instantiate LlmResponseGenerator with llm_client."
+      - "In advance_tick(), when message expects response: if use_real_llm, call await llm_generator.generate_response() with agent conversation history; if use_real_llm=False or LLM call fails, fallback to generate_stub_response()."
+      - "Track LlmResponse.usage tokens and calculate cost based on model pricing (gpt-4o-mini: $0.15/$0.60 per 1M tokens)."
+      - "Update session.simulation_cost_usd after each LLM call."
+      - "Emit COST_TRACKING event to EventLog with: tick, agent, tokens, cost."
+      - "Convert advance_tick() to async method."
+      - "Update API endpoint handlers in control.py to await engine.advance_tick()."
+      - "Error handling: log LLM failures, emit error event, use stub as fallback."
+    dependencies:
+      - "TASK-053"
+      - "TASK-054"
+      - "TASK-055"
+    release_target: "V1"
+    priority: "P0"
+    estimate: "L"
+    tags: ["orchestration", "llm", "async", "cost-tracking"]
+
+  - id: "TASK-057"
+    feature_id: "FEAT-016"
+    epic_id: "EPIC-006"
+    title: "Add UI controls for LLM mode and cost display"
+    description: "Extend SimulationConfig.tsx to include toggle for stub vs real LLM mode, model selector, cost budget input, and rate limit input. Display current cost in TickControls.tsx. Provide clear warnings about API costs to prevent accidental spend."
+    acceptance_criteria:
+      - "SimulationConfig shows toggle: 'Use Real LLM' (default off)."
+      - "When toggle enabled, show: model dropdown (gpt-4o-mini, gpt-4o, gpt-4-turbo), temperature slider (0.0 - 1.0, default 0.7), max cost budget input (USD, default $1.00), rate limit input (ms between ticks, default 1000ms), warning message 'Real LLM calls will incur API costs'."
+      - "When toggle disabled, show 'Using deterministic stub responses (no cost)'."
+      - "Toggle and inputs disabled once simulation is started."
+      - "TickControls displays: 'Cost: ${current_cost} / ${max_cost}'."
+      - "Cost display updates after each tick (via polling or state refresh)."
+      - "Cost displayed in red when approaching budget (>80%)."
+    dependencies:
+      - "TASK-052"
+      - "TASK-053"
+    release_target: "V1"
+    priority: "P0"
+    estimate: "M"
+    tags: ["ui", "config", "cost"]
+
+  - id: "TASK-058"
+    feature_id: "FEAT-016"
+    epic_id: "EPIC-006"
+    title: "Add unit tests for LLM integration and guardrails"
+    description: "Create comprehensive unit tests for LlmResponseGenerator, conversation history tracking, cost tracking, and rate limiting guardrails. Ensure all safety mechanisms work correctly before production use."
+    acceptance_criteria:
+      - "Test: LlmResponseGenerator generates response with correct system prompt for each role."
+      - "Test: LlmResponseGenerator builds conversation history correctly."
+      - "Test: TickEngine tracks conversation history per agent."
+      - "Test: TickEngine limits history to max_history_depth."
+      - "Test: TickEngine calculates cost correctly based on token usage."
+      - "Test: Tick endpoint blocks when cost budget exceeded (429 response)."
+      - "Test: Tick endpoint blocks when rate limit violated (429 response)."
+      - "Test: LLM failure falls back to stub response."
+      - "Test: use_real_llm=False always uses stubs (no LLM calls)."
+      - "All tests in apps/api/tests/test_llm_integration.py."
+    dependencies:
+      - "TASK-056"
+    release_target: "V1"
+    priority: "P1"
+    estimate: "M"
+    tags: ["testing", "qa", "guardrails"]
+
+  - id: "TASK-059"
+    feature_id: "FEAT-016"
+    epic_id: "EPIC-006"
+    title: "Add integration test for end-to-end LLM simulation"
+    description: "Create integration test that runs a complete simulation with real LLM calls (using test API key or mock). Verify multi-turn conversations, cost tracking, and guardrails work together correctly in a realistic scenario."
+    acceptance_criteria:
+      - "Integration test configures 2 agents with communication link."
+      - "Sets initial prompt, starts simulation with use_real_llm=True."
+      - "Advances 5 ticks, verifies LLM responses appear (not stubs)."
+      - "Verifies conversation history grows for both agents."
+      - "Verifies simulation_cost_usd increases after each LLM call."
+      - "Test uses mock LLM client or test API key (not production)."
+      - "Test in apps/api/tests/test_llm_simulation_integration.py."
+    dependencies:
+      - "TASK-056"
+    release_target: "V1"
+    priority: "P1"
+    estimate: "M"
+    tags: ["testing", "integration", "qa"]

@@ -17,11 +17,14 @@ from datetime import datetime, timezone
 from enum import Enum
 import hashlib
 import json
+import logging
 from typing import Optional
 
 from apps.api.vibeforge_api.core.event_log import Event, EventLog, EventType
 from apps.api.vibeforge_api.core.session import Session
 from orchestration.models import AgentFlowGraph
+
+logger = logging.getLogger(__name__)
 
 
 class MessageValidationStatus(str, Enum):
@@ -157,7 +160,14 @@ class TickEngine:
         """Emit an event for the current tick."""
         self._tick_events.append(event)
         if self.event_log is not None:
-            self.event_log.append(event)
+            try:
+                self.event_log.append(event)
+            except OSError as exc:
+                logger.warning(
+                    "Failed to append event log for session %s: %s",
+                    event.session_id,
+                    exc,
+                )
 
     def sync_session_state(self) -> None:
         """Persist message queue state into the session."""
