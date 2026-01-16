@@ -191,6 +191,12 @@ class TickEngine:
         ]
         self.session.simulation_message_counter = self._message_counter
         self.session.simulation_agent_conversations = self.agent_conversations
+        self.session.simulation_expected_responses = getattr(
+            self.session, "simulation_expected_responses", []
+        )
+        self.session.simulation_final_answer = getattr(
+            self.session, "simulation_final_answer", None
+        )
 
     def _append_history(self, agent_id: str, role: str, content: dict) -> None:
         if not agent_id:
@@ -250,6 +256,135 @@ class TickEngine:
     def _get_agent_ids(self) -> list[str]:
         """Get list of configured agent IDs from session."""
         return [agent.get("agent_id", "") for agent in self.session.agents]
+
+    def _get_delegate_targets(self, orchestrator_id: str) -> list[str]:
+        targets = []
+        for agent_id in self._get_agent_ids():
+            if not agent_id or agent_id == orchestrator_id:
+                continue
+            if self.session.agent_roles.get(agent_id) == "orchestrator":
+                continue
+            targets.append(agent_id)
+        return targets
+
+    def _should_delegate(self, message: Message) -> bool:
+        if message.from_agent != "user":
+            return False
+        if not self._is_orchestrator(message.to_agent):
+            return False
+        if not self._message_expects_response(message):
+            return False
+        expected = getattr(self.session, "simulation_expected_responses", [])
+        if expected:
+            return False
+        return bool(self._get_delegate_targets(message.to_agent))
+
+    def _queue_delegation_messages(self, orchestrator_id: str, prompt_text: str) -> None:
+        targets = self._get_delegate_targets(orchestrator_id)
+        if not targets:
+            return
+        self.session.simulation_expected_responses = list(targets)
+        self.session.simulation_final_answer = None
+        main_task = self.session.main_task or prompt_text
+        for target in targets:
+            self.send_message(
+                from_agent=orchestrator_id,
+                to_agent=target,
+                content={
+                    "text": (
+                        "Analyze the task and respond with reasoning + conclusion.\n\n"
+                        f"Task: {main_task}"
+                    ),
+                    "expect_response": True,
+                    "delegation": True,
+                },
+            )
+
+    async def _finalize_delegation(
+        self,
+        orchestrator_id: str,
+        tick_index: int,
+    ) -> None:
+        response_payload = None
+        if self.session.use_real_llm:
+            generator = self._get_llm_generator()
+            agent_model = self.session.agent_models.get(
+                orchestrator_id, self.session.default_model
+            )
+            agent_role = self.session.agent_roles.get(orchestrator_id)
+            try:
+                response = await generator.generate_response(
+                    agent_id=orchestrator_id,
+                    agent_role=agent_role,
+                    agent_model=agent_model,
+                    message_history=self.agent_conversations.get(orchestrator_id, []),
+                    incoming_message=(
+                        "Provide a final answer to the user based on the discussion."
+                    ),
+                )
+                response_payload = (
+                    response.metadata.get("content") if response.metadata else None
+                )
+                if not isinstance(response_payload, dict):
+                    response_payload = {
+                        "text": response.content,
+                        "is_stub": False,
+                        "expect_response": False,
+                    }
+                cost_usd = self._calculate_llm_cost(response.model, response.usage)
+                if cost_usd > 0:
+                    self.session.simulation_cost_usd += cost_usd
+                    self._emit_cost_event(
+                        agent_id=orchestrator_id,
+                        model=response.model,
+                        usage=response.usage,
+                        cost_usd=cost_usd,
+                        tick_index=tick_index,
+                    )
+            except Exception as exc:
+                self._emit_event(
+                    Event(
+                        event_type=EventType.LLM_FAILURE,
+                        timestamp=datetime.now(timezone.utc),
+                        session_id=self.session.session_id,
+                        message="LLM response generation failed",
+                        phase=self.session.phase.value,
+                        metadata={
+                            "tick_index": tick_index,
+                            "agent_id": orchestrator_id,
+                            "error": str(exc),
+                        },
+                    )
+                )
+                response_payload = None
+
+        if response_payload is None:
+            prompt = self.session.main_task or self.session.initial_prompt or ""
+            response_payload = {
+                "text": (
+                    "[STUB] Final answer placeholder."
+                    + (f" Task: {prompt}" if prompt else "")
+                ),
+                "is_stub": True,
+                "expect_response": False,
+            }
+
+        response_payload["final_answer"] = True
+        self._append_history(orchestrator_id, "assistant", response_payload)
+
+        success, final_message = self.send_message(
+            from_agent=orchestrator_id,
+            to_agent="user",
+            content=response_payload,
+            bypass_validation=True,
+        )
+        if success and final_message:
+            final_message.is_delivered = True
+            final_message.tick_delivered = tick_index
+
+        self.session.simulation_final_answer = response_payload.get("text")
+        self.session.simulation_expected_responses = []
+        self.session.tick_status = "completed"
 
     def _message_expects_response(self, message: Message) -> bool:
         """Check if a message should trigger an automated response."""
@@ -512,7 +647,14 @@ class TickEngine:
             messages_delivered.append(message)
             agents_acted.add(message.from_agent)
             self._append_history(message.to_agent, "user", message.content)
-            if self._message_expects_response(message):
+            if self._should_delegate(message):
+                prompt_text = ""
+                if isinstance(message.content, dict):
+                    prompt_text = str(message.content.get("text", ""))
+                elif isinstance(message.content, str):
+                    prompt_text = message.content
+                self._queue_delegation_messages(message.to_agent, prompt_text)
+            elif self._message_expects_response(message):
                 response_payload = None
                 if self.session.use_real_llm:
                     generator = self._get_llm_generator()
@@ -584,6 +726,19 @@ class TickEngine:
                     response_payload,
                     bypass_validation=True,
                 )
+
+            expected = getattr(self.session, "simulation_expected_responses", [])
+            if (
+                expected
+                and self._is_orchestrator(message.to_agent)
+                and message.from_agent in expected
+            ):
+                self.session.simulation_expected_responses = [
+                    agent_id for agent_id in expected
+                    if agent_id != message.from_agent
+                ]
+                if not self.session.simulation_expected_responses:
+                    await self._finalize_delegation(message.to_agent, new_tick)
             break
 
         # Count messages sent this tick

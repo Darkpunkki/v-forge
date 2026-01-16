@@ -190,6 +190,12 @@ export function SimulationScreen() {
       : workflowConfig?.agents || []
   const hasAgents = agents.length > 0
   const graphEdges = simulationState?.agent_graph?.edges || []
+  const pendingDelegation = simulationState?.simulation_expected_responses || []
+  const delegationLabel =
+    pendingDelegation.length > 0
+      ? `Waiting on: ${pendingDelegation.join(', ')}`
+      : 'Delegation complete'
+  const delegationColor = pendingDelegation.length > 0 ? '#ff9800' : '#2e7d32'
 
   return (
     <div style={{ padding: '24px' }}>
@@ -347,6 +353,48 @@ export function SimulationScreen() {
                 />
               </div>
             )}
+          </section>
+
+          <section style={{ marginBottom: '24px' }}>
+            <h2>Final Answer</h2>
+            <div style={{ marginBottom: '12px' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 10px',
+                  borderRadius: '999px',
+                  background: '#fff',
+                  border: `1px solid ${delegationColor}`,
+                  color: delegationColor,
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                }}
+              >
+                {delegationLabel}
+              </span>
+            </div>
+            <div
+              style={{
+                background: '#f5f5f5',
+                padding: '16px',
+                borderRadius: '8px',
+                border: '1px solid #e0e0e0',
+              }}
+            >
+              {simulationState?.simulation_final_answer ? (
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                  {simulationState.simulation_final_answer}
+                </p>
+              ) : (
+                <p style={{ margin: 0, opacity: 0.6 }}>
+                  No final answer yet. Start the simulation and let agents conclude.
+                </p>
+              )}
+            </div>
           </section>
 
           <section>

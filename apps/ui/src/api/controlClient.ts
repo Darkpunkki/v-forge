@@ -196,6 +196,8 @@ export interface SimulationStateResponse {
   auto_delay_ms: number | null
   tick_budget: number | null
   pending_work_summary: string | null
+  simulation_expected_responses: string[]
+  simulation_final_answer: string | null
   use_real_llm: boolean
   llm_provider: string
   default_model: string

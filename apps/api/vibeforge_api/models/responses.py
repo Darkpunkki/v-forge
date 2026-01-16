@@ -189,6 +189,8 @@ class SimulationStateResponse(BaseModel):
     auto_delay_ms: Optional[int]
     tick_budget: Optional[int]
     pending_work_summary: Optional[str]
+    simulation_expected_responses: list[str] = Field(default_factory=list)
+    simulation_final_answer: Optional[str] = None
     use_real_llm: bool = False
     llm_provider: str = "openai"
     default_model: str = "gpt-4o-mini"

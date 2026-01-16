@@ -773,6 +773,8 @@ async def start_simulation(
     # Start simulation
     session.tick_status = "running"
     session.tick_index = 0  # Reset tick index on start
+    session.simulation_expected_responses = []
+    session.simulation_final_answer = None
     session_store.update_session(session)
 
     return SimulationStartResponse(
@@ -814,6 +816,8 @@ async def reset_simulation(session_id: str, request: SimulationResetRequest):
     session.first_agent_id = None
     session.simulation_message_queue = []
     session.simulation_message_counter = 0
+    session.simulation_expected_responses = []
+    session.simulation_final_answer = None
 
     workspace_manager = WorkspaceManager()
     event_log_path = workspace_manager.workspace_root / session_id / "events.jsonl"
@@ -1171,6 +1175,10 @@ async def get_simulation_state(session_id: str):
         auto_delay_ms=session.auto_delay_ms,
         tick_budget=session.tick_budget,
         pending_work_summary=pending_work_summary,
+        simulation_expected_responses=getattr(
+            session, "simulation_expected_responses", []
+        ),
+        simulation_final_answer=session.simulation_final_answer,
         use_real_llm=session.use_real_llm,
         llm_provider=session.llm_provider,
         default_model=session.default_model,

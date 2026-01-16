@@ -69,6 +69,8 @@ class Session:
         self.simulation_message_queue: list[dict[str, Any]] = []
         self.simulation_message_counter: int = 0
         self.simulation_agent_conversations: dict[str, list[dict[str, Any]]] = {}
+        self.simulation_expected_responses: list[str] = []
+        self.simulation_final_answer: Optional[str] = None
         self.use_real_llm: bool = False
         self.llm_provider: str = "openai"
         self.default_model: str = "gpt-4o-mini"
@@ -210,6 +212,8 @@ class Session:
             "simulation_message_queue": self.simulation_message_queue,
             "simulation_message_counter": self.simulation_message_counter,
             "simulation_agent_conversations": self.simulation_agent_conversations,
+            "simulation_expected_responses": self.simulation_expected_responses,
+            "simulation_final_answer": self.simulation_final_answer,
             "use_real_llm": self.use_real_llm,
             "llm_provider": self.llm_provider,
             "default_model": self.default_model,
@@ -301,6 +305,10 @@ class Session:
         session.simulation_agent_conversations = data.get(
             "simulation_agent_conversations", {}
         )
+        session.simulation_expected_responses = data.get(
+            "simulation_expected_responses", []
+        )
+        session.simulation_final_answer = data.get("simulation_final_answer")
         session.use_real_llm = data.get("use_real_llm", False)
         session.llm_provider = data.get("llm_provider", "openai")
         session.default_model = data.get("default_model", "gpt-4o-mini")

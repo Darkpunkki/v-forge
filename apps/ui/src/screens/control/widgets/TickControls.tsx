@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   startSimulation,
   advanceTick,
@@ -55,6 +55,7 @@ export function TickControls({
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const autoTickInFlight = useRef(false)
   const initialPromptValue = initialPrompt?.trim() ?? ''
   const firstAgentIdValue = firstAgentId?.trim() ?? ''
   const canStart = initialPromptValue.length > 0 && firstAgentIdValue.length > 0
@@ -84,7 +85,7 @@ export function TickControls({
     }
   }, [sessionId])
 
-  const refreshState = async () => {
+  const refreshState = useCallback(async () => {
     try {
       const result = await getSimulationState(sessionId)
       setState(result)
@@ -92,12 +93,13 @@ export function TickControls({
     } catch (err) {
       console.error('Failed to refresh state:', err)
     }
-  }
+  }, [sessionId, onStateChange])
 
   const tickStatus = state ? getStatusLabel(state.tick_status) : 'idle'
   const isRunning = tickStatus === 'running'
   const isAutoMode = state?.simulation_mode === 'auto'
   const isConfigured = state?.simulation_mode !== undefined
+  const canTick = isRunning && !isAutoMode
   const currentCost = state?.simulation_cost_usd ?? 0
   const maxCost = state?.max_cost_usd ?? 0
   const costRatio = maxCost > 0 ? currentCost / maxCost : 0
@@ -125,6 +127,49 @@ export function TickControls({
       clearInterval(interval)
     }
   }, [sessionId, isRunning])
+
+  useEffect(() => {
+    if (!isAutoMode || !isRunning) {
+      return
+    }
+
+    let cancelled = false
+    const delayMs = Math.max(0, state?.auto_delay_ms ?? 1000)
+    let timeoutId: number | null = null
+
+    const runTick = async () => {
+      if (cancelled || autoTickInFlight.current) {
+        return
+      }
+      autoTickInFlight.current = true
+      try {
+        await advanceTick(sessionId)
+        await refreshState()
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err?.detail || err?.message || 'Failed to auto-advance tick')
+        }
+        if (err?.status === 429) {
+          autoTickInFlight.current = false
+          return
+        }
+      } finally {
+        autoTickInFlight.current = false
+        if (!cancelled) {
+          timeoutId = window.setTimeout(runTick, delayMs)
+        }
+      }
+    }
+
+    timeoutId = window.setTimeout(runTick, delayMs)
+
+    return () => {
+      cancelled = true
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [sessionId, isAutoMode, isRunning, state?.auto_delay_ms, refreshState])
 
   const handleAction = async (
     actionName: string,
@@ -158,10 +203,19 @@ export function TickControls({
     )
   }
 
-  const handleTick = () =>
-    handleAction('tick', () => advanceTick(sessionId))
+  const handleTick = () => {
+    if (!canTick) {
+      setError('Simulation must be running in manual mode to advance ticks.')
+      return
+    }
+    return handleAction('tick', () => advanceTick(sessionId))
+  }
 
   const handleTicks = () => {
+    if (!canTick) {
+      setError('Simulation must be running in manual mode to advance ticks.')
+      return
+    }
     const count = parseInt(ticksInput, 10)
     if (isNaN(count) || count < 1) {
       setError('Please enter a valid number of ticks (1-100)')
@@ -354,15 +408,15 @@ export function TickControls({
             <button
               type="button"
               onClick={handleTick}
-              disabled={actionLoading !== null || isRunning}
+              disabled={actionLoading !== null || !canTick}
               style={{
                 flex: 1,
                 padding: '10px',
-                background: actionLoading || isRunning ? '#9e9e9e' : '#1976d2',
+                background: actionLoading || !canTick ? '#9e9e9e' : '#1976d2',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: actionLoading || isRunning ? 'not-allowed' : 'pointer',
+                cursor: actionLoading || !canTick ? 'not-allowed' : 'pointer',
                 fontWeight: 600,
                 fontSize: '13px',
               }}
@@ -377,7 +431,7 @@ export function TickControls({
                 max="100"
                 value={ticksInput}
                 onChange={(e) => setTicksInput(e.target.value)}
-                disabled={actionLoading !== null || isRunning}
+                disabled={actionLoading !== null || !canTick}
                 style={{
                   width: '60px',
                   padding: '8px',
@@ -390,15 +444,15 @@ export function TickControls({
               <button
                 type="button"
                 onClick={handleTicks}
-                disabled={actionLoading !== null || isRunning}
+                disabled={actionLoading !== null || !canTick}
                 style={{
                   flex: 1,
                   padding: '10px',
-                  background: actionLoading || isRunning ? '#9e9e9e' : '#1976d2',
+                  background: actionLoading || !canTick ? '#9e9e9e' : '#1976d2',
                   color: '#fff',
                   border: 'none',
                   borderRadius: '0 6px 6px 0',
-                  cursor: actionLoading || isRunning ? 'not-allowed' : 'pointer',
+                  cursor: actionLoading || !canTick ? 'not-allowed' : 'pointer',
                   fontWeight: 600,
                   fontSize: '13px',
                 }}
