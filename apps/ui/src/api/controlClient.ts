@@ -98,6 +98,7 @@ export interface AgentConfig {
 export interface AgentFlowEdge {
   from_agent: string
   to_agent: string
+  bidirectional?: boolean
 }
 
 export interface InitializeAgentsResponse {
@@ -189,6 +190,7 @@ export interface SimulationStateResponse {
   auto_delay_ms: number | null
   tick_budget: number | null
   pending_work_summary: string | null
+  agent_graph: { edges: AgentFlowEdge[] } | null
   agents: AgentConfig[]
   available_roles: string[]
 }

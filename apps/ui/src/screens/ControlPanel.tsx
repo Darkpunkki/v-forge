@@ -4,17 +4,12 @@ import {
   getActiveSessions,
   getSessionStatus,
   streamSessionEvents,
-  getWorkflowConfig,
-  getSimulationState,
   type SessionListItem,
   type ActiveSessionItem,
   type SessionStatusResponse,
   type SessionEvent,
-  type WorkflowConfigResponse,
-  type SimulationStateResponse,
 } from "../api/controlClient";
 import AgentDashboard from "./control/widgets/AgentDashboard";
-import AgentGraph from "./control/widgets/AgentGraph";
 import ExecutionTimeline from "./control/widgets/ExecutionTimeline";
 import EventStream from "./control/widgets/EventStream";
 import GateLog from "./control/widgets/GateLog";
@@ -23,13 +18,6 @@ import PromptInspector from "./control/widgets/PromptInspector";
 import SessionComparison from "./control/widgets/SessionComparison";
 import TokenVisualization from "./control/widgets/TokenVisualization";
 import CostAnalytics from "./control/widgets/CostAnalytics";
-import { AgentInitializer } from "./control/widgets/AgentInitializer";
-import { AgentAssignment } from "./control/widgets/AgentAssignment";
-import { AgentTaskInput } from "./control/widgets/AgentTaskInput";
-import { AgentFlowEditor } from "./control/widgets/AgentFlowEditor";
-import { SimulationConfig } from "./control/widgets/SimulationConfig";
-import { TickControls } from "./control/widgets/TickControls";
-import MultiAgentMessages from "./control/widgets/MultiAgentMessages";
 
 export function ControlPanelScreen() {
   const [allSessions, setAllSessions] = useState<SessionListItem[]>([]);
@@ -44,10 +32,6 @@ export function ControlPanelScreen() {
   const [loadingSession, setLoadingSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sseError, setSseError] = useState<string | null>(null);
-  const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfigResponse | null>(null);
-  const [simulationState, setSimulationState] = useState<SimulationStateResponse | null>(null);
-  const [initialPrompt, setInitialPrompt] = useState<string>("");
-  const [firstAgentId, setFirstAgentId] = useState<string>("");
   const artifactKeys = ["concept", "build_spec", "task_graph"];
 
   const getArtifactCount = (session: SessionListItem, key: string) =>
@@ -80,10 +64,6 @@ export function ControlPanelScreen() {
       setSessionStatus(null);
       setSessionEvents([]);
       setSseError(null);
-      setWorkflowConfig(null);
-      setSimulationState(null);
-      setInitialPrompt("");
-      setFirstAgentId("");
       setLoadingSession(false);
       return;
     }
@@ -99,15 +79,9 @@ export function ControlPanelScreen() {
 
     async function loadSessionDetails() {
       try {
-        const [status, workflow, simState] = await Promise.all([
-          getSessionStatus(sessionId),
-          getWorkflowConfig(sessionId).catch(() => null), // Workflow config is optional
-          getSimulationState(sessionId).catch(() => null), // Simulation state is optional
-        ]);
+        const status = await getSessionStatus(sessionId);
         if (!cancelled) {
           setSessionStatus(status);
-          setWorkflowConfig(workflow);
-          setSimulationState(simState);
           setLoadingSession(false);
         }
       } catch (err: any) {
@@ -152,40 +126,6 @@ export function ControlPanelScreen() {
       eventSource.close();
     };
   }, [selectedSessionId]);
-
-  useEffect(() => {
-    if (!simulationState) {
-      return;
-    }
-    if (simulationState.initial_prompt !== null && simulationState.initial_prompt !== undefined) {
-      setInitialPrompt(simulationState.initial_prompt);
-    }
-    if (simulationState.first_agent_id !== null && simulationState.first_agent_id !== undefined) {
-      setFirstAgentId(simulationState.first_agent_id);
-    }
-  }, [simulationState?.initial_prompt, simulationState?.first_agent_id]);
-
-  // Handler to refresh workflow configuration
-  const refreshWorkflowConfig = async () => {
-    if (!selectedSessionId) return;
-    try {
-      const workflow = await getWorkflowConfig(selectedSessionId);
-      setWorkflowConfig(workflow);
-    } catch (err) {
-      console.error("Failed to refresh workflow config:", err);
-    }
-  };
-
-  // Handler to refresh simulation state
-  const refreshSimulationState = async () => {
-    if (!selectedSessionId) return;
-    try {
-      const simState = await getSimulationState(selectedSessionId);
-      setSimulationState(simState);
-    } catch (err) {
-      console.error("Failed to refresh simulation state:", err);
-    }
-  };
 
   if (loading) {
     return (
@@ -495,78 +435,6 @@ export function ControlPanelScreen() {
                   </section>
                 )}
 
-                {/* Workflow Configuration Section (VF-195-198) */}
-                <section style={{ marginBottom: "24px" }}>
-                  <h2>Workflow Configuration</h2>
-                  {!workflowConfig?.agents || workflowConfig.agents.length === 0 ? (
-                    <AgentInitializer
-                      sessionId={selectedSessionId}
-                      onInitialized={refreshWorkflowConfig}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
-                        gap: "16px",
-                      }}
-                    >
-                      <AgentAssignment
-                        sessionId={selectedSessionId}
-                        agents={workflowConfig.agents}
-                        availableRoles={simulationState?.available_roles}
-                        onAssigned={refreshWorkflowConfig}
-                      />
-                      <AgentTaskInput
-                        sessionId={selectedSessionId}
-                        currentTask={workflowConfig.main_task || undefined}
-                        onTaskSet={refreshWorkflowConfig}
-                      />
-                      <AgentFlowEditor
-                        sessionId={selectedSessionId}
-                        agents={workflowConfig.agents}
-                        existingEdges={workflowConfig.agent_graph?.edges || []}
-                        onFlowConfigured={refreshWorkflowConfig}
-                      />
-                    </div>
-                  )}
-                </section>
-
-                {/* Simulation Control Section (VF-204) */}
-                {workflowConfig?.agents && workflowConfig.agents.length > 0 && (
-                  <section style={{ marginBottom: "24px" }}>
-                    <h2>Simulation Control</h2>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
-                        gap: "16px",
-                      }}
-                    >
-                      <SimulationConfig
-                        sessionId={selectedSessionId}
-                        currentMode={simulationState?.simulation_mode}
-                        currentDelayMs={simulationState?.auto_delay_ms}
-                        currentTickBudget={simulationState?.tick_budget}
-                        agents={workflowConfig?.agents || []}
-                        initialPrompt={initialPrompt}
-                        firstAgentId={firstAgentId}
-                        onStartContextChange={(context) => {
-                          setInitialPrompt(context.initialPrompt);
-                          setFirstAgentId(context.firstAgentId);
-                        }}
-                        onConfigured={refreshSimulationState}
-                      />
-                      <TickControls
-                        sessionId={selectedSessionId}
-                        initialPrompt={initialPrompt}
-                        firstAgentId={firstAgentId}
-                        onStateChange={refreshSimulationState}
-                      />
-                    </div>
-                  </section>
-                )}
-
                 {/* Monitoring Widgets */}
                 <section>
                   <h2>Session Monitoring</h2>
@@ -577,24 +445,22 @@ export function ControlPanelScreen() {
                       gap: "16px",
                     }}
                   >
-                    <MultiAgentMessages events={sessionEvents} />
                     <AgentDashboard events={sessionEvents} />
-                  <TokenVisualization events={sessionEvents} />
-                  <AgentGraph events={sessionEvents} />
-                  <ExecutionTimeline events={sessionEvents} />
-                  <GateLog events={sessionEvents} />
-                  <ModelRouter events={sessionEvents} />
-                  <SessionComparison
-                    sessions={allSessions}
-                    selectedSessionId={selectedSessionId}
-                  />
-                  <EventStream
-                    events={sessionEvents}
-                    sessionId={selectedSessionId}
-                    onClear={() => setSessionEvents([])}
-                  />
-                  <PromptInspector sessionId={selectedSessionId} />
-                  <CostAnalytics events={sessionEvents} />
+                    <TokenVisualization events={sessionEvents} />
+                    <ExecutionTimeline events={sessionEvents} />
+                    <GateLog events={sessionEvents} />
+                    <ModelRouter events={sessionEvents} />
+                    <SessionComparison
+                      sessions={allSessions}
+                      selectedSessionId={selectedSessionId}
+                    />
+                    <EventStream
+                      events={sessionEvents}
+                      sessionId={selectedSessionId}
+                      onClear={() => setSessionEvents([])}
+                    />
+                    <PromptInspector sessionId={selectedSessionId} />
+                    <CostAnalytics events={sessionEvents} />
                   </div>
                 </section>
               </>

@@ -12,6 +12,9 @@ export function Layout() {
           <Link to="/control" style={{ textDecoration: 'none', color: '#1a237e', fontWeight: 500 }}>
             Control Panel
           </Link>
+          <Link to="/simulation" style={{ textDecoration: 'none', color: '#1a237e', fontWeight: 500 }}>
+            Simulation
+          </Link>
         </nav>
       </header>
 

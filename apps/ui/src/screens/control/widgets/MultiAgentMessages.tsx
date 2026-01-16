@@ -16,6 +16,7 @@ type AgentMessage = {
   content: string
   blocked?: boolean
   blockReason?: string
+  isStub?: boolean
 }
 
 function getAgentColor(agentId: string): string {
@@ -28,12 +29,55 @@ function getAgentColor(agentId: string): string {
   return `hsl(${hue}, 70%, 45%)`
 }
 
+type ContentPayload = {
+  text?: unknown
+  is_stub?: unknown
+}
+
+function extractContent(
+  metaContent: unknown,
+  fallbackMessage: string | undefined
+) {
+  let contentText = ''
+  let isStub = false
+
+  if (typeof metaContent === 'string') {
+    contentText = metaContent
+  } else if (metaContent && typeof metaContent === 'object') {
+    const payload = metaContent as ContentPayload
+    if (typeof payload.text === 'string') {
+      contentText = payload.text
+    } else {
+      try {
+        contentText = JSON.stringify(metaContent)
+      } catch {
+        contentText = String(metaContent)
+      }
+    }
+    if (payload.is_stub === true) {
+      isStub = true
+    }
+  }
+
+  if (!contentText && fallbackMessage) {
+    contentText = fallbackMessage
+  }
+
+  if (contentText.includes('[STUB]')) {
+    isStub = true
+  }
+
+  return { contentText, isStub }
+}
+
 function parseMessage(event: SessionEvent): AgentMessage | null {
   // Extract MESSAGE_SENT and MESSAGE_BLOCKED_BY_GRAPH events
   const eventType = event.event_type.toUpperCase()
 
   if (eventType === 'MESSAGE_SENT' || eventType === 'MESSAGE_BLOCKED_BY_GRAPH') {
     const meta = event.metadata || {}
+    const { contentText, isStub: contentStub } = extractContent(meta.content, event.message)
+    const isStub = Boolean(meta.is_stub) || contentStub
     return {
       timestamp: event.timestamp,
       tick: meta.tick_index as number | undefined,
@@ -42,9 +86,12 @@ function parseMessage(event: SessionEvent): AgentMessage | null {
       role: meta.role as string | undefined,
       model: meta.model as string | undefined,
       messageType: meta.message_type as string | undefined,
-      content: (meta.content as string) || event.message || '',
+      content: contentText,
       blocked: eventType === 'MESSAGE_BLOCKED_BY_GRAPH',
-      blockReason: meta.reason as string | undefined,
+      blockReason:
+        (meta.reason as string | undefined) ||
+        (meta.block_reason as string | undefined),
+      isStub,
     }
   }
 
@@ -185,8 +232,12 @@ export function MultiAgentMessages({ events }: MultiAgentMessagesProps) {
             <div
               key={`${msg.timestamp}-${idx}`}
               style={{
-                background: msg.blocked ? '#ffebee' : '#fff',
-                border: msg.blocked ? '1px solid #ef9a9a' : '1px solid #e0e0e0',
+                background: msg.blocked ? '#ffebee' : msg.isStub ? '#e3f2fd' : '#fff',
+                border: msg.blocked
+                  ? '1px solid #ef9a9a'
+                  : msg.isStub
+                    ? '1px solid #90caf9'
+                    : '1px solid #e0e0e0',
                 borderRadius: '8px',
                 padding: '12px',
                 position: 'relative',
@@ -239,16 +290,30 @@ export function MultiAgentMessages({ events }: MultiAgentMessagesProps) {
                 {msg.blocked && (
                   <span
                     style={{
-                      background: '#f44336',
+                      background: '#f97316',
                       color: '#fff',
                       padding: '2px 6px',
                       borderRadius: '4px',
                       fontSize: '10px',
                       fontWeight: 600,
-                      textTransform: 'uppercase',
                     }}
                   >
-                    Blocked
+                    (BLOCKED)
+                  </span>
+                )}
+
+                {msg.isStub && (
+                  <span
+                    style={{
+                      background: '#1976d2',
+                      color: '#fff',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    [STUB]
                   </span>
                 )}
 

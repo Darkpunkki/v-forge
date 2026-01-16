@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 
-import type { SessionEvent } from '../../../api/controlClient'
+import type { AgentConfig, AgentFlowEdge } from '../../../api/controlClient'
 import './AgentGraph.css'
 
 type GraphStatus = 'idle' | 'active' | 'complete' | 'failed'
@@ -15,11 +15,12 @@ type GraphNode = {
 type GraphEdge = {
   source: string
   target: string
-  taskId?: string
+  bidirectional?: boolean
 }
 
 interface AgentGraphProps {
-  events: SessionEvent[]
+  agents: AgentConfig[]
+  edges: AgentFlowEdge[]
 }
 
 const ROLE_COLORS: Record<GraphStatus, string> = {
@@ -29,90 +30,55 @@ const ROLE_COLORS: Record<GraphStatus, string> = {
   failed: '#ef4444',
 }
 
-const DEFAULT_NODES: GraphNode[] = [
-  { id: 'orchestrator', label: 'Orchestrator', role: 'orchestrator', status: 'idle' },
-  { id: 'taskmaster', label: 'TaskMaster', role: 'taskmaster', status: 'idle' },
-  { id: 'distributor', label: 'Distributor', role: 'distributor', status: 'idle' },
-  { id: 'worker', label: 'Worker', role: 'worker', status: 'idle' },
-  { id: 'foreman', label: 'Foreman', role: 'foreman', status: 'idle' },
-  { id: 'fixer', label: 'Fixer', role: 'fixer', status: 'idle' },
-  { id: 'reviewer', label: 'Reviewer', role: 'reviewer', status: 'idle' },
-]
-
-function parseTimestamp(timestamp: string) {
-  return new Date(timestamp).getTime()
-}
-
-export default function AgentGraph({ events }: AgentGraphProps) {
+export default function AgentGraph({ agents, edges: flowEdges }: AgentGraphProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
 
-  const { nodes, edges } = useMemo(() => {
+  const { nodes, edges: graphEdges } = useMemo(() => {
     const nodeMap = new Map<string, GraphNode>()
-    DEFAULT_NODES.forEach((node) => nodeMap.set(node.id, { ...node }))
-    const edgeMap = new Map<string, GraphEdge>()
+    agents.forEach((agent) => {
+      const label = agent.display_name || agent.role || agent.agent_id
+      nodeMap.set(agent.agent_id, {
+        id: agent.agent_id,
+        label,
+        role: agent.role || agent.agent_id,
+        status: 'idle',
+      })
+    })
 
-    const orderedEvents = [...events].sort(
-      (a, b) => parseTimestamp(a.timestamp) - parseTimestamp(b.timestamp)
-    )
+    const graphEdges = flowEdges
+      .filter((edge) => edge.from_agent && edge.to_agent)
+      .map((edge) => ({
+        source: edge.from_agent,
+        target: edge.to_agent,
+        bidirectional: edge.bidirectional,
+      }))
 
-    orderedEvents.forEach((event) => {
-      const role = (event.metadata?.agent_role as string) || event.metadata?.role
-      const nodeId = role || 'worker'
-
-      if (!nodeMap.has(nodeId)) {
-        nodeMap.set(nodeId, {
-          id: nodeId,
-          label: nodeId.replace(/_/g, ' '),
-          role: nodeId,
+    graphEdges.forEach((edge) => {
+      if (!nodeMap.has(edge.source)) {
+        nodeMap.set(edge.source, {
+          id: edge.source,
+          label: edge.source,
+          role: edge.source,
           status: 'idle',
         })
       }
-
-      const existing = nodeMap.get(nodeId)!
-      const next: GraphNode = { ...existing }
-
-      switch (event.event_type) {
-        case 'agent_invoked':
-        case 'task_started': {
-          next.status = 'active'
-          break
-        }
-        case 'task_completed': {
-          next.status = 'complete'
-          break
-        }
-        case 'agent_completed': {
-          next.status = event.metadata?.success === false ? 'failed' : 'complete'
-          break
-        }
-        case 'task_failed': {
-          next.status = 'failed'
-          break
-        }
-        default:
-          break
-      }
-
-      nodeMap.set(nodeId, next)
-
-      if (event.task_id && role) {
-        if (!edgeMap.has(event.task_id)) {
-          edgeMap.set(event.task_id, {
-            source: 'orchestrator',
-            target: role,
-            taskId: event.task_id,
-          })
-        }
+      if (!nodeMap.has(edge.target)) {
+        nodeMap.set(edge.target, {
+          id: edge.target,
+          label: edge.target,
+          role: edge.target,
+          status: 'idle',
+        })
       }
     })
 
     return {
       nodes: Array.from(nodeMap.values()),
-      edges: Array.from(edgeMap.values()),
+      edges: graphEdges,
     }
-  }, [events])
+  }, [agents, flowEdges])
 
   // Seed new node positions when nodes change
   useEffect(() => {
@@ -161,28 +127,20 @@ export default function AgentGraph({ events }: AgentGraphProps) {
     setDraggingId(null)
   }
 
-  const renderEdge = (edge: GraphEdge) => {
+  const renderEdge = (edge: GraphEdge, index: number) => {
     const sourcePos = positions[edge.source] || { x: 380, y: 210 }
     const targetPos = positions[edge.target] || { x: 380, y: 210 }
 
     return (
-      <g key={`${edge.source}-${edge.target}-${edge.taskId}`} className="graph-edge">
+      <g key={`${edge.source}-${edge.target}-${index}`} className="graph-edge">
         <line
           x1={sourcePos.x}
           y1={sourcePos.y}
           x2={targetPos.x}
           y2={targetPos.y}
+          markerStart={edge.bidirectional ? 'url(#arrowhead)' : undefined}
           markerEnd="url(#arrowhead)"
         />
-        {edge.taskId && (
-          <text
-            x={(sourcePos.x + targetPos.x) / 2}
-            y={(sourcePos.y + targetPos.y) / 2 - 6}
-            className="edge-label"
-          >
-            {edge.taskId}
-          </text>
-        )}
       </g>
     )
   }
@@ -191,8 +149,8 @@ export default function AgentGraph({ events }: AgentGraphProps) {
     <section className="agent-graph">
       <div className="widget-header">
         <div>
-          <h2>Agent Relationship Graph</h2>
-          <p>Drag nodes to explore task flow between agents.</p>
+          <h2>Agent Communication Graph</h2>
+          <p>Drag nodes to explore communication links between agents.</p>
         </div>
         <div className="graph-legend">
           {Object.entries(ROLE_COLORS).map(([status, color]) => (
@@ -223,7 +181,7 @@ export default function AgentGraph({ events }: AgentGraphProps) {
           <rect x="0" y="0" width="760" height="420" className="graph-bg" />
 
           <g>
-            {edges.map((edge) => renderEdge(edge))}
+            {graphEdges.map((edge, index) => renderEdge(edge, index))}
             {nodes.map((node) => {
               const position = positions[node.id] || { x: 380, y: 210 }
               return (
@@ -253,8 +211,8 @@ export default function AgentGraph({ events }: AgentGraphProps) {
           </g>
         </svg>
 
-        {edges.length === 0 && (
-          <div className="graph-empty">Waiting for task events to render edges.</div>
+        {graphEdges.length === 0 && (
+          <div className="graph-empty">Configure communication graph.</div>
         )}
       </div>
     </section>
