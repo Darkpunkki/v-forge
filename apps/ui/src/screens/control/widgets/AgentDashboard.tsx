@@ -71,7 +71,7 @@ export default function AgentDashboard({ events }: { events: SessionEvent[] }) {
           status.status = 'error'
           break
         case 'agent_completed':
-          status.status = event.metadata?.success === False ? 'error' : 'idle'
+          status.status = event.metadata?.success === false ? 'error' : 'idle'
           status.currentTask = undefined
           status.taskDescription = undefined
           break

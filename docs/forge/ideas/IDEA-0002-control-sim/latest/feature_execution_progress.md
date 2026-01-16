@@ -1,6 +1,6 @@
 # Feature Execution Progress <IDEA_ID>
 
-- last_updated: 2026-01-16T02:15:03.0219506+02:00
+- last_updated: 2026-01-16T03:39:56.5469330+02:00
 - policy:
   - Unit of execution: 1 feature (FEAT-XXX) per run
   - Source of truth: latest/tasks.md (search by FEAT id)
@@ -40,14 +40,18 @@
 | 2026-01-16T02:07:04.9974421+02:00 | FEAT-007 | In Progress | 2026-01-16T00-06-54.631Z_run-df83 | planning/FEC-FEAT-007-workspace-checklist.md | started |
 | 2026-01-16T02:09:20.2620064+02:00 | FEAT-007 | Done | 2026-01-16T00-06-54.631Z_run-df83 | planning/FEC-FEAT-007-workspace-checklist.md | tests passing |
 | 2026-01-16T02:15:03.0219506+02:00 | FEAT-008 | In Progress | 2026-01-16T00-14-51.667Z_run-d5b4 | planning/FEC-FEAT-008-workspace-checklist.md | started |
+| 2026-01-16T02:50:38.2074430+02:00 | FEAT-009 | In Progress | 2026-01-16T00-48-50.459Z_run-00e9 | planning/FEC-FEAT-009-workspace-checklist.md | started |
+| 2026-01-16T02:52:52.5971192+02:00 | FEAT-009 | Blocked | 2026-01-16T00-48-50.459Z_run-00e9 | planning/FEC-FEAT-009-workspace-checklist.md | npm run build failed (spawn EPERM) |
+| 2026-01-16T03:36:07.3127117+02:00 | FEAT-009 | Blocked | 2026-01-16T00-48-50.459Z_run-00e9 | planning/FEC-FEAT-009-workspace-checklist.md | tsc failed: AgentDashboard.tsx uses 'False' |
+| 2026-01-16T03:39:56.5469330+02:00 | FEAT-009 | Done | 2026-01-16T00-48-50.459Z_run-00e9 | planning/FEC-FEAT-009-workspace-checklist.md | tests passing |
 
 ---
 
 ## Current pointer
 
-- next_feature: FEAT-008
-- last_completed_feature: FEAT-007
-- last_run_id: 2026-01-16T00-14-51.667Z_run-d5b4
+- next_feature: FEAT-010
+- last_completed_feature: FEAT-009
+- last_run_id: 2026-01-16T00-48-50.459Z_run-00e9
 
 ---
 
