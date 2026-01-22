@@ -70,6 +70,7 @@ class Session:
         self.simulation_message_counter: int = 0
         self.simulation_agent_conversations: dict[str, list[dict[str, Any]]] = {}
         self.simulation_expected_responses: list[str] = []
+        self.simulation_delegation_tracking: dict[str, list[str]] = {}
         self.simulation_final_answer: Optional[str] = None
         self.use_real_llm: bool = False
         self.llm_provider: str = "openai"
@@ -213,6 +214,7 @@ class Session:
             "simulation_message_counter": self.simulation_message_counter,
             "simulation_agent_conversations": self.simulation_agent_conversations,
             "simulation_expected_responses": self.simulation_expected_responses,
+            "simulation_delegation_tracking": self.simulation_delegation_tracking,
             "simulation_final_answer": self.simulation_final_answer,
             "use_real_llm": self.use_real_llm,
             "llm_provider": self.llm_provider,
@@ -307,6 +309,9 @@ class Session:
         )
         session.simulation_expected_responses = data.get(
             "simulation_expected_responses", []
+        )
+        session.simulation_delegation_tracking = data.get(
+            "simulation_delegation_tracking", {}
         )
         session.simulation_final_answer = data.get("simulation_final_answer")
         session.use_real_llm = data.get("use_real_llm", False)

@@ -191,9 +191,15 @@ class TickEngine:
         ]
         self.session.simulation_message_counter = self._message_counter
         self.session.simulation_agent_conversations = self.agent_conversations
-        self.session.simulation_expected_responses = getattr(
-            self.session, "simulation_expected_responses", []
-        )
+        # Persist both old and new delegation tracking for compatibility
+        tracking = self._get_delegation_tracking()
+        self.session.simulation_delegation_tracking = tracking
+        # Keep simulation_expected_responses in sync for backward compatibility
+        # (it shows all agents we're waiting on across all delegators)
+        all_expected = []
+        for expected_list in tracking.values():
+            all_expected.extend(expected_list)
+        self.session.simulation_expected_responses = all_expected
         self.session.simulation_final_answer = getattr(
             self.session, "simulation_final_answer", None
         )
@@ -258,37 +264,93 @@ class TickEngine:
         return [agent.get("agent_id", "") for agent in self.session.agents]
 
     def _get_delegate_targets(self, orchestrator_id: str) -> list[str]:
+        """Get agents the orchestrator can delegate to based on the flow graph.
+
+        Only returns agents that:
+        1. Are directly connected to the orchestrator in the graph
+        2. Are not orchestrators themselves
+        """
         targets = []
-        for agent_id in self._get_agent_ids():
+        agent_ids = self._get_agent_ids()
+
+        for agent_id in agent_ids:
             if not agent_id or agent_id == orchestrator_id:
                 continue
             if self.session.agent_roles.get(agent_id) == "orchestrator":
                 continue
-            targets.append(agent_id)
+            # Check if there's a direct edge from orchestrator to this agent
+            edge_exists = any(
+                (edge.from_agent == orchestrator_id and edge.to_agent == agent_id)
+                or (
+                    edge.bidirectional
+                    and edge.from_agent == agent_id
+                    and edge.to_agent == orchestrator_id
+                )
+                for edge in self.agent_graph.edges
+            )
+            if edge_exists:
+                targets.append(agent_id)
         return targets
 
     def _should_delegate(self, message: Message) -> bool:
-        if message.from_agent != "user":
-            return False
-        if not self._is_orchestrator(message.to_agent):
-            return False
+        """Check if the receiving agent should delegate this message to downstream agents.
+
+        An agent should delegate if:
+        1. The message expects a response
+        2. The agent has downstream targets in the flow graph
+        3. The agent is not already waiting for responses
+        4. The message is a delegation request OR is from user to orchestrator
+        """
         if not self._message_expects_response(message):
             return False
-        expected = getattr(self.session, "simulation_expected_responses", [])
-        if expected:
-            return False
-        return bool(self._get_delegate_targets(message.to_agent))
 
-    def _queue_delegation_messages(self, orchestrator_id: str, prompt_text: str) -> None:
-        targets = self._get_delegate_targets(orchestrator_id)
+        # Check if this agent has downstream targets to delegate to
+        targets = self._get_delegate_targets(message.to_agent)
+        if not targets:
+            return False
+
+        # Don't delegate if this agent is already waiting for responses
+        tracking = self._get_delegation_tracking()
+        agent_expected = tracking.get(message.to_agent, [])
+        if agent_expected:
+            return False
+
+        # Delegate if: message from user to orchestrator, or it's a delegation message
+        is_from_user = message.from_agent == "user"
+        is_to_orchestrator = self._is_orchestrator(message.to_agent)
+        is_delegation = isinstance(message.content, dict) and message.content.get("delegation")
+
+        return (is_from_user and is_to_orchestrator) or is_delegation
+
+    def _get_delegation_tracking(self) -> dict[str, list[str]]:
+        """Get the delegation tracking dict from session."""
+        tracking = getattr(self.session, "simulation_delegation_tracking", None)
+        if not isinstance(tracking, dict):
+            tracking = {}
+            self.session.simulation_delegation_tracking = tracking
+        return tracking
+
+    def _queue_delegation_messages(self, delegator_id: str, prompt_text: str) -> None:
+        """Queue delegation messages from delegator to its downstream targets.
+
+        Works for any agent (orchestrator, foreman, etc.) that has downstream targets.
+        """
+        targets = self._get_delegate_targets(delegator_id)
         if not targets:
             return
-        self.session.simulation_expected_responses = list(targets)
-        self.session.simulation_final_answer = None
+
+        # Track expected responses per delegator
+        tracking = self._get_delegation_tracking()
+        tracking[delegator_id] = list(targets)
+
+        # Clear final answer only if this is the orchestrator
+        if self._is_orchestrator(delegator_id):
+            self.session.simulation_final_answer = None
+
         main_task = self.session.main_task or prompt_text
         for target in targets:
             self.send_message(
-                from_agent=orchestrator_id,
+                from_agent=delegator_id,
                 to_agent=target,
                 content={
                     "text": (
@@ -297,6 +359,7 @@ class TickEngine:
                     ),
                     "expect_response": True,
                     "delegation": True,
+                    "delegation_from": delegator_id,
                 },
             )
 
@@ -385,6 +448,103 @@ class TickEngine:
         self.session.simulation_final_answer = response_payload.get("text")
         self.session.simulation_expected_responses = []
         self.session.tick_status = "completed"
+
+    async def _consolidate_and_respond_upstream(
+        self,
+        agent_id: str,
+        tick_index: int,
+    ) -> None:
+        """Consolidate responses and send back to upstream delegator.
+
+        Called when a non-orchestrator agent (e.g., foreman) has received
+        all responses from its delegated agents and needs to respond upstream.
+        """
+        # Find who delegated to this agent (check recent messages)
+        upstream_agent = None
+        for msg in reversed(self.message_queue):
+            if (
+                msg.to_agent == agent_id
+                and isinstance(msg.content, dict)
+                and msg.content.get("delegation")
+            ):
+                upstream_agent = msg.from_agent
+                break
+
+        if not upstream_agent:
+            logger.warning(
+                "Cannot find upstream delegator for agent %s", agent_id
+            )
+            return
+
+        response_payload = None
+        if self.session.use_real_llm:
+            generator = self._get_llm_generator()
+            agent_model = self.session.agent_models.get(
+                agent_id, self.session.default_model
+            )
+            agent_role = self.session.agent_roles.get(agent_id)
+            try:
+                response = await generator.generate_response(
+                    agent_id=agent_id,
+                    agent_role=agent_role,
+                    agent_model=agent_model,
+                    message_history=self.agent_conversations.get(agent_id, []),
+                    incoming_message=(
+                        "Consolidate the responses from your team and provide "
+                        "a summary to report back."
+                    ),
+                )
+                response_payload = (
+                    response.metadata.get("content") if response.metadata else None
+                )
+                if not isinstance(response_payload, dict):
+                    response_payload = {
+                        "text": response.content,
+                        "is_stub": False,
+                        "expect_response": False,
+                    }
+                cost_usd = self._calculate_llm_cost(response.model, response.usage)
+                if cost_usd > 0:
+                    self.session.simulation_cost_usd += cost_usd
+                    self._emit_cost_event(
+                        agent_id=agent_id,
+                        model=response.model,
+                        usage=response.usage,
+                        cost_usd=cost_usd,
+                        tick_index=tick_index,
+                    )
+            except Exception as exc:
+                self._emit_event(
+                    Event(
+                        event_type=EventType.LLM_FAILURE,
+                        timestamp=datetime.now(timezone.utc),
+                        session_id=self.session.session_id,
+                        message="LLM consolidation failed",
+                        phase=self.session.phase.value,
+                        metadata={
+                            "tick_index": tick_index,
+                            "agent_id": agent_id,
+                            "error": str(exc),
+                        },
+                    )
+                )
+                response_payload = None
+
+        if response_payload is None:
+            response_payload = {
+                "text": f"[STUB] {agent_id} consolidated response to {upstream_agent}",
+                "is_stub": True,
+                "expect_response": False,
+            }
+
+        self._append_history(agent_id, "assistant", response_payload)
+
+        # Send response back upstream - this should follow the graph
+        self.send_message(
+            from_agent=agent_id,
+            to_agent=upstream_agent,
+            content=response_payload,
+        )
 
     def _message_expects_response(self, message: Message) -> bool:
         """Check if a message should trigger an automated response."""
@@ -479,17 +639,7 @@ class TickEngine:
                 to_agent=to_agent,
             )
 
-        # Orchestrator can broadcast to any agent
-        if self._is_orchestrator(from_agent):
-            return MessageValidation(
-                is_allowed=True,
-                status=MessageValidationStatus.ALLOWED,
-                reason="Orchestrator can broadcast to any agent",
-                from_agent=from_agent,
-                to_agent=to_agent,
-            )
-
-        # Check if edge exists in graph
+        # Check if edge exists in graph (orchestrators must also follow the graph)
         edge_exists = any(
             (
                 edge.from_agent == from_agent
@@ -720,25 +870,38 @@ class TickEngine:
 
                 response_payload["in_response_to"] = message.message_id
                 self._append_history(message.to_agent, "assistant", response_payload)
+                # Send response back - must follow the configured flow graph
                 self.send_message(
                     message.to_agent,
                     message.from_agent,
                     response_payload,
-                    bypass_validation=True,
                 )
 
-            expected = getattr(self.session, "simulation_expected_responses", [])
-            if (
-                expected
-                and self._is_orchestrator(message.to_agent)
-                and message.from_agent in expected
-            ):
-                self.session.simulation_expected_responses = [
-                    agent_id for agent_id in expected
-                    if agent_id != message.from_agent
+            # Check if this message completes a delegation
+            tracking = self._get_delegation_tracking()
+            delegator_id = message.to_agent
+            responder_id = message.from_agent
+
+            if delegator_id in tracking and responder_id in tracking[delegator_id]:
+                # Remove responder from delegator's expected list
+                tracking[delegator_id] = [
+                    agent_id for agent_id in tracking[delegator_id]
+                    if agent_id != responder_id
                 ]
-                if not self.session.simulation_expected_responses:
-                    await self._finalize_delegation(message.to_agent, new_tick)
+
+                # If all responses received for this delegator
+                if not tracking[delegator_id]:
+                    del tracking[delegator_id]
+
+                    if self._is_orchestrator(delegator_id):
+                        # Orchestrator received all responses - finalize to user
+                        await self._finalize_delegation(delegator_id, new_tick)
+                    else:
+                        # Non-orchestrator (e.g., foreman) received all responses
+                        # Consolidate and respond upstream
+                        await self._consolidate_and_respond_upstream(
+                            delegator_id, new_tick
+                        )
             break
 
         # Count messages sent this tick

@@ -91,16 +91,17 @@ async def list_all_sessions():
 async def stream_session_events(session_id: str):
     """Stream session events via Server-Sent Events (SSE)."""
     from vibeforge_api.core.event_log import EventLog
+    from vibeforge_api.core.session import session_store
     from vibeforge_api.core.workspace import WorkspaceManager
 
+    # Validate session exists (not just the file)
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
     workspace_manager = WorkspaceManager()
-    workspace_path = workspace_manager.workspace_root / session_id
-    event_log_path = workspace_path / "events.jsonl"
-
-    if not event_log_path.exists():
-        raise HTTPException(status_code=404, detail="Event log not found")
-
-    event_log = EventLog(workspace_manager.workspace_root)
+    # Disable cache so we always read fresh events from disk
+    event_log = EventLog(workspace_manager.workspace_root, use_cache=False)
 
     async def event_generator():
         """Generate SSE events."""
@@ -1192,3 +1193,62 @@ async def get_simulation_state(session_id: str):
         agents=agents,
         available_roles=available_roles,
     )
+
+
+@router.get("/sessions/{session_id}/debug/messages")
+async def get_debug_message_log(session_id: str):
+    """Get a human-readable message log for debugging.
+
+    Returns messages in chronological order with full content for analysis.
+    """
+    from vibeforge_api.core.event_log import EventLog, EventType
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.core.workspace import WorkspaceManager
+
+    session = session_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    workspace_manager = WorkspaceManager()
+    event_log = EventLog(workspace_manager.workspace_root, use_cache=False)
+
+    events = event_log.get_events(session_id)
+    messages = []
+
+    for event in events:
+        if event.event_type in (EventType.MESSAGE_SENT, EventType.MESSAGE_BLOCKED_BY_GRAPH):
+            meta = event.metadata or {}
+            content = meta.get("content", {})
+            text = content.get("text", "") if isinstance(content, dict) else str(content)
+            is_stub = content.get("is_stub", False) if isinstance(content, dict) else False
+            is_delegation = content.get("delegation", False) if isinstance(content, dict) else False
+            expect_response = content.get("expect_response", False) if isinstance(content, dict) else False
+
+            messages.append({
+                "tick": meta.get("tick_index"),
+                "from": meta.get("from_agent"),
+                "to": meta.get("to_agent"),
+                "type": "BLOCKED" if event.event_type == EventType.MESSAGE_BLOCKED_BY_GRAPH else (
+                    "STUB" if is_stub else ("DELEGATION" if is_delegation else "MESSAGE")
+                ),
+                "expect_response": expect_response,
+                "text_preview": text[:200] + "..." if len(text) > 200 else text,
+                "full_text": text,
+                "message_id": meta.get("message_id"),
+                "in_response_to": content.get("in_response_to") if isinstance(content, dict) else None,
+            })
+
+    # Also include delegation tracking state
+    delegation_tracking = getattr(session, "simulation_delegation_tracking", {})
+
+    return {
+        "session_id": session_id,
+        "tick_index": session.tick_index,
+        "tick_status": session.tick_status,
+        "use_real_llm": session.use_real_llm,
+        "delegation_tracking": delegation_tracking,
+        "expected_responses": session.simulation_expected_responses,
+        "final_answer": session.simulation_final_answer,
+        "message_count": len(messages),
+        "messages": messages,
+    }

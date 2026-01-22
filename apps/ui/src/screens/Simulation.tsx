@@ -144,30 +144,49 @@ export function SimulationScreen() {
     setSessionEvents([])
     setSseError(null)
 
-    const eventSource = streamSessionEvents(sessionId)
-    const handleEvent = (event: MessageEvent) => {
-      try {
-        const parsed: SessionEvent = JSON.parse(event.data)
-        setSessionEvents((prev) => {
-          const next = [...prev, parsed]
-          return next.length > 500 ? next.slice(next.length - 500) : next
-        })
-      } catch (parseErr) {
-        console.error('Failed to parse SSE event:', parseErr, event.data)
+    let eventSource: EventSource | null = null
+    let reconnectAttempts = 0
+    const maxReconnectAttempts = 5
+    const reconnectDelay = 2000
+
+    const connect = () => {
+      eventSource = streamSessionEvents(sessionId)
+
+      const handleEvent = (event: MessageEvent) => {
+        try {
+          const parsed: SessionEvent = JSON.parse(event.data)
+          setSessionEvents((prev) => {
+            const next = [...prev, parsed]
+            return next.length > 500 ? next.slice(next.length - 500) : next
+          })
+          // Reset reconnect attempts on successful event
+          reconnectAttempts = 0
+          setSseError(null)
+        } catch (parseErr) {
+          console.error('Failed to parse SSE event:', parseErr, event.data)
+        }
+      }
+
+      eventSource.addEventListener('session_event', handleEvent)
+
+      eventSource.onerror = () => {
+        eventSource?.close()
+        reconnectAttempts++
+        if (reconnectAttempts <= maxReconnectAttempts) {
+          console.log(`SSE reconnecting... (attempt ${reconnectAttempts}/${maxReconnectAttempts})`)
+          setTimeout(connect, reconnectDelay)
+        } else {
+          console.error('SSE max reconnect attempts reached')
+          setSseError('Real-time updates disconnected')
+        }
       }
     }
 
-    eventSource.addEventListener('session_event', handleEvent)
-
-    eventSource.onerror = (err) => {
-      console.error('SSE error:', err)
-      setSseError('Real-time updates disconnected')
-      eventSource.close()
-    }
+    connect()
 
     return () => {
-      eventSource.removeEventListener('session_event', handleEvent)
-      eventSource.close()
+      reconnectAttempts = maxReconnectAttempts + 1 // Prevent reconnection after cleanup
+      eventSource?.close()
     }
   }, [sessionId])
 
