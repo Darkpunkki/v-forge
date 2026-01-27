@@ -5,6 +5,34 @@
 This repository uses custom instructions for structured AI-assisted development.
 All phase documentation is located in `docs/ai/`.
 
+## Product Goal & Current Status
+
+### What this app is now
+VibeForge is being refocused around **two** user-facing experiences:
+
+1) **/control — Control real agents**
+   - Manage, configure, and control **real, live agentic LLM instances** (e.g., Claude Code agents) that run locally or are reachable over a control channel.
+   - This screen is the primary product surface and is expected to evolve rapidly.
+
+2) **/simulation — Simulate workflows**
+   - A browser-based sandbox to simulate agentic workflows and orchestration behavior.
+   - Useful for demos, testing, and developing the VibeForge methods without requiring live agents.
+
+### What is deprecated (legacy)
+- The old **session/questionnaire-driven “/session” flow** is legacy/deprecated.
+- Do **not** add new features to /session.
+- When touching related code, prefer **removing or isolating** legacy session logic (routes, models, UI, docs) rather than extending it.
+
+### Current reality (status)
+- **/simulation**: the original “LLM sandbox” concept is partially achieved and remains useful.
+- **/control**: exists conceptually, but **needs major refactoring**. Expect significant rework in UI, state management, and backend control interfaces.
+
+### Development principles for this pivot
+- **Control + Simulation first:** prioritize changes that improve /control and /simulation. Treat anything else as support work only.
+- **Reuse before rewrite:** prefer adapting existing code paths, components, stores, and utilities when they fit the new control/simulation focus.
+- **Be aggressive about deletion:** if code is redundant due to the pivot (especially session-related), call it out and remove it when safe.
+- **Keep diffs tight:** refactor in small, verifiable steps; leave the repo in a runnable state after each step.
+
 VibeForge includes:
 
 - a **Forge pipeline** (Idea → Concept → Epics → Features → Tasks)
