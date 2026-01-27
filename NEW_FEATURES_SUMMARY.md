@@ -1,5 +1,9 @@
 # New Features Added to tasks.md
 
+> **Note (2026-01-27):** Canonical task/feature source is `docs/forge/ideas/IDEA-0002-control-sim/latest/tasks.md`.
+> Task IDs in this file may diverge from tasks.md — always cross-check.
+> **Current status:** FEAT-016 is **Done**. FEAT-015 is **5/6 tasks done** (only TASK-050 remains: AgentGraph simulation link visualization).
+
 **Date:** 2026-01-16
 **Idea:** IDEA-0002-control-sim
 **Target:** LLM Sandbox UI with Real Agent Conversations
@@ -10,8 +14,8 @@
 
 Added **12 new tasks** (TASK-048 through TASK-059) organized into **2 features**:
 
-1. **FEAT-015: UI Testing Verification** (4 tasks) - MVP release target
-2. **FEAT-016: Real LLM Agent Responses with Guardrails** (8 tasks) - V1 release target
+1. **FEAT-015: UI Testing Verification** (4 tasks) - MVP release target — **5/6 tasks done**
+2. **FEAT-016: Real LLM Agent Responses with Guardrails** (8 tasks) - V1 release target — **Done**
 
 **New Epic:**
 - **EPIC-006: Real LLM Agent Responses**

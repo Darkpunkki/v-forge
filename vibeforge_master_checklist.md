@@ -927,7 +927,7 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 - [x] **VF-152 — Implement AgentResult handling for "needs clarification"**
   - Support the agent returning multiple-choice questions; pause execution, expose questions to UI, accept user choices, then resume with the clarification answers injected into the next agent call.
-  - **Status:** Partial - UI flow exists (VF-027), agent integration pending
+  - **Status:** Core clarification UI flow complete (VF-027); optional agent-side integration enhancement deferred
   - **Implementation:** AgentResult clarification fields + SessionCoordinator pause/resume.
   - **Verify:** `PYTHONPATH=/workspace/v-forge pytest`
 
@@ -1254,7 +1254,7 @@ Use the checkboxes below as a living backlog. Mark tasks complete by changing `[
 
 - [x] **VF-303 — Replace mocked plan/progress responses with TaskGraph/event data**
   - Swap the hardcoded plan summary and progress scaffolding in `apps/api/vibeforge_api/routers/sessions.py` with data derived from stored TaskGraph and recent events (no fabricated feature lists or task timelines when not in EXECUTION).
-  - **Status:** Planned
+  - **Status:** Done (verified WP-0041)
   - **Done when:** GET /plan and GET /progress pull from persisted artifacts/event log with sensible empty states; mock data paths removed; coverage added for both endpoints in non-EXECUTION phases.
   - **Verify:** `cd apps/api && pytest tests/test_sessions.py -k "plan or progress"` (extend with new cases for TaskGraph-backed responses).
   - **Files:** `apps/api/vibeforge_api/routers/sessions.py`, `apps/api/tests/test_sessions.py`

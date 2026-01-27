@@ -447,7 +447,6 @@ class TickEngine:
 
         self.session.simulation_final_answer = response_payload.get("text")
         self.session.simulation_expected_responses = []
-        self.session.tick_status = "completed"
 
     async def _consolidate_and_respond_upstream(
         self,
@@ -539,11 +538,12 @@ class TickEngine:
 
         self._append_history(agent_id, "assistant", response_payload)
 
-        # Send response back upstream - this should follow the graph
+        # Send response back upstream (system response bypasses graph validation)
         self.send_message(
             from_agent=agent_id,
             to_agent=upstream_agent,
             content=response_payload,
+            bypass_validation=True,
         )
 
     def _message_expects_response(self, message: Message) -> bool:
@@ -639,7 +639,27 @@ class TickEngine:
                 to_agent=to_agent,
             )
 
-        # Check if edge exists in graph (orchestrators must also follow the graph)
+        # If no graph is configured, allow messages for backward compatibility.
+        if not self.agent_graph.edges:
+            return MessageValidation(
+                is_allowed=True,
+                status=MessageValidationStatus.ALLOWED,
+                reason="No agent graph configured; allow all messages",
+                from_agent=from_agent,
+                to_agent=to_agent,
+            )
+
+        # Orchestrator can broadcast to any agent.
+        if self._is_orchestrator(from_agent):
+            return MessageValidation(
+                is_allowed=True,
+                status=MessageValidationStatus.ALLOWED,
+                reason="Orchestrator broadcast allowed",
+                from_agent=from_agent,
+                to_agent=to_agent,
+            )
+
+        # Check if edge exists in graph
         edge_exists = any(
             (
                 edge.from_agent == from_agent
@@ -803,6 +823,64 @@ class TickEngine:
                     prompt_text = str(message.content.get("text", ""))
                 elif isinstance(message.content, str):
                     prompt_text = message.content
+                if self.session.use_real_llm:
+                    generator = self._get_llm_generator()
+                    agent_model = self.session.agent_models.get(
+                        message.to_agent, self.session.default_model
+                    )
+                    agent_role = self.session.agent_roles.get(message.to_agent)
+                    try:
+                        response = await generator.generate_response(
+                            agent_id=message.to_agent,
+                            agent_role=agent_role,
+                            agent_model=agent_model,
+                            message_history=self.agent_conversations.get(
+                                message.to_agent, []
+                            ),
+                            incoming_message=message.content,
+                        )
+                        response_payload = (
+                            response.metadata.get("content") if response.metadata else None
+                        )
+                        if not isinstance(response_payload, dict):
+                            response_payload = {
+                                "text": response.content,
+                                "is_stub": False,
+                                "expect_response": False,
+                            }
+                        response_text = response_payload.get("text")
+                        if isinstance(response_text, str) and response_text.strip():
+                            prompt_text = response_text
+                        self._append_history(
+                            message.to_agent, "assistant", response_payload
+                        )
+                        cost_usd = self._calculate_llm_cost(
+                            response.model, response.usage
+                        )
+                        if cost_usd > 0:
+                            self.session.simulation_cost_usd += cost_usd
+                            self._emit_cost_event(
+                                agent_id=message.to_agent,
+                                model=response.model,
+                                usage=response.usage,
+                                cost_usd=cost_usd,
+                                tick_index=new_tick,
+                            )
+                    except Exception as exc:
+                        self._emit_event(
+                            Event(
+                                event_type=EventType.LLM_FAILURE,
+                                timestamp=datetime.now(timezone.utc),
+                                session_id=self.session.session_id,
+                                message="LLM delegation prompt failed",
+                                phase=self.session.phase.value,
+                                metadata={
+                                    "tick_index": new_tick,
+                                    "agent_id": message.to_agent,
+                                    "error": str(exc),
+                                },
+                            )
+                        )
                 self._queue_delegation_messages(message.to_agent, prompt_text)
             elif self._message_expects_response(message):
                 response_payload = None
@@ -870,11 +948,12 @@ class TickEngine:
 
                 response_payload["in_response_to"] = message.message_id
                 self._append_history(message.to_agent, "assistant", response_payload)
-                # Send response back - must follow the configured flow graph
+                # Send response back (system response bypasses graph validation)
                 self.send_message(
                     message.to_agent,
                     message.from_agent,
                     response_payload,
+                    bypass_validation=True,
                 )
 
             # Check if this message completes a delegation

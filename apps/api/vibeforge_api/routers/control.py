@@ -94,12 +94,14 @@ async def stream_session_events(session_id: str):
     from vibeforge_api.core.session import session_store
     from vibeforge_api.core.workspace import WorkspaceManager
 
-    # Validate session exists (not just the file)
+    workspace_manager = WorkspaceManager()
+    event_log_path = workspace_manager.workspace_root / session_id / "events.jsonl"
+
+    # Allow streaming if session exists or there is an event log on disk.
     session = session_store.get_session(session_id)
-    if not session:
+    if not session and not event_log_path.exists():
         raise HTTPException(status_code=404, detail="Session not found")
 
-    workspace_manager = WorkspaceManager()
     # Disable cache so we always read fresh events from disk
     event_log = EventLog(workspace_manager.workspace_root, use_cache=False)
 

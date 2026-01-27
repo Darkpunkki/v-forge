@@ -1,3 +1,6 @@
+> **SUPERSEDED (2026-01-27)** — This report predates IDEA-0002 feature execution and is no longer current.
+> See [`docs/ai/planning/PROJECT_STATUS_CONSOLIDATED.md`](docs/ai/planning/PROJECT_STATUS_CONSOLIDATED.md) for the up-to-date project status.
+
 # VibeForge Project Status Report (Post-MVP)
 
 ## Scope of this report

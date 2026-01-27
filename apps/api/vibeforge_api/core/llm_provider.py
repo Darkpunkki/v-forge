@@ -11,6 +11,49 @@ from ..models import LlmClient, LlmRequest, LlmResponse, LlmUsage
 from models.openai import OpenAiProvider
 
 
+class DynamicLlmClient(LlmClient):
+    """LLM client that resolves the active provider at call time.
+
+    This keeps test-time env overrides (e.g. VIBEFORGE_LLM_MODE=stub) effective
+    even when modules import and cache a client instance at startup.
+    """
+
+    def __init__(self) -> None:
+        self._cache: dict[str, LlmClient] = {}
+
+    def _select(self) -> LlmClient:
+        llm_mode = (os.getenv("VIBEFORGE_LLM_MODE") or "").strip().lower()
+        no_spend = (os.getenv("VIBEFORGE_NO_SPEND") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        if llm_mode in {"stub", "dry_run", "dry-run"} or no_spend:
+            key = "stub"
+            if key not in self._cache:
+                self._cache[key] = DeterministicStubClient()
+            return self._cache[key]
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL") or ""
+        if api_key:
+            key = f"openai::{base_url}::{api_key}"
+            if key not in self._cache:
+                self._cache[key] = OpenAiProvider(api_key=api_key, base_url=base_url or None)
+            return self._cache[key]
+
+        key = "stub"
+        if key not in self._cache:
+            self._cache[key] = DeterministicStubClient()
+        return self._cache[key]
+
+    async def complete(self, request: LlmRequest) -> LlmResponse:
+        return await self._select().complete(request)
+
+    def get_provider_name(self) -> str:
+        return self._select().get_provider_name()
+
+
 class DeterministicStubClient(LlmClient):
     """Deterministic stub client for local orchestration flows.
 
@@ -174,18 +217,5 @@ class DeterministicStubClient(LlmClient):
 
 
 def get_llm_client() -> LlmClient:
-    """Select an LLM client based on environment configuration."""
-    llm_mode = (os.getenv("VIBEFORGE_LLM_MODE") or "").strip().lower()
-    no_spend = (os.getenv("VIBEFORGE_NO_SPEND") or "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-    }
-    if llm_mode in {"stub", "dry_run", "dry-run"} or no_spend:
-        return DeterministicStubClient()
-
-    api_key = os.getenv("OPENAI_API_KEY")
-    if api_key:
-        return OpenAiProvider(api_key=api_key, base_url=os.getenv("OPENAI_BASE_URL"))
-
-    return DeterministicStubClient()
+    """Return an LLM client that respects environment overrides at call time."""
+    return DynamicLlmClient()

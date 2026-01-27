@@ -1153,12 +1153,12 @@ The following WPs implement the multi-agent workflow configuration capabilities 
 
 ---
 
-## WP-0052 - Simulation-focused control panel (launcher + slim view)
+## WP-0052 - Simulation-focused control panel (launcher + slim view + UI cleanup)
 - **Status:** Queued
 - **Idea-ID:** N/A (control panel cleanup request)
 - **Release:** Post-MVP
-- **VF Tasks:** VF-346, VF-347
-- **Goal:** Reduce /control to a simulation-first view and add a simple launcher to initialize agents by count.
+- **VF Tasks:** VF-346, VF-347, VF-348, VF-349
+- **Goal:** Reduce /control to a simulation-first view, add a simple launcher to initialize agents by count, add simulation setup stepper, and reduce simulation view noise with filtered events.
 - **Dependencies:** WP-0046 (workflow widgets), WP-0050 (simulation widgets), WP-0051 (simulation events client)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0052_VF-346-347_control_simulation_launcher.md
 - **Verify:**
@@ -1167,6 +1167,13 @@ The following WPs implement the multi-agent workflow configuration capabilities 
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
+- **2026-01-27**: Project state consolidation audit
+  - IDEA-0002 features were executed via Forge pipeline (not WPs); tracking docs were significantly out of date
+  - Code-verified: 14/16 IDEA-0002 features now Done, FEAT-012 partial, FEAT-015 mostly done (5/6 tasks)
+  - Only remaining IDEA-0002 gap: AgentGraph simulation link visualization (FEAT-012/TASK-050)
+  - VF-348 and VF-349 added to WP-0052 (all 4 remaining VF items are simulation UI cleanup)
+  - Fixed stale annotations: VF-152 ("Partial" clarified), VF-303 ("Planned" → "Done")
+  - Created PROJECT_STATUS_CONSOLIDATED.md as single source of truth for project state
 - **2026-01-12**: Expanded Agent Workflow section with simulation capabilities (WP-0048 through WP-0051)
   - Added VF-200 through VF-207 to align master checklist with CONTROL_AGENT_WORKFLOW_STEPS.md
   - New capabilities: simulation lifecycle (config/start/reset), tick control (tick/ticks/pause/state), Tick Engine, graph-gated messaging, simulation UI widgets, multi-agent messaging visualization, extended event logging

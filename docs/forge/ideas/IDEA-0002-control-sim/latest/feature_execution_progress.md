@@ -1,6 +1,6 @@
 # Feature Execution Progress <IDEA_ID>
 
-- last_updated: 2026-01-16T07:59:15.8212175+02:00
+- last_updated: 2026-01-27T00:00:00Z
 - policy:
   - Unit of execution: 1 feature (FEAT-XXX) per run
   - Source of truth: latest/tasks.md (search by FEAT id)
@@ -50,14 +50,21 @@
 | 2026-01-16T05:41:14.1582111+02:00 | FEAT-015 | In Progress | 2026-01-16T03-40-00.925Z_run-34d7 | planning/FEC-FEAT-015-workspace-checklist.md | started |
 | 2026-01-16T07:03:45.1992230+02:00 | FEAT-016 | In Progress | 2026-01-16T05-03-35.654Z_run-8911 | planning/FEC-FEAT-016-workspace-checklist.md | started |
 | 2026-01-16T07:59:15.8212175+02:00 | FEAT-016 | Done | 2026-01-16T05-03-35.654Z_run-8911 | planning/FEC-FEAT-016-workspace-checklist.md | tests passing |
+| 2026-01-27T00:00:00Z | FEAT-008 | Done | - | planning/FEC-FEAT-008-workspace-checklist.md | Code-verified: lifecycle state guards fully implemented in control.py (start/pause/stop/reset endpoints with tick_status validation) |
+| 2026-01-27T00:00:00Z | FEAT-011 | Done | - | - | Code-verified: SSE streaming via EventSourceResponse at /sessions/{id}/events + polling fallback |
+| 2026-01-27T00:00:00Z | FEAT-012 | In Progress | - | - | Code-verified partial: AgentGraph.tsx renders workflow graph; simulation message link visualization (TASK-050) not implemented |
+| 2026-01-27T00:00:00Z | FEAT-013 | Done | - | - | Code-verified: MultiAgentMessages.tsx has agent filter, blocked/stub badges, message formatting |
+| 2026-01-27T00:00:00Z | FEAT-014 | Done | - | - | Code-verified: TickControls.tsx has status badge, tick counter, cost tracking, auto-refresh polling |
+| 2026-01-27T00:00:00Z | FEAT-015 | In Progress | - | planning/FEC-FEAT-015-workspace-checklist.md | 5/6 tasks done (TASK-049 done, TASK-050 NOT done, TASK-051 done, TASK-052 done, TASK-053 done) |
 
 ---
 
 ## Current pointer
 
-- next_feature: FEAT-015
+- next_feature: FEAT-012
 - last_completed_feature: FEAT-016
 - last_run_id: 2026-01-16T05-03-35.654Z_run-8911
+- notes: FEAT-012 is first incomplete (partial — renders workflow graph, not sim links). FEAT-015 has 1 remaining task (TASK-050).
 
 ---
 
