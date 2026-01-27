@@ -1154,7 +1154,7 @@ The following WPs implement the multi-agent workflow configuration capabilities 
 ---
 
 ## WP-0052 - Simulation-focused control panel (launcher + slim view + UI cleanup)
-- **Status:** Queued
+- **Status:** Postponed
 - **Idea-ID:** N/A (control panel cleanup request)
 - **Release:** Post-MVP
 - **VF Tasks:** VF-346, VF-347, VF-348, VF-349
@@ -1164,9 +1164,104 @@ The following WPs implement the multi-agent workflow configuration capabilities 
 - **Verify:**
   - `cd apps/ui && npm run build`
 
+## WP-0053 — Legacy Session Removal
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-001
+- **Tasks:** TASK-001, TASK-002, TASK-003, TASK-004
+- **Goal:** Delete all legacy /session UI screens, session router, session-specific models, and session API client. Redirect `/` to `/control`.
+- **Dependencies:** None
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0053-legacy-session-removal.md
+- **Verify:**
+  - `cd apps/ui && npm run build`
+  - `cd apps/api && python -m pytest`
+
+## WP-0054 — Bridge Protocol Models + Event Types
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-002
+- **Tasks:** TASK-005, TASK-006, TASK-009, TASK-013
+- **Goal:** Define 6 protocol message Pydantic models, extend EventType with 7 agent bridge events, add agent connection fields to Session, write protocol unit tests.
+- **Dependencies:** None
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0054-bridge-protocol-models.md
+- **Verify:**
+  - `cd apps/api && python -m pytest`
+
+## WP-0055 — WebSocket Endpoint + Connection Manager
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-002
+- **Tasks:** TASK-007, TASK-010, TASK-011, TASK-008, TASK-012
+- **Goal:** Build /ws/agent-bridge WebSocket endpoint, RemoteAgentConnectionManager singleton with dispatch + response buffering, heartbeat monitoring, and unit tests.
+- **Dependencies:** WP-0054
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0055-ws-endpoint-connection-manager.md
+- **Verify:**
+  - `cd apps/api && python -m pytest`
+
+## WP-0056 — Agent Bridge Standalone Service
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-003
+- **Tasks:** TASK-014, TASK-015, TASK-016, TASK-017, TASK-018
+- **Goal:** Build standalone agent bridge service (tools/agent_bridge/) that connects to VibeForge via WebSocket, invokes Claude Code CLI, streams results back.
+- **Dependencies:** WP-0054
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0056-agent-bridge-service.md
+- **Verify:**
+  - `python tools/agent_bridge/bridge.py --help`
+
+## WP-0057 — Live Agent Control Backend Endpoints
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-004
+- **Tasks:** TASK-019, TASK-020, TASK-021, TASK-022
+- **Goal:** Add REST endpoints to /control for agent registration, task dispatch, follow-up, status queries, and agent-scoped SSE streaming.
+- **Dependencies:** WP-0055
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0057-control-backend-endpoints.md
+- **Verify:**
+  - `cd apps/api && python -m pytest`
+
+## WP-0058 — Async Dispatch Engine (TickEngine Extension)
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-005
+- **Tasks:** TASK-023, TASK-024, TASK-025, TASK-026, TASK-027
+- **Goal:** Extend TickEngine for async dispatch to remote agents: agent_type on AgentConfig, non-blocking dispatch, response buffer checking, timeout handling.
+- **Dependencies:** WP-0055
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0058-async-dispatch-engine.md
+- **Verify:**
+  - `cd apps/api && python -m pytest`
+
+## WP-0059 — Control UI: API Client + Agent Components
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-006
+- **Tasks:** TASK-028, TASK-029, TASK-030, TASK-031, TASK-032, TASK-033
+- **Goal:** Build frontend components for agent control: API client functions, AgentRegistrationPanel, TaskDispatchPanel, StreamingOutputView, AgentConnectionDashboard.
+- **Dependencies:** WP-0057
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0059-control-ui-components.md
+- **Verify:**
+  - `cd apps/ui && npm run build`
+
+## WP-0060 — Control Panel Layout Rework
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-006
+- **Tasks:** TASK-034
+- **Goal:** Rework ControlPanel.tsx to agent-centric layout: sidebar with agent dashboard + registration, main area with task panel + streaming output.
+- **Dependencies:** WP-0059
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0060-control-panel-rework.md
+- **Verify:**
+  - `cd apps/ui && npm run build`
+
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
+- **2026-01-27 (late)**: Queued 8 new WPs (WP-0053 through WP-0060) from IDEA-0003 Forge pipeline
+  - 34 MVP tasks batched across 6 epics (EPIC-001 through EPIC-006)
+  - WP-0053 (Session Removal) runs first to clean the codebase
+  - WP-0054 (Protocol Models) can run in parallel with WP-0053
+  - Full dependency chain: WP-0053/0054 → WP-0055/0056 → WP-0057/0058 → WP-0059 → WP-0060
+  - V1 and Later tasks (EPIC-007, EPIC-008) deferred; not queued as WPs
 - **2026-01-27**: Project state consolidation audit
   - IDEA-0002 features were executed via Forge pipeline (not WPs); tracking docs were significantly out of date
   - Code-verified: 14/16 IDEA-0002 features now Done, FEAT-012 partial, FEAT-015 mostly done (5/6 tasks)
