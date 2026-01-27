@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 
 from models.base import LlmClient
-from vibeforge_api.core.llm_provider import DeterministicStubClient, get_llm_client
+from vibeforge_api.core.llm_provider import get_llm_client
 from vibeforge_api.main import app
 
 
@@ -22,5 +22,7 @@ def test_get_llm_client_returns_llm_client(monkeypatch):
 def test_get_llm_client_falls_back_to_stub(monkeypatch):
     """When no API key is set, DeterministicStubClient is used."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("VIBEFORGE_LLM_MODE", raising=False)
+    monkeypatch.delenv("VIBEFORGE_NO_SPEND", raising=False)
     client = get_llm_client()
-    assert isinstance(client, DeterministicStubClient)
+    assert client.get_provider_name() == "stub"
