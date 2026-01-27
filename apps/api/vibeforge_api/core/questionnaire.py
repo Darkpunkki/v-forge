@@ -1,6 +1,4 @@
-"""Simple questionnaire engine for MVP."""
-
-from vibeforge_api.models.responses import QuestionResponse, QuestionOption
+"""Simple questionnaire engine for MVP (legacy — kept for orchestration internals)."""
 
 
 # MVP: Hardcoded question bank
@@ -46,25 +44,25 @@ class QuestionnaireEngine:
     def __init__(self):
         self.questions = QUESTION_BANK
 
-    def get_next_question(self, current_index: int) -> QuestionResponse | None:
-        """Get the next question based on current index."""
+    def get_next_question(self, current_index: int) -> dict | None:
+        """Get the next question based on current index.
+
+        Returns a plain dict (previously returned QuestionResponse Pydantic model,
+        removed as part of legacy session cleanup).
+        """
         if current_index >= len(self.questions):
             return None
 
         q = self.questions[current_index]
-        options = (
-            [QuestionOption(**opt) for opt in q["options"]] if "options" in q else None
-        )
-
-        return QuestionResponse(
-            question_id=q["question_id"],
-            text=q["text"],
-            question_type=q["question_type"],
-            options=options,
-            min_value=q.get("min_value"),
-            max_value=q.get("max_value"),
-            is_final=(current_index == len(self.questions) - 1),
-        )
+        return {
+            "question_id": q["question_id"],
+            "text": q["text"],
+            "question_type": q["question_type"],
+            "options": q.get("options"),
+            "min_value": q.get("min_value"),
+            "max_value": q.get("max_value"),
+            "is_final": (current_index == len(self.questions) - 1),
+        }
 
     def validate_answer(self, question_id: str, answer: any) -> bool:
         """Validate an answer against the question definition."""

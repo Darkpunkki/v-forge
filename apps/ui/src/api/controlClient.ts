@@ -289,6 +289,15 @@ async function fetchJson<T>(
 }
 
 /**
+ * Create a new session (used by simulation to get a session_id).
+ */
+export async function createSession(): Promise<{ session_id: string; phase: string }> {
+  return fetchJson<{ session_id: string; phase: string }>('/control/sessions', {
+    method: 'POST',
+  })
+}
+
+/**
  * List all sessions with metadata
  */
 export async function listAllSessions(): Promise<SessionsListResponse> {

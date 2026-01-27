@@ -23,7 +23,10 @@ status: "Draft"
 
 ## WP-0053 — Legacy Session Removal (frontend + backend)
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-27 21:30 (local)
+- **Completed:** 2026-01-27
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-001
 - **Tasks:** TASK-001, TASK-002, TASK-003, TASK-004
@@ -31,25 +34,42 @@ status: "Draft"
 - **Goal:** Delete all legacy /session UI screens, session router, session-specific models, and session API client. Redirect `/` to `/control`. Leave SessionStore and Session model intact (used by /control).
 - **Dependencies:** None (independent; should run first)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0053-legacy-session-removal.md
+- **Verified:**
+  - `cd apps/ui && npm run build` — 0 errors, built in 1.13s
+  - `cd apps/api && python -m pytest` — 621 passed, 0 failed
 
 ### Ordered steps
-1. Delete 6 UI screen files (TASK-001)
-2. Delete sessions.py router and remove from main.py (TASK-002)
-3. Remove session-specific request/response Pydantic models (TASK-003)
-4. Update App.tsx routes, delete client.ts, clean api.ts types (TASK-004)
+1. [x] Delete 6 UI screen files (TASK-001)
+2. [x] Delete sessions.py router and remove from main.py (TASK-002)
+3. [x] Remove session-specific request/response Pydantic models (TASK-003)
+4. [x] Update App.tsx routes, delete client.ts, clean api.ts types (TASK-004)
 
 ### Done means
-- `npm run build` succeeds (zero errors)
-- `pytest` passes for remaining endpoints
-- GET/POST `/sessions/*` returns 404
-- `/` redirects to `/control`
-- `/control/*` and `/simulation/*` endpoints unaffected
+- `npm run build` succeeds (zero errors) ✓
+- `pytest` passes for remaining endpoints ✓ (621 passed)
+- GET/POST `/sessions/*` returns 404 ✓ (router deleted)
+- `/` redirects to `/control` ✓ (Navigate component)
+- `/control/*` and `/simulation/*` endpoints unaffected ✓
+
+### Files touched
+- **Deleted (frontend):** Home.tsx, Questionnaire.tsx, PlanReview.tsx, Progress.tsx, Clarification.tsx, Result.tsx, client.ts
+- **Deleted (backend):** sessions.py, test_sessions.py, test_e2e_demo.py, test_execution_flow.py, test_session_coordinator.py, test_phase_transition_integration.py
+- **Modified (frontend):** App.tsx, Simulation.tsx, controlClient.ts, types/api.ts
+- **Modified (backend):** main.py, requests.py, responses.py, __init__.py, control.py, questionnaire.py, session_coordinator.py
+
+### Notes
+- Moved `createSession()` to controlClient.ts → POST /control/sessions (new endpoint added to control router)
+- `questionnaire.py` kept but `get_next_question()` now returns dict instead of deleted QuestionResponse model
+- SessionStore and Session model preserved (used by /control and /simulation)
 
 ---
 
 ## WP-0054 — Agent Bridge Protocol Models + Event Types
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28
+- **Completed:** 2026-01-28
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-002
 - **Tasks:** TASK-005, TASK-006, TASK-009, TASK-013
@@ -57,18 +77,28 @@ status: "Draft"
 - **Goal:** Define the 6 protocol message Pydantic models, extend EventType enum with 7 agent bridge events, add agent connection fields to Session model, and write unit tests for protocol serialization.
 - **Dependencies:** None (independent; can run in parallel with WP-0053)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0054-bridge-protocol-models.md
+- **Verified:**
+  - `cd apps/api && python -m pytest tests/test_bridge_protocol.py -v` — 30 passed
+  - `cd apps/api && python -m pytest` — 651 passed, 0 failed
 
 ### Ordered steps
-1. Create bridge_protocol.py with 6 Pydantic message models (TASK-005)
-2. Add 7 agent bridge EventType values to event_log.py (TASK-009)
-3. Add agent_connections, pending_dispatches, response_buffer fields to Session (TASK-013)
-4. Write unit tests for protocol serialization/deserialization (TASK-006)
+1. [x] Create bridge_protocol.py with 6 Pydantic message models (TASK-005)
+2. [x] Add 7 agent bridge EventType values to event_log.py (TASK-009)
+3. [x] Add agent_connections, pending_dispatches, response_buffer fields to Session (TASK-013)
+4. [x] Write unit tests for protocol serialization/deserialization (TASK-006)
 
 ### Done means
-- All 6 protocol models round-trip serialize/deserialize correctly
-- EventType enum includes 7 new values; existing events unaffected
-- Session.to_dict() / from_dict() handles new fields
-- `pytest` passes
+- All 6 protocol models round-trip serialize/deserialize correctly ✓
+- EventType enum includes 7 new values (42 total); existing events unaffected ✓
+- Session.to_dict() / from_dict() handles new fields ✓
+- `pytest` passes ✓ (651 passed)
+
+### Files touched
+- **Created:** `apps/api/vibeforge_api/models/bridge_protocol.py` — 6 Pydantic message models + BridgeMessage union + parse_bridge_message()
+- **Created:** `apps/api/tests/test_bridge_protocol.py` — 30 unit tests for all 6 message types + discriminated union
+- **Modified:** `apps/api/vibeforge_api/models/__init__.py` — re-export bridge protocol models
+- **Modified:** `apps/api/vibeforge_api/core/event_log.py` — 7 new EventType values
+- **Modified:** `apps/api/vibeforge_api/core/session.py` — 3 new fields + to_dict/from_dict
 
 ---
 
@@ -244,17 +274,12 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
                                └── WP-0056 (Bridge Service)  └── WP-0058 (Async Dispatch)
 ```
 
-Parallelism opportunities:
-- WP-0053 and WP-0054 can run in parallel (no dependencies)
-- WP-0055 and WP-0056 can run in parallel (both depend only on WP-0054)
-- WP-0057 and WP-0058 can run in parallel (both depend on WP-0055)
-
 ## Summary
 
 | WP | Title | Epic | Tasks | Points | Status |
 |----|-------|------|-------|--------|--------|
-| WP-0053 | Legacy Session Removal | EPIC-001 | 4 | 4 | Queued |
-| WP-0054 | Bridge Protocol Models + Events | EPIC-002 | 4 | 4 | Queued |
+| WP-0053 | Legacy Session Removal | EPIC-001 | 4 | 4 | Done |
+| WP-0054 | Bridge Protocol Models + Events | EPIC-002 | 4 | 4 | Done |
 | WP-0055 | WebSocket Endpoint + Connection Manager | EPIC-002 | 5 | 7 | Queued |
 | WP-0056 | Agent Bridge Standalone Service | EPIC-003 | 5 | 8 | Queued |
 | WP-0057 | Live Agent Control Backend Endpoints | EPIC-004 | 4 | 8 | Queued |

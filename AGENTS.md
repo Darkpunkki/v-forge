@@ -5,7 +5,6 @@ This file tells **Codex** (CLI/IDE) how to work effectively in this repository.
 ## Project Context
 
 This repository uses custom instructions for structured AI-assisted development.
-All phase documentation is located in `docs/ai/`.
 
 ## Product Goal & Current Status
 
@@ -294,3 +293,35 @@ Note: the “/commands” above refer to this repo’s workflow prompts/tools. I
 - Never mark items complete unless verification passes.
 - Never invent backlog items during execution; implement only what exists in the backlog/WP.
 - Preserve existing `WORK_PACKAGES.md` formatting/casing when editing entries.
+
+
+## Ralph mode (TASKS.md loop)
+
+Ralph mode is used when the prompt contains `RALPH_MODE: true`.
+
+### Driver + sources of truth
+- Canonical backlog: `docs/ai/forge/ideas/<IDEA_ID>/latest/tasks.md` (this repo’s task-builder output)
+- Ralph progress state: `ralph_state.yaml` at repo root
+
+### Execution rules (Ralph)
+- Do NOT use WORK_PACKAGES.md while in Ralph mode.
+- Each run completes **exactly one** TASK item.
+- Respect `dependencies` (only work tasks whose dependencies are already marked done in `ralph_state.yaml`).
+- Use `acceptance_criteria` as “done means”.
+- Prefer edits limited to `target_files` unless a small additional change is required for correctness.
+
+### Verification
+- Run the most relevant verification command(s) for the task:
+  - frontend tasks: `npm run build` or `npm test`
+  - backend tasks: `pytest` / `uvicorn` smoke test / etc. (use repo conventions)
+- Record what you ran in the final summary.
+
+### Progress updates
+- On success: append the TASK id to `ralph_state.yaml: done`.
+- On failure: write `blocked[TASK-###] = "<reason>; next action>"`.
+- Never mark a task done unless verification passes.
+
+### Output contract
+End every run with:
+`RALPH_STATUS: done|blocked TASK-###`
+

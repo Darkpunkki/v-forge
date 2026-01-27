@@ -1,0 +1,7 @@
+done:
+  - "TASK-001"
+  - "TASK-002"
+  - "TASK-003"
+  - "TASK-004"
+blocked: {}      # TASK-### -> reason
+attempts: {}     # TASK-### -> int

@@ -1165,7 +1165,9 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `cd apps/ui && npm run build`
 
 ## WP-0053 — Legacy Session Removal
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-27
+- **Completed:** 2026-01-27
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-001
 - **Tasks:** TASK-001, TASK-002, TASK-003, TASK-004
@@ -1177,7 +1179,9 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `cd apps/api && python -m pytest`
 
 ## WP-0054 — Bridge Protocol Models + Event Types
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28
+- **Completed:** 2026-01-28
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-002
 - **Tasks:** TASK-005, TASK-006, TASK-009, TASK-013

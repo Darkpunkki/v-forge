@@ -30,6 +30,15 @@ from vibeforge_api.models import (
 router = APIRouter(prefix="/control", tags=["control"])
 
 
+@router.post("/sessions")
+async def create_session():
+    """Create a new session for control/simulation use."""
+    from vibeforge_api.core.session import session_store
+
+    session = session_store.create_session()
+    return {"session_id": session.session_id, "phase": session.phase.value}
+
+
 @router.get("/sessions")
 async def list_all_sessions():
     """List all sessions with metadata for control panel."""

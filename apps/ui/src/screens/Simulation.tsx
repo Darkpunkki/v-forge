@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createSession } from '../api/client'
 import {
+  createSession,
   getSimulationState,
   getWorkflowConfig,
   streamSessionEvents,

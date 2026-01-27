@@ -32,7 +32,6 @@ from apps.api.vibeforge_api.core.patch import PatchApplier
 from apps.api.vibeforge_api.core.gates import GatePipeline, DiffAndCommandGate, PolicyGate, GateContext
 from apps.api.vibeforge_api.core.verifiers import VerifierSuite
 from apps.api.vibeforge_api.models.types import SessionPhase
-from apps.api.vibeforge_api.models.responses import QuestionResponse
 from orchestration.orchestrator import Orchestrator
 from orchestration.models import ConceptDoc, TaskGraph, RunSummary
 from orchestration.context_loader import RepoContextLoader, DEFAULT_CONTEXT_BUDGET_BYTES
@@ -268,14 +267,14 @@ class SessionCoordinator:
     # VF-033: questionnaire step loop (nextQuestion/applyAnswer/finalize)
     # =========================================================================
 
-    def get_next_question(self, session_id: str) -> Optional[QuestionResponse]:
+    def get_next_question(self, session_id: str) -> Optional[dict]:
         """Get the next questionnaire question for a session.
 
         Args:
             session_id: ID of the session
 
         Returns:
-            QuestionResponse with next question, or None if questionnaire complete
+            dict with next question, or None if questionnaire complete
 
         Raises:
             ValueError: If session not found or not in QUESTIONNAIRE phase

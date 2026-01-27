@@ -8,9 +8,6 @@ from vibeforge_api.models.types import (
     ErrorResponse,
 )
 from vibeforge_api.models.requests import (
-    SubmitAnswerRequest,
-    PlanDecisionRequest,
-    ClarificationAnswerRequest,
     # VF-192: Agent workflow requests
     InitializeAgentsRequest,
     AssignAgentRoleRequest,
@@ -22,13 +19,17 @@ from vibeforge_api.models.requests import (
     TickRequest,
     SimulationResetRequest,
 )
+from vibeforge_api.models.bridge_protocol import (
+    RegisterMessage,
+    RegisteredMessage,
+    DispatchMessage,
+    ProgressMessage,
+    ResponseMessage,
+    HeartbeatMessage,
+    BridgeMessage,
+    parse_bridge_message,
+)
 from vibeforge_api.models.responses import (
-    SessionResponse,
-    QuestionResponse,
-    PlanSummaryResponse,
-    ProgressResponse,
-    ClarificationResponse,
-    ClarificationOption,
     # VF-192: Agent workflow responses
     InitializeAgentsResponse,
     AssignAgentRoleResponse,
@@ -55,15 +56,6 @@ __all__ = [
     "LlmRequest",
     "LlmResponse",
     "LlmUsage",
-    "SubmitAnswerRequest",
-    "PlanDecisionRequest",
-    "ClarificationAnswerRequest",
-    "SessionResponse",
-    "QuestionResponse",
-    "PlanSummaryResponse",
-    "ProgressResponse",
-    "ClarificationResponse",
-    "ClarificationOption",
     # VF-192: Agent workflow
     "InitializeAgentsRequest",
     "AssignAgentRoleRequest",
@@ -86,4 +78,13 @@ __all__ = [
     "SimulationResetResponse",
     "SimulationPauseResponse",
     "SimulationStopResponse",
+    # Agent bridge protocol
+    "RegisterMessage",
+    "RegisteredMessage",
+    "DispatchMessage",
+    "ProgressMessage",
+    "ResponseMessage",
+    "HeartbeatMessage",
+    "BridgeMessage",
+    "parse_bridge_message",
 ]

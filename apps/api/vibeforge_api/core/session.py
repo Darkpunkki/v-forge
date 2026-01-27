@@ -82,6 +82,11 @@ class Session:
         self.tick_rate_limit_ms: int = 1000
         self.last_tick_timestamp: Optional[datetime] = None
 
+        # Agent bridge connection fields (IDEA-0003 / WP-0054)
+        self.agent_connections: dict[str, dict] = {}  # agent_id -> connection metadata
+        self.pending_dispatches: dict[str, dict] = {}  # message_id -> dispatch info
+        self.response_buffer: list[dict] = []  # buffered async responses
+
     def update_phase(self, new_phase: SessionPhase):
         """Update session phase."""
         self.phase = new_phase
@@ -229,6 +234,10 @@ class Session:
                 if self.last_tick_timestamp
                 else None
             ),
+            # Agent bridge connection fields
+            "agent_connections": self.agent_connections,
+            "pending_dispatches": self.pending_dispatches,
+            "response_buffer": self.response_buffer,
         }
 
     @classmethod
@@ -325,6 +334,11 @@ class Session:
         last_tick_timestamp = data.get("last_tick_timestamp")
         if last_tick_timestamp:
             session.last_tick_timestamp = datetime.fromisoformat(last_tick_timestamp)
+
+        # Agent bridge connection fields
+        session.agent_connections = data.get("agent_connections", {})
+        session.pending_dispatches = data.get("pending_dispatches", {})
+        session.response_buffer = data.get("response_buffer", [])
 
         return session
 

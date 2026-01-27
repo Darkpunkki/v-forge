@@ -50,6 +50,14 @@ class EventType(str, Enum):
     TICK_BLOCKED = "tick_blocked"
     AGENT_MESSAGE_SENT = "agent_message_sent"
     COST_TRACKING = "cost_tracking"
+    # IDEA-0003 / WP-0054: Agent bridge lifecycle events
+    AGENT_CONNECTED = "agent_connected"
+    AGENT_DISCONNECTED = "agent_disconnected"
+    TASK_DISPATCHED = "task_dispatched"
+    AGENT_PROGRESS = "agent_progress"
+    AGENT_RESPONSE = "agent_response"
+    AGENT_ERROR = "agent_error"
+    AGENT_HEARTBEAT_LOST = "agent_heartbeat_lost"
 
 
 @dataclass

@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from vibeforge_api.routers import sessions, control
+from vibeforge_api.routers import control
 
 app = FastAPI(
     title="VibeForge API",
@@ -26,7 +26,6 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
 app.include_router(control.router)
 
 

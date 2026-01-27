@@ -4,26 +4,6 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
-class SubmitAnswerRequest(BaseModel):
-    """Request to submit an answer to a questionnaire question."""
-
-    question_id: str
-    answer: Any
-
-
-class PlanDecisionRequest(BaseModel):
-    """Request to approve or reject a plan."""
-
-    approved: bool
-    reason: str | None = None
-
-
-class ClarificationAnswerRequest(BaseModel):
-    """Request to submit an answer to a clarification question."""
-
-    answer: str
-
-
 # VF-192: Agent workflow request schemas
 
 
