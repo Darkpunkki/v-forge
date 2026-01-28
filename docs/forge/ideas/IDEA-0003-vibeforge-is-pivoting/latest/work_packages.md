@@ -195,7 +195,10 @@ status: "Draft"
 
 ## WP-0058 — Async Dispatch Engine (TickEngine Extension)
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28 21:25 (local)
+- **Completed:** 2026-01-28 21:34 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-005
 - **Tasks:** TASK-023, TASK-024, TASK-025, TASK-026, TASK-027
@@ -203,6 +206,9 @@ status: "Draft"
 - **Goal:** Extend TickEngine to support async dispatch to remote agents: add agent_type to AgentConfig, implement non-blocking dispatch, add response buffer checking, timeout handling, and tests.
 - **Dependencies:** WP-0055 (needs connection manager for dispatch/buffering)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0058-async-dispatch-engine.md
+- **Verified:**
+  - `python -m pytest` (cd apps/api) — 684 passed, 1 skipped (warnings)
+- **Commits:** none
 
 ### Ordered steps
 1. Add agent_type, endpoint_url, connection_status fields to AgentConfig (TASK-023)

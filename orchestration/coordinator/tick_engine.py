@@ -19,6 +19,7 @@ import hashlib
 import json
 import logging
 from typing import Optional
+import uuid
 
 from apps.api.vibeforge_api.core.event_log import Event, EventLog, EventType
 from apps.api.vibeforge_api.core.llm_provider import get_llm_client
@@ -30,6 +31,8 @@ from orchestration.models import AgentFlowGraph
 MODEL_PRICING_USD_PER_M_TOKEN = {
     "gpt-4o-mini": {"prompt": 0.15, "completion": 0.60},
 }
+
+DEFAULT_DISPATCH_TIMEOUT_SECONDS = 300.0
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +266,22 @@ class TickEngine:
         """Get list of configured agent IDs from session."""
         return [agent.get("agent_id", "") for agent in self.session.agents]
 
+    def _get_agent_config(self, agent_id: str) -> Optional[dict]:
+        """Get agent config dict from session."""
+        for agent in self.session.agents:
+            if agent.get("agent_id") == agent_id:
+                return agent
+        return None
+
+    def _get_agent_type(self, agent_id: str) -> str:
+        """Return agent_type for agent (default 'simulation')."""
+        agent = self._get_agent_config(agent_id) or {}
+        return (agent.get("agent_type") or "simulation").lower()
+
+    def _is_remote_agent(self, agent_id: str) -> bool:
+        """Check if an agent is remote (agent bridge)."""
+        return self._get_agent_type(agent_id) == "remote"
+
     def _get_delegate_targets(self, orchestrator_id: str) -> list[str]:
         """Get agents the orchestrator can delegate to based on the flow graph.
 
@@ -361,6 +380,195 @@ class TickEngine:
                     "delegation": True,
                     "delegation_from": delegator_id,
                 },
+            )
+
+    async def _dispatch_to_remote_agent(self, message: Message, tick_index: int) -> None:
+        """Dispatch a message to a remote agent via the connection manager."""
+        from apps.api.vibeforge_api.core.connection_manager import get_connection_manager
+
+        manager = get_connection_manager()
+        agent_id = message.to_agent
+
+        if not manager.is_agent_connected(agent_id):
+            self._emit_event(
+                Event(
+                    event_type=EventType.AGENT_ERROR,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=self.session.session_id,
+                    message=f"Agent {agent_id} is not connected",
+                    phase=self.session.phase.value,
+                    metadata={
+                        "tick_index": tick_index,
+                        "agent_id": agent_id,
+                        "message_id": message.message_id,
+                    },
+                )
+            )
+            return
+
+        if isinstance(message.content, dict):
+            content_text = message.content.get("text") or json.dumps(
+                message.content, ensure_ascii=True
+            )
+        else:
+            content_text = str(message.content)
+
+        dispatch_id = str(uuid.uuid4())
+        context = {
+            "from_agent": message.from_agent,
+            "to_agent": message.to_agent,
+            "origin_message_id": message.message_id,
+            "tick_index": tick_index,
+            "content": message.content,
+        }
+
+        await manager.dispatch_task(
+            agent_id=agent_id,
+            message_id=dispatch_id,
+            content=content_text,
+            context=context,
+            session_id=self.session.session_id,
+        )
+
+        if not isinstance(self.session.pending_dispatches, dict):
+            self.session.pending_dispatches = {}
+        self.session.pending_dispatches[dispatch_id] = {
+            "agent_id": agent_id,
+            "from_agent": message.from_agent,
+            "origin_message_id": message.message_id,
+            "dispatched_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        self._emit_event(
+            Event(
+                event_type=EventType.TASK_DISPATCHED,
+                timestamp=datetime.now(timezone.utc),
+                session_id=self.session.session_id,
+                message=f"Dispatched task to remote agent {agent_id}",
+                phase=self.session.phase.value,
+                metadata={
+                    "tick_index": tick_index,
+                    "agent_id": agent_id,
+                    "message_id": dispatch_id,
+                    "status": "dispatched",
+                },
+            )
+        )
+
+    async def _check_response_buffer(self, tick_index: int) -> None:
+        """Process buffered responses from remote agents."""
+        from apps.api.vibeforge_api.core.connection_manager import get_connection_manager
+
+        manager = get_connection_manager()
+        responses = manager.pop_response_buffer(self.session.session_id)
+        if not responses:
+            return
+
+        for response in responses:
+            context = response.get("context") or {}
+            from_agent = response.get("agent_id") or ""
+            to_agent = context.get("from_agent") or "user"
+            origin_message_id = context.get("origin_message_id") or context.get("message_id")
+            error = response.get("error")
+            content_text = response.get("content") or ""
+
+            payload = {
+                "text": content_text,
+                "is_stub": False,
+                "expect_response": False,
+            }
+            if origin_message_id:
+                payload["in_response_to"] = origin_message_id
+            if error:
+                payload["error"] = error
+                if not content_text:
+                    payload["text"] = f"[ERROR] {error}"
+
+            self._append_history(from_agent, "assistant", payload)
+            self.send_message(
+                from_agent=from_agent,
+                to_agent=to_agent,
+                content=payload,
+                bypass_validation=True,
+            )
+
+            if isinstance(self.session.pending_dispatches, dict):
+                self.session.pending_dispatches.pop(response.get("message_id"), None)
+
+            self._emit_event(
+                Event(
+                    event_type=EventType.AGENT_RESPONSE,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=self.session.session_id,
+                    message=f"Processed response from {from_agent}",
+                    phase=self.session.phase.value,
+                    metadata={
+                        "tick_index": tick_index,
+                        "agent_id": from_agent,
+                        "message_id": response.get("message_id"),
+                        "error": error,
+                    },
+                )
+            )
+
+    def _check_dispatch_timeouts(self, tick_index: int) -> None:
+        """Emit timeout errors for stale remote dispatches."""
+        from apps.api.vibeforge_api.core.connection_manager import get_connection_manager
+
+        manager = get_connection_manager()
+        timeout_seconds = getattr(
+            self.session, "dispatch_timeout_seconds", DEFAULT_DISPATCH_TIMEOUT_SECONDS
+        ) or DEFAULT_DISPATCH_TIMEOUT_SECONDS
+        now = datetime.now(timezone.utc)
+
+        for dispatch in manager.get_pending_dispatches(self.session.session_id):
+            dispatched_at = dispatch.get("dispatched_at")
+            if not dispatched_at:
+                continue
+            elapsed = (now - dispatched_at).total_seconds()
+            if elapsed <= timeout_seconds:
+                continue
+
+            reason = f"Dispatch timeout after {int(elapsed)}s"
+            cleared = manager.clear_pending_dispatch(dispatch["message_id"], reason)
+            if isinstance(self.session.pending_dispatches, dict):
+                self.session.pending_dispatches.pop(dispatch["message_id"], None)
+
+            context = dispatch.get("context") or {}
+            origin_message_id = context.get("origin_message_id")
+            to_agent = context.get("from_agent")
+            from_agent = dispatch.get("agent_id")
+
+            if to_agent:
+                payload = {
+                    "text": f"[ERROR] {reason}",
+                    "error": reason,
+                    "expect_response": False,
+                }
+                if origin_message_id:
+                    payload["in_response_to"] = origin_message_id
+                self._append_history(from_agent or "", "assistant", payload)
+                self.send_message(
+                    from_agent=from_agent or "agent",
+                    to_agent=to_agent,
+                    content=payload,
+                    bypass_validation=True,
+                )
+
+            self._emit_event(
+                Event(
+                    event_type=EventType.AGENT_ERROR,
+                    timestamp=datetime.now(timezone.utc),
+                    session_id=self.session.session_id,
+                    message=reason,
+                    phase=self.session.phase.value,
+                    metadata={
+                        "tick_index": tick_index,
+                        "agent_id": dispatch.get("agent_id"),
+                        "message_id": dispatch.get("message_id"),
+                        "status": "timeout",
+                    },
+                )
             )
 
     async def _finalize_delegation(
@@ -805,6 +1013,9 @@ class TickEngine:
         self.session.tick_index += 1
         new_tick = self.session.tick_index
 
+        await self._check_response_buffer(new_tick)
+        self._check_dispatch_timeouts(new_tick)
+
         # Process a single pending message in FIFO order
         messages_delivered = []
         agents_acted: set[str] = set()
@@ -817,6 +1028,9 @@ class TickEngine:
             messages_delivered.append(message)
             agents_acted.add(message.from_agent)
             self._append_history(message.to_agent, "user", message.content)
+            if self._is_remote_agent(message.to_agent):
+                await self._dispatch_to_remote_agent(message, new_tick)
+                break
             if self._should_delegate(message):
                 prompt_text = ""
                 if isinstance(message.content, dict):

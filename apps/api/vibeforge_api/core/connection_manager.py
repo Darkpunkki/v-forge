@@ -87,6 +87,8 @@ class RemoteAgentConnectionManager:
 
         # message_id -> PendingDispatch
         self._pending_dispatches: dict[str, PendingDispatch] = {}
+        # session_id -> buffered response entries
+        self._response_buffer: dict[str, list[dict[str, Any]]] = {}
 
         # Heartbeat configuration
         self._heartbeat_timeout_seconds: float = 30.0
@@ -155,6 +157,43 @@ class RemoteAgentConnectionManager:
     def get_agent_task_status(self, agent_id: str) -> Optional[dict[str, Any]]:
         """Get the latest task status for an agent."""
         return self._agent_task_status.get(agent_id)
+
+    def get_pending_dispatches(self, session_id: Optional[str] = None) -> list[dict[str, Any]]:
+        """Get pending dispatches, optionally filtered by session_id."""
+        pending: list[dict[str, Any]] = []
+        for dispatch in self._pending_dispatches.values():
+            if session_id and dispatch.session_id != session_id:
+                continue
+            pending.append(
+                {
+                    "message_id": dispatch.message_id,
+                    "agent_id": dispatch.agent_id,
+                    "session_id": dispatch.session_id,
+                    "content": dispatch.content,
+                    "context": dispatch.context,
+                    "dispatched_at": dispatch.dispatched_at,
+                }
+            )
+        return pending
+
+    def clear_pending_dispatch(self, message_id: str, reason: str) -> Optional[PendingDispatch]:
+        """Remove a pending dispatch and mark the agent status as error."""
+        dispatch = self._pending_dispatches.pop(message_id, None)
+        if not dispatch:
+            return None
+        if not dispatch.future.done():
+            dispatch.future.cancel()
+        self.set_agent_task_status(
+            dispatch.agent_id,
+            "error",
+            message_id=message_id,
+            error=reason,
+        )
+        return dispatch
+
+    def pop_response_buffer(self, session_id: str) -> list[dict[str, Any]]:
+        """Pop and clear buffered responses for a session."""
+        return self._response_buffer.pop(session_id, [])
 
     def configure(
         self,
@@ -454,6 +493,19 @@ class RemoteAgentConnectionManager:
         if self._on_agent_response:
             self._on_agent_response(agent_id, message_id, error)
 
+        if dispatch.session_id:
+            buffer = self._response_buffer.setdefault(dispatch.session_id, [])
+            buffer.append(
+                {
+                    "agent_id": agent_id,
+                    "message_id": message_id,
+                    "content": content,
+                    "usage": usage or {},
+                    "error": error,
+                    "context": dispatch.context,
+                }
+            )
+
     async def handle_heartbeat(self, agent_id: str) -> None:
         """Handle a heartbeat message from an agent.
 
@@ -567,6 +619,7 @@ def reset_connection_manager() -> None:
         _connection_manager._heartbeat_task = None
         _connection_manager._connections.clear()
         _connection_manager._pending_dispatches.clear()
+        _connection_manager._response_buffer.clear()
         _connection_manager._registered_agents.clear()
         _connection_manager._agent_task_status.clear()
         _connection_manager._initialized = False

@@ -353,6 +353,16 @@ class AgentConfig(BaseModel):
         None, description="Model to use (e.g., 'gpt-4', 'claude-3')"
     )
     display_name: Optional[str] = Field(None, description="Human-readable name")
+    agent_type: str = Field(
+        "simulation",
+        description="Agent type: 'simulation' (local) or 'remote' (agent bridge)",
+    )
+    endpoint_url: Optional[str] = Field(
+        None, description="Remote agent endpoint URL (agent bridge)"
+    )
+    connection_status: Optional[str] = Field(
+        None, description="Connection status (connected/idle/busy/disconnected)"
+    )
 
     @field_validator("agent_id")
     @classmethod
@@ -361,6 +371,15 @@ class AgentConfig(BaseModel):
         if not v or not v.strip():
             raise ValueError("agent_id cannot be empty")
         return v.strip()
+
+    @field_validator("agent_type")
+    @classmethod
+    def validate_agent_type(cls, v: str) -> str:
+        """Validate agent_type values."""
+        normalized = v.strip().lower() if v else ""
+        if normalized not in {"simulation", "remote"}:
+            raise ValueError("agent_type must be 'simulation' or 'remote'")
+        return normalized
 
 
 class AgentFlowEdge(BaseModel):
