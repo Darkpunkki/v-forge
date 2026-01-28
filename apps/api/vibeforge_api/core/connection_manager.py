@@ -31,6 +31,7 @@ class AgentConnection:
     capabilities: list[str] = field(default_factory=list)
     workdir: Optional[str] = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    session_id: Optional[str] = None
     connected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_heartbeat: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -47,6 +48,9 @@ class PendingDispatch:
     dispatched_at: datetime
     future: asyncio.Future[ResponseMessage]
     progress_callback: Optional[Callable[[ProgressMessage], None]] = None
+
+
+_ALLOWED_TASK_STATUSES = {"idle", "dispatched", "running", "completed", "error"}
 
 
 class RemoteAgentConnectionManager:
@@ -72,6 +76,12 @@ class RemoteAgentConnectionManager:
             return
         self._initialized = True
 
+        # agent_id -> registration info (name, endpoint_url, registered_at)
+        self._registered_agents: dict[str, dict[str, Any]] = {}
+
+        # agent_id -> task status info
+        self._agent_task_status: dict[str, dict[str, Any]] = {}
+
         # agent_id -> AgentConnection
         self._connections: dict[str, AgentConnection] = {}
 
@@ -92,6 +102,59 @@ class RemoteAgentConnectionManager:
 
         # Background task for heartbeat monitoring
         self._heartbeat_task: Optional[asyncio.Task] = None
+
+    def register_agent_info(self, agent_id: str, name: str, endpoint_url: str) -> dict[str, Any]:
+        """Register agent metadata from the control plane."""
+        entry = {
+            "agent_id": agent_id,
+            "name": name,
+            "endpoint_url": endpoint_url,
+            "registered_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self._registered_agents[agent_id] = entry
+        if agent_id not in self._agent_task_status:
+            self._agent_task_status[agent_id] = {
+                "status": "idle",
+                "message_id": None,
+                "error": None,
+                "progress_text": None,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        return entry
+
+    def get_registered_agents(self) -> list[dict[str, Any]]:
+        """Return all registered agents."""
+        return list(self._registered_agents.values())
+
+    def get_registered_agent(self, agent_id: str) -> Optional[dict[str, Any]]:
+        """Return registered agent info, if any."""
+        return self._registered_agents.get(agent_id)
+
+    def set_agent_task_status(
+        self,
+        agent_id: str,
+        status: str,
+        message_id: Optional[str] = None,
+        error: Optional[str] = None,
+        progress_text: Optional[str] = None,
+    ) -> None:
+        """Update the latest task status for an agent."""
+        normalized_status = status if status in _ALLOWED_TASK_STATUSES else "running"
+        entry = self._agent_task_status.get(agent_id, {})
+        entry.update(
+            {
+                "status": normalized_status,
+                "message_id": message_id or entry.get("message_id"),
+                "error": error,
+                "progress_text": progress_text,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        self._agent_task_status[agent_id] = entry
+
+    def get_agent_task_status(self, agent_id: str) -> Optional[dict[str, Any]]:
+        """Get the latest task status for an agent."""
+        return self._agent_task_status.get(agent_id)
 
     def configure(
         self,
@@ -157,6 +220,12 @@ class RemoteAgentConnectionManager:
             except Exception:
                 pass
 
+        # Generate session_id for the connection (could be passed in or generated)
+        session_id = metadata.get("session_id") if metadata else None
+        if not session_id:
+            import uuid
+            session_id = str(uuid.uuid4())
+
         connection = AgentConnection(
             agent_id=agent_id,
             websocket=websocket,
@@ -164,8 +233,17 @@ class RemoteAgentConnectionManager:
             capabilities=capabilities or [],
             workdir=workdir,
             metadata=metadata or {},
+            session_id=session_id,
         )
         self._connections[agent_id] = connection
+        if agent_id not in self._registered_agents:
+            self._registered_agents[agent_id] = {
+                "agent_id": agent_id,
+                "name": agent_id,
+                "endpoint_url": "",
+                "registered_at": datetime.now(timezone.utc).isoformat(),
+            }
+        self.set_agent_task_status(agent_id, "idle")
 
         if self._on_agent_connected:
             self._on_agent_connected(agent_id, {
@@ -177,12 +255,6 @@ class RemoteAgentConnectionManager:
         # Start heartbeat monitoring if not already running
         if self._heartbeat_task is None or self._heartbeat_task.done():
             self._heartbeat_task = asyncio.create_task(self._heartbeat_monitor())
-
-        # Generate session_id for the connection (could be passed in or generated)
-        session_id = metadata.get("session_id") if metadata else None
-        if not session_id:
-            import uuid
-            session_id = str(uuid.uuid4())
 
         return RegisteredMessage(
             session_id=session_id,
@@ -203,10 +275,22 @@ class RemoteAgentConnectionManager:
         connection = self._connections.pop(agent_id)
 
         # Cancel any pending dispatches for this agent
+        pending_message_ids: list[str] = []
         for message_id, dispatch in list(self._pending_dispatches.items()):
             if dispatch.agent_id == agent_id:
                 dispatch.future.cancel()
                 del self._pending_dispatches[message_id]
+                pending_message_ids.append(message_id)
+
+        if pending_message_ids:
+            self.set_agent_task_status(
+                agent_id,
+                "error",
+                message_id=pending_message_ids[-1],
+                error=f"Disconnected: {reason}",
+            )
+        else:
+            self.set_agent_task_status(agent_id, "idle")
 
         if self._on_agent_disconnected:
             self._on_agent_disconnected(agent_id, reason)
@@ -270,6 +354,7 @@ class RemoteAgentConnectionManager:
             future=future,
             progress_callback=progress_callback,
         )
+        self.set_agent_task_status(agent_id, "dispatched", message_id=message_id)
 
         # Send dispatch message
         await connection.websocket.send_json(dispatch_msg.model_dump())
@@ -310,6 +395,12 @@ class RemoteAgentConnectionManager:
             progress_text=progress_text,
             metadata=metadata or {},
         )
+        self.set_agent_task_status(
+            agent_id,
+            status,
+            message_id=message_id,
+            progress_text=progress_text,
+        )
 
         if dispatch.progress_callback:
             dispatch.progress_callback(progress_msg)
@@ -349,6 +440,12 @@ class RemoteAgentConnectionManager:
             usage=usage or {},
             error=error,
         )
+        self.set_agent_task_status(
+            agent_id,
+            "error" if error else "completed",
+            message_id=message_id,
+            error=error,
+        )
 
         # Resolve the future
         if not dispatch.future.done():
@@ -385,6 +482,7 @@ class RemoteAgentConnectionManager:
             "capabilities": conn.capabilities,
             "workdir": conn.workdir,
             "metadata": conn.metadata,
+            "session_id": conn.session_id,
             "connected_at": conn.connected_at.isoformat(),
             "last_heartbeat": conn.last_heartbeat.isoformat(),
         }
@@ -469,6 +567,8 @@ def reset_connection_manager() -> None:
         _connection_manager._heartbeat_task = None
         _connection_manager._connections.clear()
         _connection_manager._pending_dispatches.clear()
+        _connection_manager._registered_agents.clear()
+        _connection_manager._agent_task_status.clear()
         _connection_manager._initialized = False
     _connection_manager = None
     RemoteAgentConnectionManager._instance = None

@@ -132,3 +132,26 @@ class SimulationResetRequest(BaseModel):
     """Request to reset simulation state (VF-200)."""
 
     preserve_workflow: bool = Field(True, description="Keep workflow config (agents/roles/graph), only reset tick state")
+
+
+# IDEA-0003: Live agent control request schemas
+
+
+class RegisterAgentRequest(BaseModel):
+    """Request to register a remote agent with the control plane."""
+
+    name: str = Field(..., min_length=1, description="Agent display name")
+    endpoint_url: str = Field(..., min_length=1, description="Agent bridge endpoint URL")
+
+
+class DispatchTaskRequest(BaseModel):
+    """Request to dispatch a task to a remote agent."""
+
+    content: str = Field(..., min_length=1, description="Task content/instructions")
+    context: dict[str, Any] = Field(default_factory=dict, description="Optional task context")
+
+
+class FollowUpRequest(BaseModel):
+    """Request to send a follow-up message to a remote agent."""
+
+    content: str = Field(..., min_length=1, description="Follow-up message content")

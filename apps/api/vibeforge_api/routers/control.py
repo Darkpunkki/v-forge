@@ -6,6 +6,8 @@ Separate from the end-user session flow.
 
 from typing import Optional
 from collections import Counter
+import re
+import uuid
 
 from fastapi import APIRouter, HTTPException
 from sse_starlette.sse import EventSourceResponse
@@ -24,6 +26,13 @@ from vibeforge_api.models import (
     SimulationStartRequest,
     SimulationResetRequest,
     TickRequest,
+    RegisterAgentRequest,
+    DispatchTaskRequest,
+    FollowUpRequest,
+    AgentListResponse,
+    AgentDetailResponse,
+    TaskDispatchResponse,
+    TaskStatusResponse,
 )
 
 router = APIRouter(prefix="/control", tags=["control"])
@@ -52,6 +61,64 @@ async def _get_control_context_session_id() -> str:
         return _control_context_session_id
 
 
+def _slugify_agent_name(name: str) -> str:
+    cleaned = re.sub(r"[^a-zA-Z0-9]+", "-", name.strip().lower()).strip("-")
+    return cleaned or "agent"
+
+
+def _generate_agent_id(name: str, manager) -> str:
+    base = _slugify_agent_name(name)
+    agent_id = f"{base}-{uuid.uuid4().hex[:6]}"
+    while manager.get_registered_agent(agent_id):
+        agent_id = f"{base}-{uuid.uuid4().hex[:6]}"
+    return agent_id
+
+
+def _build_agent_view(
+    agent_id: str,
+    registered: Optional[dict],
+    connection_info: Optional[dict],
+) -> dict:
+    name = registered.get("name") if registered else agent_id
+    endpoint_url = registered.get("endpoint_url") if registered else ""
+    status = "connected" if connection_info else "disconnected"
+
+    return {
+        "agent_id": agent_id,
+        "name": name,
+        "endpoint_url": endpoint_url,
+        "status": status,
+        "capabilities": (connection_info or {}).get("capabilities", []),
+        "workdir": (connection_info or {}).get("workdir"),
+        "metadata": (connection_info or {}).get("metadata", {}),
+        "connected_at": (connection_info or {}).get("connected_at"),
+        "last_heartbeat": (connection_info or {}).get("last_heartbeat"),
+    }
+
+
+def _emit_control_event(
+    session_id: str,
+    event_type,
+    message: str,
+    agent_id: str,
+    metadata: Optional[dict] = None,
+) -> None:
+    from vibeforge_api.core.event_log import Event, EventLog
+    from vibeforge_api.core.workspace import WorkspaceManager
+
+    workspace_manager = WorkspaceManager()
+    event_log = EventLog(workspace_manager.workspace_root)
+
+    event = Event(
+        event_type=event_type,
+        timestamp=datetime.now(timezone.utc),
+        session_id=session_id,
+        message=message,
+        metadata={"agent_id": agent_id, **(metadata or {})},
+    )
+    event_log.append(event)
+
+
 @router.post("/sessions")
 async def create_session():
     """Create a new session for control/simulation use."""
@@ -66,6 +133,246 @@ async def get_control_context():
     """Get or create a stable control context session id."""
     session_id = await _get_control_context_session_id()
     return {"control_session_id": session_id}
+
+
+@router.post("/agents/register", response_model=AgentDetailResponse)
+async def register_agent(request: RegisterAgentRequest):
+    """Register a remote agent with name + endpoint URL."""
+    from vibeforge_api.core.connection_manager import get_connection_manager
+
+    manager = get_connection_manager()
+    name = request.name.strip()
+    endpoint_url = request.endpoint_url.strip()
+
+    if not name or not endpoint_url:
+        raise HTTPException(status_code=400, detail="name and endpoint_url are required")
+
+    agent_id = _generate_agent_id(name, manager)
+    registered = manager.register_agent_info(agent_id, name, endpoint_url)
+    connection_info = manager.get_agent_info(agent_id)
+    agent_view = _build_agent_view(agent_id, registered, connection_info)
+
+    return AgentDetailResponse(agent=agent_view)
+
+
+@router.get("/agents", response_model=AgentListResponse)
+async def list_agents():
+    """List all registered agents with connection status."""
+    from vibeforge_api.core.connection_manager import get_connection_manager
+
+    manager = get_connection_manager()
+    agents = []
+    seen: set[str] = set()
+
+    for entry in manager.get_registered_agents():
+        agent_id = entry["agent_id"]
+        connection_info = manager.get_agent_info(agent_id)
+        agents.append(_build_agent_view(agent_id, entry, connection_info))
+        seen.add(agent_id)
+
+    for agent_id in manager.get_connected_agents():
+        if agent_id in seen:
+            continue
+        connection_info = manager.get_agent_info(agent_id)
+        agents.append(_build_agent_view(agent_id, None, connection_info))
+        seen.add(agent_id)
+
+    return AgentListResponse(agents=agents, total=len(agents))
+
+
+@router.get("/agents/{agent_id}", response_model=AgentDetailResponse)
+async def get_agent_detail(agent_id: str):
+    """Get agent details and connection status."""
+    from vibeforge_api.core.connection_manager import get_connection_manager
+
+    manager = get_connection_manager()
+    registered = manager.get_registered_agent(agent_id)
+    connection_info = manager.get_agent_info(agent_id)
+
+    if not registered and not connection_info:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    agent_view = _build_agent_view(agent_id, registered, connection_info)
+    return AgentDetailResponse(agent=agent_view)
+
+
+@router.post("/agents/{agent_id}/dispatch", response_model=TaskDispatchResponse)
+async def dispatch_agent_task(agent_id: str, request: DispatchTaskRequest):
+    """Dispatch a task to a connected remote agent."""
+    from vibeforge_api.core.connection_manager import get_connection_manager
+    from vibeforge_api.core.event_log import EventType
+
+    manager = get_connection_manager()
+    registered = manager.get_registered_agent(agent_id)
+    if not registered and not manager.is_agent_connected(agent_id):
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    if not manager.is_agent_connected(agent_id):
+        raise HTTPException(status_code=409, detail="Agent is not connected")
+
+    message_id = str(uuid.uuid4())
+    session_id = await _get_control_context_session_id()
+
+    try:
+        await manager.dispatch_task(
+            agent_id=agent_id,
+            message_id=message_id,
+            content=request.content,
+            context=request.context,
+            session_id=session_id,
+        )
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Agent is not connected")
+
+    _emit_control_event(
+        session_id=session_id,
+        event_type=EventType.TASK_DISPATCHED,
+        message=f"Dispatched task to agent {agent_id}",
+        agent_id=agent_id,
+        metadata={"message_id": message_id},
+    )
+
+    return TaskDispatchResponse(
+        agent_id=agent_id,
+        message_id=message_id,
+        status="dispatched",
+        message="Task dispatched",
+    )
+
+
+@router.post("/agents/{agent_id}/followup", response_model=TaskDispatchResponse)
+async def send_followup(agent_id: str, request: FollowUpRequest):
+    """Send a follow-up message to an agent's active task."""
+    from vibeforge_api.core.connection_manager import get_connection_manager
+    from vibeforge_api.core.event_log import EventType
+
+    manager = get_connection_manager()
+    registered = manager.get_registered_agent(agent_id)
+    if not registered and not manager.is_agent_connected(agent_id):
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    if not manager.is_agent_connected(agent_id):
+        raise HTTPException(status_code=409, detail="Agent is not connected")
+
+    status_info = manager.get_agent_task_status(agent_id) or {}
+    current_status = status_info.get("status", "idle")
+    followup_to = status_info.get("message_id")
+
+    if current_status in {"idle", "completed", "error"} or not followup_to:
+        raise HTTPException(status_code=409, detail="No active task to follow up")
+
+    message_id = str(uuid.uuid4())
+    session_id = await _get_control_context_session_id()
+
+    context = {
+        "is_followup": True,
+        "followup_to": followup_to,
+    }
+
+    try:
+        await manager.dispatch_task(
+            agent_id=agent_id,
+            message_id=message_id,
+            content=request.content,
+            context=context,
+            session_id=session_id,
+        )
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Agent is not connected")
+
+    _emit_control_event(
+        session_id=session_id,
+        event_type=EventType.TASK_DISPATCHED,
+        message=f"Sent follow-up to agent {agent_id}",
+        agent_id=agent_id,
+        metadata={"message_id": message_id, "followup_to": followup_to, "is_followup": True},
+    )
+
+    return TaskDispatchResponse(
+        agent_id=agent_id,
+        message_id=message_id,
+        status="dispatched",
+        message="Follow-up dispatched",
+    )
+
+
+@router.get("/agents/{agent_id}/task", response_model=TaskStatusResponse)
+async def get_agent_task_status(agent_id: str):
+    """Get current task status for an agent."""
+    from vibeforge_api.core.connection_manager import get_connection_manager
+
+    manager = get_connection_manager()
+    registered = manager.get_registered_agent(agent_id)
+    connected = manager.is_agent_connected(agent_id)
+
+    if not registered and not connected:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    status_info = manager.get_agent_task_status(agent_id) or {}
+
+    return TaskStatusResponse(
+        agent_id=agent_id,
+        status=status_info.get("status", "idle"),
+        message_id=status_info.get("message_id"),
+        error=status_info.get("error"),
+    )
+
+
+@router.get("/agents/{agent_id}/events")
+async def stream_agent_events(agent_id: str):
+    """Stream agent-specific events via SSE."""
+    from vibeforge_api.core.connection_manager import get_connection_manager
+    from vibeforge_api.core.event_log import EventLog
+    from vibeforge_api.core.session import session_store
+    from vibeforge_api.core.workspace import WorkspaceManager
+
+    manager = get_connection_manager()
+    registered = manager.get_registered_agent(agent_id)
+    connection_info = manager.get_agent_info(agent_id)
+
+    if not registered and not connection_info:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    session_id = None
+    if connection_info:
+        session_id = connection_info.get("session_id")
+    if not session_id:
+        session_id = await _get_control_context_session_id()
+
+    workspace_manager = WorkspaceManager()
+    event_log_path = workspace_manager.workspace_root / session_id / "events.jsonl"
+
+    session = session_store.get_session(session_id)
+    if not session and not event_log_path.exists():
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    event_log = EventLog(workspace_manager.workspace_root, use_cache=False)
+
+    async def event_generator():
+        events = event_log.get_events_filtered(session_id=session_id, agent_id=agent_id)
+        for event in events:
+            yield {
+                "event": "agent_event",
+                "data": json.dumps(event.to_dict()),
+            }
+
+        last_count = len(events)
+        while True:
+            await asyncio.sleep(1)
+            current_events = event_log.get_events_filtered(
+                session_id=session_id,
+                agent_id=agent_id,
+            )
+            if len(current_events) > last_count:
+                new_events = current_events[last_count:]
+                for event in new_events:
+                    yield {
+                        "event": "agent_event",
+                        "data": json.dumps(event.to_dict()),
+                    }
+                last_count = len(current_events)
+
+    return EventSourceResponse(event_generator())
 
 
 @router.get("/sessions/{session_id}/events")

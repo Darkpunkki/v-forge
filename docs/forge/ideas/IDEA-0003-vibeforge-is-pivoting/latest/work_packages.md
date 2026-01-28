@@ -162,7 +162,10 @@ status: "Draft"
 
 ## WP-0057 — Live Agent Control Backend Endpoints
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28 20:52 (local)
+- **Completed:** 2026-01-28 21:07 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-004
 - **Tasks:** TASK-019, TASK-020, TASK-021, TASK-022
@@ -170,6 +173,9 @@ status: "Draft"
 - **Goal:** Add REST endpoints to /control for agent registration, task dispatch, follow-up, status queries, and agent-scoped SSE streaming. Write integration tests.
 - **Dependencies:** WP-0055 (needs connection manager for dispatch routing)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0057-control-backend-endpoints.md
+- **Verified:**
+  - `python -m pytest` (cd apps/api) — 681 passed, 1 skipped (warnings)
+- **Commits:** none
 
 ### Ordered steps
 1. Add POST /control/agents/register, GET /control/agents, GET /control/agents/{id} (TASK-019)

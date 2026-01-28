@@ -18,6 +18,10 @@ from vibeforge_api.models.requests import (
     SimulationStartRequest,
     TickRequest,
     SimulationResetRequest,
+    # IDEA-0003: Live agent control requests
+    RegisterAgentRequest,
+    DispatchTaskRequest,
+    FollowUpRequest,
 )
 from vibeforge_api.models.bridge_protocol import (
     RegisterMessage,
@@ -44,6 +48,12 @@ from vibeforge_api.models.responses import (
     SimulationResetResponse,
     SimulationPauseResponse,
     SimulationStopResponse,
+    # IDEA-0003: Live agent control responses
+    AgentConnectionInfo,
+    AgentListResponse,
+    AgentDetailResponse,
+    TaskDispatchResponse,
+    TaskStatusResponse,
 )
 
 __all__ = [
@@ -71,6 +81,9 @@ __all__ = [
     "SimulationStartRequest",
     "TickRequest",
     "SimulationResetRequest",
+    "RegisterAgentRequest",
+    "DispatchTaskRequest",
+    "FollowUpRequest",
     "SimulationConfigResponse",
     "SimulationStartResponse",
     "TickResponse",
@@ -78,6 +91,11 @@ __all__ = [
     "SimulationResetResponse",
     "SimulationPauseResponse",
     "SimulationStopResponse",
+    "AgentConnectionInfo",
+    "AgentListResponse",
+    "AgentDetailResponse",
+    "TaskDispatchResponse",
+    "TaskStatusResponse",
     # Agent bridge protocol
     "RegisterMessage",
     "RegisteredMessage",

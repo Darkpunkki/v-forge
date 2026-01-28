@@ -143,3 +143,51 @@ class SimulationStopResponse(BaseModel):
     tick_index: int
     tick_status: str
     message: str
+
+
+# IDEA-0003: Live agent control response schemas
+
+
+class AgentConnectionInfo(BaseModel):
+    """Agent registration + connection status snapshot."""
+
+    agent_id: str
+    name: str
+    endpoint_url: str
+    status: str
+    capabilities: list[str] = Field(default_factory=list)
+    workdir: Optional[str] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    connected_at: Optional[str] = None
+    last_heartbeat: Optional[str] = None
+
+
+class AgentListResponse(BaseModel):
+    """Response containing all registered agents."""
+
+    agents: list[AgentConnectionInfo] = Field(default_factory=list)
+    total: int
+
+
+class AgentDetailResponse(BaseModel):
+    """Response containing agent details."""
+
+    agent: AgentConnectionInfo
+
+
+class TaskDispatchResponse(BaseModel):
+    """Response from dispatching or sending follow-up to an agent."""
+
+    agent_id: str
+    message_id: str
+    status: str
+    message: str
+
+
+class TaskStatusResponse(BaseModel):
+    """Response containing the current task status for an agent."""
+
+    agent_id: str
+    status: str
+    message_id: Optional[str] = None
+    error: Optional[str] = None

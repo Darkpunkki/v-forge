@@ -293,6 +293,7 @@ Note: the “/commands” above refer to this repo’s workflow prompts/tools. I
 - Never mark items complete unless verification passes.
 - Never invent backlog items during execution; implement only what exists in the backlog/WP.
 - Preserve existing `WORK_PACKAGES.md` formatting/casing when editing entries.
+- Upon finishing work on a WP, sync the work_packages file in docs/forge/ideas/IDEA-XXXX/latest/work_packages.md to reflect current status.
 
 
 ## Ralph mode (TASKS.md loop)
