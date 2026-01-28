@@ -104,7 +104,7 @@ status: "Draft"
 
 ## WP-0055 — WebSocket Endpoint + Connection Manager
 
-- **Status:** In Progress
+- **Status:** Done
 - **Started:** 2026-01-28 20:15 (local)
 - **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
@@ -133,7 +133,9 @@ status: "Draft"
 
 ## WP-0056 — Agent Bridge Standalone Service
 
-- **Status:** Queued
+- **Status:** In Progress
+- **Started:** 2026-01-28 20:27 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-003
 - **Tasks:** TASK-014, TASK-015, TASK-016, TASK-017, TASK-018
