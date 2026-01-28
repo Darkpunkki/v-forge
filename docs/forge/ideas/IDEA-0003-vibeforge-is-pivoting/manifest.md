@@ -104,31 +104,35 @@
 
 ## Tasks
 
-- last_updated: 2026-01-27
+- last_updated: 2026-01-28
 - last_run_id: 2026-01-27T18-54-22.539Z_run-d5fa
-- total_tasks: 40
-- by_release: MVP=34, V1=4, Later=2
-- by_epic: EPIC-001=4, EPIC-002=9, EPIC-003=5, EPIC-004=4, EPIC-005=5, EPIC-006=7, EPIC-007=4, EPIC-008=2
+- total_tasks: 42
+- by_release: MVP=36, V1=4, Later=2
+- by_epic: EPIC-001=4, EPIC-002=9, EPIC-003=5, EPIC-004=5, EPIC-005=5, EPIC-006=8, EPIC-007=4, EPIC-008=2
 - latest_outputs:
   - latest/tasks.md
 - notes:
   - All 22 features covered with implementable tasks
   - Every task includes target_files and reuse_notes grounded in existing_solution_map
-  - 34 MVP tasks across 6 epics; 4 V1 tasks; 2 Later tasks
+  - 36 MVP tasks across 6 epics; 4 V1 tasks; 2 Later tasks
+  - Added TASK-041/TASK-042 for sessionless control context cleanup
+  - TASK-041 completed (control context backend cleanup)
+  - TASK-042 completed (control UI sessionless cleanup)
 
 ## Work Packages
 
-- last_updated: 2026-01-27
+- last_updated: 2026-01-28
 - last_run_id: 2026-01-27T19-04-14.952Z_run-ae73
 - scope_filter: MVP
-- total_wps: 8
-- global_wp_range: WP-0053 — WP-0060
-- total_tasks_queued: 34
-- total_effort_points: 48
+- total_wps: 9
+- global_wp_range: WP-0053 - WP-0061
+- total_tasks_queued: 36
+- total_effort_points: 50
 - latest_outputs:
   - latest/work_packages.md
 - notes:
-  - 8 WPs batched from 34 MVP tasks across EPIC-001 through EPIC-006
+  - 9 WPs batched from 36 MVP tasks across EPIC-001 through EPIC-006
   - WP-0053 (Session Removal) and WP-0054 (Protocol Models) can run in parallel
   - WP-0055+WP-0056 parallelizable; WP-0057+WP-0058 parallelizable
   - WP-0060 (Layout Rework) is final WP in dependency chain
+  - WP-0061 (Sessionless Control Context) is in progress

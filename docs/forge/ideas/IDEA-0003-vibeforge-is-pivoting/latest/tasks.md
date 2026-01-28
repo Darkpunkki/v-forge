@@ -485,6 +485,29 @@ tasks:
       - "apps/api/tests/test_control_agents.py — create new"
     reuse_notes: "Follow existing test patterns in apps/api/tests/."
 
+  - id: "TASK-041"
+    feature_id: "FEAT-010"
+    epic_id: "EPIC-004"
+    title: "Replace session list/status endpoints with control context"
+    description: "Remove session-listing endpoints from the /control router (GET /control/sessions, GET /control/active, GET /control/sessions/{id}/status, GET /control/sessions/{id}/bundle). Add a single control context endpoint (GET /control/context) that returns a stable control_session_id created on first call. Keep /control/sessions/{id}/events and all simulation endpoints intact."
+    acceptance_criteria:
+      - "GET /control/context returns {control_session_id} and is stable across calls"
+      - "GET /control/sessions returns 404"
+      - "GET /control/active returns 404"
+      - "GET /control/sessions/{id}/status returns 404"
+      - "GET /control/sessions/{id}/bundle returns 404"
+      - "SSE stream at /control/sessions/{control_session_id}/events still works"
+      - "Existing simulation endpoints still function"
+    dependencies: []
+    release_target: "MVP"
+    priority: "P0"
+    estimate: "S"
+    tags: ["backend", "api", "cleanup"]
+    target_files:
+      - "apps/api/vibeforge_api/routers/control.py - modify (remove session list/status endpoints, add /control/context)"
+      - "apps/api/tests/test_control_api.py - update (remove session list/status tests, add control context tests)"
+    reuse_notes: "Keep SessionStore for simulation. The new control context should be a single persistent session id for /control observability."
+
   # ──────────────────────────────────────────────
   # EPIC-005: Async Dispatch Engine
   # ──────────────────────────────────────────────
@@ -731,6 +754,28 @@ tasks:
     target_files:
       - "apps/ui/src/screens/ControlPanel.tsx — rework"
     reuse_notes: "Rework existing ControlPanel.tsx. Retain reusable monitoring widgets. Replace session-centric sidebar with agent-centric components."
+
+  - id: "TASK-042"
+    feature_id: "FEAT-018"
+    epic_id: "EPIC-006"
+    title: "Remove session list/status UI and wire control context"
+    description: "Update the control UI to stop listing sessions or showing session status grids. Fetch the control_session_id from GET /control/context and use it for SSE/event-driven widgets that still need a context. Remove session-list API calls and types from controlClient.ts and api types."
+    acceptance_criteria:
+      - "ControlPanel no longer renders session list or status grid"
+      - "ControlPanel fetches control_session_id via /control/context when needed"
+      - "Session list/status API helpers removed from controlClient.ts"
+      - "Session list/status types removed from apps/ui/src/types/api.ts"
+      - "npm run build succeeds"
+    dependencies: ["TASK-041"]
+    release_target: "MVP"
+    priority: "P0"
+    estimate: "S"
+    tags: ["frontend", "cleanup", "ux"]
+    target_files:
+      - "apps/ui/src/screens/ControlPanel.tsx - update (remove session list/status, add control context fetch)"
+      - "apps/ui/src/api/controlClient.ts - update (remove list/status helpers, add getControlContext)"
+      - "apps/ui/src/types/api.ts - update (remove session list/status types)"
+    reuse_notes: "Keep simulation createSession API for /simulation. Control UI should treat context id as internal."
 
   # ──────────────────────────────────────────────
   # EPIC-007: Multi-Agent Real Orchestration (V1)

@@ -8,7 +8,6 @@ from typing import Optional
 from collections import Counter
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 import json
@@ -29,6 +28,29 @@ from vibeforge_api.models import (
 
 router = APIRouter(prefix="/control", tags=["control"])
 
+_control_context_session_id: str | None = None
+_control_context_lock = asyncio.Lock()
+
+
+async def _get_control_context_session_id() -> str:
+    global _control_context_session_id
+    from vibeforge_api.core.session import session_store
+
+    if _control_context_session_id:
+        session = session_store.get_session(_control_context_session_id)
+        if session:
+            return _control_context_session_id
+
+    async with _control_context_lock:
+        if _control_context_session_id:
+            session = session_store.get_session(_control_context_session_id)
+            if session:
+                return _control_context_session_id
+
+        session = session_store.create_session()
+        _control_context_session_id = session.session_id
+        return _control_context_session_id
+
 
 @router.post("/sessions")
 async def create_session():
@@ -39,61 +61,11 @@ async def create_session():
     return {"session_id": session.session_id, "phase": session.phase.value}
 
 
-@router.get("/sessions")
-async def list_all_sessions():
-    """List all sessions with metadata for control panel."""
-    from vibeforge_api.core.artifacts import SessionArtifactQuery
-    from vibeforge_api.core.workspace import WorkspaceManager
-    from vibeforge_api.core.session import session_store
-
-    workspace_manager = WorkspaceManager()
-    query = SessionArtifactQuery(workspace_manager.workspace_root)
-
-    session_ids = set(query.list_sessions())
-    session_ids.update(session_store.list_sessions())
-
-    sessions = []
-    for session_id in session_ids:
-        workspace_path = workspace_manager.workspace_root / session_id
-        session = session_store.get_session(session_id)
-
-        created_at = session.created_at if session else None
-        updated_at = session.updated_at if session else None
-        phase = session.phase.value if session else "UNKNOWN"
-
-        if workspace_path.exists():
-            stats = workspace_path.stat()
-            if not created_at:
-                created_at = datetime.fromtimestamp(stats.st_ctime, tz=timezone.utc)
-            if not updated_at:
-                updated_at = datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc)
-
-        if not created_at:
-            created_at = datetime.now(timezone.utc)
-        if not updated_at:
-            updated_at = created_at
-
-        artifacts = query.get_session_artifacts(session_id)
-
-        sessions.append(
-            {
-                "session_id": session_id,
-                "phase": phase,
-                "created_at": created_at.isoformat(),
-                "updated_at": updated_at.isoformat(),
-                "artifacts": artifacts,
-                "_sort_updated_at": updated_at.timestamp(),
-            }
-        )
-
-    sessions.sort(key=lambda item: item["_sort_updated_at"], reverse=True)
-    for session in sessions:
-        session.pop("_sort_updated_at", None)
-
-    return {
-        "sessions": sessions,
-        "total": len(sessions),
-    }
+@router.get("/context")
+async def get_control_context():
+    """Get or create a stable control context session id."""
+    session_id = await _get_control_context_session_id()
+    return {"control_session_id": session_id}
 
 
 @router.get("/sessions/{session_id}/events")
@@ -310,68 +282,6 @@ async def get_session_llm_trace(session_id: str):
 
     trace_list = sorted(traces.values(), key=sort_key, reverse=True)
     return {"traces": trace_list, "total": len(trace_list)}
-
-
-@router.get("/sessions/{session_id}/status")
-async def get_session_status(session_id: str):
-    """Get current session status for control panel."""
-    from vibeforge_api.core.session import session_store
-
-    session = session_store.get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    return {
-        "session_id": session_id,
-        "phase": session.phase.value,
-        "active_task_id": session.active_task_id,
-        "completed_tasks": len(session.completed_task_ids),
-        "failed_tasks": len(session.failed_task_ids),
-        "created_at": session.created_at.isoformat(),
-        "updated_at": session.updated_at.isoformat(),
-    }
-
-
-@router.get("/sessions/{session_id}/bundle")
-async def export_run_bundle(session_id: str):
-    """Export a run bundle zip archive for a session."""
-    from vibeforge_api.core.run_bundle import export_run_bundle as build_bundle
-    from vibeforge_api.core.workspace import WorkspaceManager
-
-    workspace_manager = WorkspaceManager()
-    try:
-        bundle_path = build_bundle(session_id, workspace_manager.workspace_root)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    return FileResponse(bundle_path, media_type="application/zip", filename=bundle_path.name)
-
-
-@router.get("/active")
-async def get_active_sessions():
-    """Get all active sessions (not in COMPLETE or FAILED state)."""
-    from vibeforge_api.core.session import session_store
-    from vibeforge_api.models.types import SessionPhase
-
-    all_sessions = session_store.list_sessions()
-    active = []
-
-    for session_id in all_sessions:
-        session = session_store.get_session(session_id)
-        if not session:
-            continue
-        if session.phase not in {SessionPhase.COMPLETE, SessionPhase.FAILED}:
-            active.append({
-                "session_id": session.session_id,
-                "phase": session.phase.value,
-                "active_task_id": session.active_task_id,
-                "updated_at": session.updated_at.isoformat(),
-            })
-
-    return {
-        "active_sessions": active,
-        "total": len(active),
-    }
 
 
 # VF-193: Agent workflow API endpoints

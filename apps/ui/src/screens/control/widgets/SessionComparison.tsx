@@ -1,3 +1,8 @@
+export default function SessionComparison() {
+  return null
+}
+
+/*
 import { useEffect, useMemo, useState } from 'react'
 
 import {
@@ -366,3 +371,4 @@ export default function SessionComparison({ sessions, selectedSessionId }: Sessi
     </section>
   )
 }
+*/

@@ -1,11 +1,36 @@
 """Tests for workspace management."""
 
+import os
 import pytest
 import shutil
+import stat
 import subprocess
+import time
 from pathlib import Path
 
 from vibeforge_api.core.workspace import WorkspaceManager
+
+
+def _handle_remove_readonly(func, path, exc_info):
+    """Best-effort handler for Windows file locks/readonly bits during cleanup."""
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except Exception:
+        # Ignore cleanup failures to avoid test teardown errors.
+        pass
+
+
+def _safe_rmtree(path: Path, retries: int = 3, delay_seconds: float = 0.2):
+    if not path.exists():
+        return
+    for attempt in range(retries):
+        try:
+            shutil.rmtree(path, onerror=_handle_remove_readonly)
+            return
+        except PermissionError:
+            time.sleep(delay_seconds * (attempt + 1))
+    shutil.rmtree(path, ignore_errors=True)
 
 
 @pytest.fixture
@@ -15,7 +40,7 @@ def temp_workspace_root(tmp_path):
     yield str(workspace_root)
     # Cleanup
     if workspace_root.exists():
-        shutil.rmtree(workspace_root)
+        _safe_rmtree(workspace_root)
 
 
 @pytest.fixture

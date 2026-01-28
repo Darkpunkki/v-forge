@@ -1,9 +1,6 @@
 /**
  * Typed API client for VibeForge Control Panel endpoints.
- * Provides admin/observability API for monitoring sessions.
  */
-
-import type { SessionPhase } from '../types/api'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
@@ -11,39 +8,8 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
  * Control panel API types
  */
 
-export interface SessionListItem {
-  session_id: string
-  phase: string
-  created_at: string
-  updated_at: string
-  artifacts: string[]
-}
-
-export interface SessionsListResponse {
-  sessions: SessionListItem[]
-  total: number
-}
-
-export interface ActiveSessionItem {
-  session_id: string
-  phase: string
-  active_task_id: string | null
-  updated_at: string
-}
-
-export interface ActiveSessionsResponse {
-  active_sessions: ActiveSessionItem[]
-  total: number
-}
-
-export interface SessionStatusResponse {
-  session_id: string
-  phase: string
-  active_task_id: string | null
-  completed_tasks: number
-  failed_tasks: number
-  created_at: string
-  updated_at: string
+export interface ControlContextResponse {
+  control_session_id: string
 }
 
 export interface SessionEvent {
@@ -298,26 +264,10 @@ export async function createSession(): Promise<{ session_id: string; phase: stri
 }
 
 /**
- * List all sessions with metadata
+ * Get the stable control context session id.
  */
-export async function listAllSessions(): Promise<SessionsListResponse> {
-  return fetchJson<SessionsListResponse>('/control/sessions')
-}
-
-/**
- * Get all active sessions (not in COMPLETE or FAILED state)
- */
-export async function getActiveSessions(): Promise<ActiveSessionsResponse> {
-  return fetchJson<ActiveSessionsResponse>('/control/active')
-}
-
-/**
- * Get detailed status for a specific session
- */
-export async function getSessionStatus(
-  sessionId: string
-): Promise<SessionStatusResponse> {
-  return fetchJson<SessionStatusResponse>(`/control/sessions/${sessionId}/status`)
+export async function getControlContext(): Promise<ControlContextResponse> {
+  return fetchJson<ControlContextResponse>('/control/context')
 }
 
 /**

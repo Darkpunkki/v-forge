@@ -8,15 +8,15 @@ source_inputs:
   - "docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/latest/tasks.md"
   - "docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/latest/existing_solution_map.md"
 scope_filter: "MVP"
-total_wps: 8
-total_tasks_queued: 34
-global_wp_range: "WP-0053 — WP-0060"
+total_wps: 9
+total_tasks_queued: 36
+global_wp_range: "WP-0053 - WP-0061"
 status: "Draft"
 ---
 
 # Work Packages — IDEA-0003 (MVP scope)
 
-> Batched from 34 MVP tasks across EPIC-001 through EPIC-006.
+> Batched from 36 MVP tasks across EPIC-001 through EPIC-006.
 > WP numbering continues from the global `docs/ai/planning/WORK_PACKAGES.md` (last: WP-0052).
 
 ---
@@ -248,7 +248,7 @@ status: "Draft"
 - **Tasks:** TASK-034
 - **Effort:** 1M = 2 points
 - **Goal:** Rework ControlPanel.tsx to an agent-centric layout: sidebar with AgentConnectionDashboard + AgentRegistrationPanel, main area with TaskDispatchPanel + StreamingOutputView, collapsible monitoring panels.
-- **Dependencies:** WP-0059 (needs all widget components built)
+- **Dependencies:** WP-0059, WP-0061 (needs widgets + sessionless control context cleanup)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0060-control-panel-rework.md
 
 ### Ordered steps
@@ -264,12 +264,41 @@ status: "Draft"
 
 ---
 
+## WP-0061 - Sessionless Control Context Cleanup
+
+- **Status:** In Progress
+- **Started:** 2026-01-28 19:00 (local)
+- **Branch:** master
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Epic:** EPIC-004 + EPIC-006
+- **Tasks:** TASK-041, TASK-042
+- **Effort:** 2S = 2 points
+- **Goal:** Remove session list/status surfaces from /control, introduce a single control context id for observability, and update the control UI/API client accordingly.
+- **Dependencies:** None (TASK-042 depends on TASK-041)
+- **Plan Doc:** docs/ai/planning/work_packages/WP-0061-sessionless-control-context.md
+- **Verification:** Failed - `python -m pytest` hit 3 teardown PermissionErrors in `tests/test_workspace.py` (temp .git objects)
+- **Next:** Re-run pytest after resolving temp workspace cleanup permissions
+
+### Ordered steps
+1. Replace session list/status endpoints with GET /control/context (TASK-041)
+2. Remove session list/status UI + APIs; wire control context (TASK-042)
+
+### Done means
+- /control no longer exposes session list/status/bundle endpoints
+- GET /control/context returns a stable control_session_id
+- ControlPanel no longer shows session list/status grid
+- controlClient.ts drops session list/status helpers; new getControlContext() added
+- `cd apps/ui && npm run build` passes
+- `cd apps/api && python -m pytest` passes (after test updates)
+
+---
+
 ## Dependency Graph
 
 ```
 WP-0053 (Session Removal)     ──────────────────────────────────────────┐
                                                                          │
-WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬── WP-0057 (Control Backend) ── WP-0059 (UI Components) ── WP-0060 (Layout)
+WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬── WP-0057 (Control Backend) ── WP-0059 (UI Components) ── WP-0061 (Sessionless Control Context) ── WP-0060 (Layout)
                                │                             │
                                └── WP-0056 (Bridge Service)  └── WP-0058 (Async Dispatch)
 ```
@@ -286,4 +315,5 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 | WP-0058 | Async Dispatch Engine | EPIC-005 | 5 | 8 | Queued |
 | WP-0059 | Control UI: API Client + Components | EPIC-006 | 6 | 7 | Queued |
 | WP-0060 | Control Panel Layout Rework | EPIC-006 | 1 | 2 | Queued |
-| **Total** | | | **34** | **48** | |
+| WP-0061 | Sessionless Control Context Cleanup | EPIC-004/EPIC-006 | 2 | 2 | In Progress |
+| **Total** | | | **36** | **50** | |
