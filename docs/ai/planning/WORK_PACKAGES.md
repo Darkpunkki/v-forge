@@ -1192,15 +1192,23 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `cd apps/api && python -m pytest`
 
 ## WP-0055 — WebSocket Endpoint + Connection Manager
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28
+- **Completed:** 2026-01-28
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-002
 - **Tasks:** TASK-007, TASK-010, TASK-011, TASK-008, TASK-012
 - **Goal:** Build /ws/agent-bridge WebSocket endpoint, RemoteAgentConnectionManager singleton with dispatch + response buffering, heartbeat monitoring, and unit tests.
 - **Dependencies:** WP-0054
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0055-ws-endpoint-connection-manager.md
-- **Verify:**
-  - `cd apps/api && python -m pytest`
+- **Verified:**
+  - `cd apps/api && python -m pytest tests/test_agent_bridge_ws.py -v` → 29 passed
+  - `cd apps/api && python -m pytest` → 680 passed, 1 skipped (3 pre-existing workspace errors)
+- **Files touched:**
+  - `apps/api/vibeforge_api/core/connection_manager.py` (new - TASK-010, TASK-011: RemoteAgentConnectionManager + heartbeat monitoring)
+  - `apps/api/vibeforge_api/routers/agent_bridge.py` (new - TASK-007: /ws/agent-bridge WebSocket endpoint)
+  - `apps/api/vibeforge_api/main.py` (TASK-008: integrated agent_bridge router)
+  - `apps/api/tests/test_agent_bridge_ws.py` (new - TASK-012: 29 comprehensive tests)
 
 ## WP-0056 — Agent Bridge Standalone Service
 - **Status:** Queued

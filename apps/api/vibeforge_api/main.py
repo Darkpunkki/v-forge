@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from vibeforge_api.routers import control
+from vibeforge_api.routers import agent_bridge, control
 
 app = FastAPI(
     title="VibeForge API",
@@ -27,6 +27,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(control.router)
+app.include_router(agent_bridge.router)
 
 
 @app.get("/health")
