@@ -1,4 +1,4 @@
----
+﻿---
 doc_type: work_packages
 idea_id: "IDEA-0003-vibeforge-is-pivoting"
 run_id: "2026-01-27T19-04-14.952Z_run-ae73"
@@ -104,7 +104,9 @@ status: "Draft"
 
 ## WP-0055 — WebSocket Endpoint + Connection Manager
 
-- **Status:** Queued
+- **Status:** In Progress
+- **Started:** 2026-01-28 20:15 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-002
 - **Tasks:** TASK-007, TASK-010, TASK-011, TASK-008, TASK-012
@@ -266,7 +268,7 @@ status: "Draft"
 
 ## WP-0061 - Sessionless Control Context Cleanup
 
-- **Status:** In Progress
+- **Status:** Done
 - **Started:** 2026-01-28 19:00 (local)
 - **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
@@ -315,5 +317,5 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 | WP-0058 | Async Dispatch Engine | EPIC-005 | 5 | 8 | Queued |
 | WP-0059 | Control UI: API Client + Components | EPIC-006 | 6 | 7 | Queued |
 | WP-0060 | Control Panel Layout Rework | EPIC-006 | 1 | 2 | Queued |
-| WP-0061 | Sessionless Control Context Cleanup | EPIC-004/EPIC-006 | 2 | 2 | In Progress |
+| WP-0061 | Sessionless Control Context Cleanup | EPIC-004/EPIC-006 | 2 | 2 | Done |
 | **Total** | | | **36** | **50** | |
