@@ -270,7 +270,10 @@ status: "Draft"
 
 ## WP-0060 — Control Panel Layout Rework
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28 23:44 (local)
+- **Completed:** 2026-01-28 23:52 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-006
 - **Tasks:** TASK-034
@@ -278,6 +281,9 @@ status: "Draft"
 - **Goal:** Rework ControlPanel.tsx to an agent-centric layout: sidebar with AgentConnectionDashboard + AgentRegistrationPanel, main area with TaskDispatchPanel + StreamingOutputView, collapsible monitoring panels.
 - **Dependencies:** WP-0059, WP-0061 (needs widgets + sessionless control context cleanup)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0060-control-panel-rework.md
+- **Verified:**
+  - `cd apps/ui; npm run build` — success
+- **Commits:** none
 
 ### Ordered steps
 1. Rework ControlPanel.tsx layout with agent-centric sidebar + main area (TASK-034)
@@ -342,6 +348,6 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 | WP-0057 | Live Agent Control Backend Endpoints | EPIC-004 | 4 | 8 | Done |
 | WP-0058 | Async Dispatch Engine | EPIC-005 | 5 | 8 | Done |
 | WP-0059 | Control UI: API Client + Components | EPIC-006 | 6 | 7 | Done |
-| WP-0060 | Control Panel Layout Rework | EPIC-006 | 1 | 2 | Queued |
+| WP-0060 | Control Panel Layout Rework | EPIC-006 | 1 | 2 | Done |
 | WP-0061 | Sessionless Control Context Cleanup | EPIC-004/EPIC-006 | 2 | 2 | Done |
 | **Total** | | | **36** | **50** | |

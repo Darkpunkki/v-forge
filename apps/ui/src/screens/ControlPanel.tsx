@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import {
   getControlContext,
   streamSessionEvents,
+  type RemoteAgent,
   type SessionEvent,
 } from "../api/controlClient";
-import AgentDashboard from "./control/widgets/AgentDashboard";
-import ExecutionTimeline from "./control/widgets/ExecutionTimeline";
-import EventStream from "./control/widgets/EventStream";
-import GateLog from "./control/widgets/GateLog";
-import ModelRouter from "./control/widgets/ModelRouter";
-import PromptInspector from "./control/widgets/PromptInspector";
-import TokenVisualization from "./control/widgets/TokenVisualization";
+import AgentConnectionDashboard from "./control/widgets/AgentConnectionDashboard";
+import AgentRegistrationPanel from "./control/widgets/AgentRegistrationPanel";
 import CostAnalytics from "./control/widgets/CostAnalytics";
+import EventStream from "./control/widgets/EventStream";
+import StreamingOutputView from "./control/widgets/StreamingOutputView";
+import TaskDispatchPanel from "./control/widgets/TaskDispatchPanel";
+import "./ControlPanel.css";
 
 export function ControlPanelScreen() {
   const [controlSessionId, setControlSessionId] = useState<string | null>(null);
@@ -19,6 +19,8 @@ export function ControlPanelScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sseError, setSseError] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<RemoteAgent | null>(null);
+  const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +100,7 @@ export function ControlPanelScreen() {
     return (
       <div style={{ padding: "24px" }}>
         <h1>Control Panel</h1>
-        <p>Loading sessions...</p>
+        <p>Loading control context...</p>
       </div>
     );
   }
@@ -113,41 +115,27 @@ export function ControlPanelScreen() {
   }
 
   return (
-    <div style={{ padding: "24px" }}>
-      <header style={{ marginBottom: "24px" }}>
-        <h1 style={{ marginTop: 0 }}>Control Panel</h1>
-        <p style={{ opacity: 0.7 }}>
-          Real-time control observability and agent monitoring
-        </p>
+    <div className="control-panel">
+      <header className="control-panel__header">
+        <div>
+          <h1>Control Panel</h1>
+          <p>Real-time control observability and agent monitoring</p>
+        </div>
       </header>
 
-      <section
-        style={{
-          marginBottom: "16px",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}
-      >
-        <div
-          style={{
-            background: "#f5f5f5",
-            padding: "12px 16px",
-            borderRadius: "8px",
-            border: "1px solid #e0e0e0",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "12px",
-              opacity: 0.7,
-              textTransform: "uppercase",
-            }}
-          >
-            Control Context
-          </div>
-          <div style={{ fontWeight: 600 }}>
+      <section className="control-panel__context">
+        <div className="control-panel__context-card">
+          <div className="control-panel__context-label">Control Context</div>
+          <div className="control-panel__context-value">
             {controlSessionId ?? "Unavailable"}
+          </div>
+        </div>
+        <div className="control-panel__context-card">
+          <div className="control-panel__context-label">Selected Agent</div>
+          <div className="control-panel__context-value">
+            {selectedAgent
+              ? `${selectedAgent.name} (${selectedAgent.agent_id})`
+              : "None selected"}
           </div>
         </div>
       </section>
@@ -171,30 +159,44 @@ export function ControlPanelScreen() {
         </div>
       )}
 
-      <section>
-        <h2>Monitoring</h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
-            gap: "16px",
-          }}
-        >
-          <AgentDashboard events={sessionEvents} />
-          <TokenVisualization events={sessionEvents} />
-          <ExecutionTimeline events={sessionEvents} />
-          <GateLog events={sessionEvents} />
-          <ModelRouter events={sessionEvents} />
-          {controlSessionId && (
-            <EventStream
-              events={sessionEvents}
-              sessionId={controlSessionId}
-              onClear={() => setSessionEvents([])}
-            />
-          )}
-          {controlSessionId && <PromptInspector sessionId={controlSessionId} />}
+      <section className="control-panel__layout">
+        <aside className="control-panel__sidebar">
+          <AgentConnectionDashboard
+            key={dashboardRefreshKey}
+            onSelectAgent={(agent) => setSelectedAgent(agent)}
+            selectedAgentId={selectedAgent?.agent_id ?? null}
+          />
+          <AgentRegistrationPanel
+            onRegistered={(agent) => {
+              setSelectedAgent(agent);
+              setDashboardRefreshKey((prev) => prev + 1);
+            }}
+          />
+        </aside>
+
+        <main className="control-panel__main">
+          <TaskDispatchPanel
+            agentId={selectedAgent?.agent_id ?? null}
+            agentName={selectedAgent?.name}
+            agentEvents={sessionEvents}
+          />
+          <StreamingOutputView agentId={selectedAgent?.agent_id ?? null} />
+        </main>
+      </section>
+
+      <section className="control-panel__monitoring">
+        <details className="control-panel__collapsible" open>
+          <summary>Event Stream</summary>
+          <EventStream
+            events={sessionEvents}
+            sessionId={controlSessionId}
+            onClear={() => setSessionEvents([])}
+          />
+        </details>
+        <details className="control-panel__collapsible">
+          <summary>Cost Analytics</summary>
           <CostAnalytics events={sessionEvents} />
-        </div>
+        </details>
       </section>
     </div>
   );
