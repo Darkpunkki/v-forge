@@ -52,6 +52,61 @@ export interface SessionLlmTrace {
 }
 
 /**
+ * Live agent control types (IDEA-0003)
+ */
+export type AgentConnectionStatus =
+  | 'connected'
+  | 'disconnected'
+  | 'idle'
+  | 'busy'
+  | 'error'
+
+export interface RemoteAgent {
+  agent_id: string
+  name: string
+  endpoint_url: string
+  status: AgentConnectionStatus
+  capabilities: string[]
+  workdir?: string | null
+  metadata?: Record<string, any>
+  connected_at?: string | null
+  last_heartbeat?: string | null
+}
+
+export interface RegisterAgentRequest {
+  name: string
+  endpoint_url: string
+}
+
+export interface AgentListResponse {
+  agents: RemoteAgent[]
+  total: number
+}
+
+export interface AgentDetailResponse {
+  agent: RemoteAgent
+}
+
+export interface TaskDispatchRequest {
+  content: string
+  context?: Record<string, any>
+}
+
+export interface TaskDispatchResponse {
+  agent_id: string
+  message_id: string
+  status: string
+  message: string
+}
+
+export interface TaskStatusResponse {
+  agent_id: string
+  status: string
+  message_id?: string | null
+  error?: string | null
+}
+
+/**
  * Workflow configuration types (VF-192, VF-193)
  */
 export interface AgentConfig {
@@ -271,10 +326,78 @@ export async function getControlContext(): Promise<ControlContextResponse> {
 }
 
 /**
+ * Register a remote agent.
+ */
+export async function registerAgent(
+  name: string,
+  endpointUrl: string
+): Promise<AgentDetailResponse> {
+  return fetchJson<AgentDetailResponse>('/control/agents/register', {
+    method: 'POST',
+    body: JSON.stringify({ name, endpoint_url: endpointUrl }),
+  })
+}
+
+/**
+ * List registered agents.
+ */
+export async function listAgents(): Promise<AgentListResponse> {
+  return fetchJson<AgentListResponse>('/control/agents')
+}
+
+/**
+ * Get agent status and details.
+ */
+export async function getAgentStatus(agentId: string): Promise<AgentDetailResponse> {
+  return fetchJson<AgentDetailResponse>(`/control/agents/${agentId}`)
+}
+
+/**
+ * Dispatch a task to a remote agent.
+ */
+export async function dispatchTask(
+  agentId: string,
+  content: string,
+  context: Record<string, any> = {}
+): Promise<TaskDispatchResponse> {
+  return fetchJson<TaskDispatchResponse>(`/control/agents/${agentId}/dispatch`, {
+    method: 'POST',
+    body: JSON.stringify({ content, context }),
+  })
+}
+
+/**
+ * Send a follow-up message to a remote agent.
+ */
+export async function sendFollowUp(
+  agentId: string,
+  content: string
+): Promise<TaskDispatchResponse> {
+  return fetchJson<TaskDispatchResponse>(`/control/agents/${agentId}/followup`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  })
+}
+
+/**
+ * Get the current task status for a remote agent.
+ */
+export async function getTaskStatus(agentId: string): Promise<TaskStatusResponse> {
+  return fetchJson<TaskStatusResponse>(`/control/agents/${agentId}/task`)
+}
+
+/**
  * Create an EventSource for streaming session events via SSE
  */
 export function streamSessionEvents(sessionId: string): EventSource {
   return new EventSource(`${API_BASE}/control/sessions/${sessionId}/events`)
+}
+
+/**
+ * Create an EventSource for streaming agent events via SSE
+ */
+export function streamAgentEvents(agentId: string): EventSource {
+  return new EventSource(`${API_BASE}/control/agents/${agentId}/events`)
 }
 
 /**

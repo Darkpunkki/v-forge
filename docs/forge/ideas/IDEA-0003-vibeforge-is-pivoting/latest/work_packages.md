@@ -135,6 +135,7 @@ status: "Draft"
 
 - **Status:** Done
 - **Started:** 2026-01-28 20:27 (local)
+- **Completed:** 2026-01-28 22:00 (local)
 - **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-003
@@ -143,6 +144,11 @@ status: "Draft"
 - **Goal:** Build the standalone agent bridge service (`tools/agent_bridge/`) that runs on remote machines, connects to VibeForge via WebSocket, invokes Claude Code CLI, and streams results back.
 - **Dependencies:** WP-0054 (needs protocol models for message format)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0056-agent-bridge-service.md
+- **Verified:**
+  - `python tools/agent_bridge/bridge.py --url ws://localhost:8000/ws/agent-bridge --agent-id test --token secret --workdir .`
+  - `Invoke-RestMethod -Method Post -Uri http://localhost:8000/control/agents/test/dispatch -ContentType application/json -Body '{"content":"Say hello from the bridge"}'`
+  - `curl.exe -N http://localhost:8000/control/agents/test/events` (agent_response observed)
+- **Commits:** none
 
 ### Ordered steps
 1. Build WebSocket client with registration handshake (TASK-014)
@@ -229,7 +235,10 @@ status: "Draft"
 
 ## WP-0059 — Control UI: API Client + Agent Components
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28 22:00 (local)
+- **Completed:** 2026-01-28 23:04 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-006
 - **Tasks:** TASK-028, TASK-029, TASK-030, TASK-031, TASK-032, TASK-033
@@ -237,6 +246,9 @@ status: "Draft"
 - **Goal:** Build the frontend components for agent control: API client functions, AgentRegistrationPanel, TaskDispatchPanel, StreamingOutputView, and AgentConnectionDashboard.
 - **Dependencies:** WP-0057 (needs backend endpoints for API functions)
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0059-control-ui-components.md
+- **Verified:**
+  - `cd apps/ui && npm run build`
+- **Commits:** none
 
 ### Ordered steps
 1. Add agent registration API functions to controlClient.ts (TASK-028)
@@ -325,11 +337,11 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 |----|-------|------|-------|--------|--------|
 | WP-0053 | Legacy Session Removal | EPIC-001 | 4 | 4 | Done |
 | WP-0054 | Bridge Protocol Models + Events | EPIC-002 | 4 | 4 | Done |
-| WP-0055 | WebSocket Endpoint + Connection Manager | EPIC-002 | 5 | 7 | Queued |
-| WP-0056 | Agent Bridge Standalone Service | EPIC-003 | 5 | 8 | Queued |
-| WP-0057 | Live Agent Control Backend Endpoints | EPIC-004 | 4 | 8 | Queued |
-| WP-0058 | Async Dispatch Engine | EPIC-005 | 5 | 8 | Queued |
-| WP-0059 | Control UI: API Client + Components | EPIC-006 | 6 | 7 | Queued |
+| WP-0055 | WebSocket Endpoint + Connection Manager | EPIC-002 | 5 | 7 | Done |
+| WP-0056 | Agent Bridge Standalone Service | EPIC-003 | 5 | 8 | Done |
+| WP-0057 | Live Agent Control Backend Endpoints | EPIC-004 | 4 | 8 | Done |
+| WP-0058 | Async Dispatch Engine | EPIC-005 | 5 | 8 | Done |
+| WP-0059 | Control UI: API Client + Components | EPIC-006 | 6 | 7 | Done |
 | WP-0060 | Control Panel Layout Rework | EPIC-006 | 1 | 2 | Queued |
 | WP-0061 | Sessionless Control Context Cleanup | EPIC-004/EPIC-006 | 2 | 2 | Done |
 | **Total** | | | **36** | **50** | |
