@@ -75,7 +75,7 @@ def invoke_claude(
 
     content = payload.get("content")
     if content is None:
-        content = payload.get("completion") or payload.get("response") or ""
+        content = payload.get("result") or payload.get("completion") or payload.get("response") or ""
     if not isinstance(content, str):
         content = str(content)
 

@@ -189,6 +189,7 @@ async def agent_bridge_websocket(websocket: WebSocket):
                         agent_id=msg.agent_id,
                         metadata={
                             "message_id": msg.message_id,
+                            "content": msg.content,
                             "content_length": len(msg.content),
                             "usage": msg.usage,
                         },
