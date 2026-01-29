@@ -14,6 +14,7 @@
 - [Using the Control Panel](#using-the-control-panel)
 - [Running Multiple Agents](#running-multiple-agents)
 - [Making Agents Persistent](#making-agents-persistent)
+- [TLS / WSS (Self-Signed for Dev)](#tls--wss-self-signed-for-dev)
 - [Troubleshooting](#troubleshooting)
 - [Remote Agents](#remote-agents)
 - [API Reference](#api-reference)
@@ -85,7 +86,38 @@ The VibeForge Control Panel (`/control`) allows you to:
 
 ## Quick Start
 
-### 1. Start VibeForge Services
+### 1. Generate an Auth Token
+
+**Using the Token Setup Script (Recommended):**
+
+```powershell
+# First time on any machine - generate and save token
+cd C:\path\to\v-forge
+. .\set-token.ps1 -Generate
+```
+
+This generates a secure token and saves it to `.vibeforge-token` (not committed to git). **Copy the displayed token** - you'll need it for other machines!
+
+**On subsequent machines (or sessions), just load the token:**
+
+```powershell
+# First time on a new machine - use token from first machine
+. .\set-token.ps1 -Token "paste-token-from-first-machine"
+
+# Every new terminal session after that
+. .\set-token.ps1
+```
+
+**Manual approach (if script doesn't work):**
+
+```powershell
+$env:VIBEFORGE_AUTH_TOKEN = (python -c "import secrets; print(secrets.token_hex(32))")
+$env:VITE_CONTROL_TOKEN = $env:VIBEFORGE_AUTH_TOKEN
+```
+
+> **Important:** The token must be **identical on all machines** (API server, UI, and all agents) for them to communicate!
+
+### 2. Start VibeForge Services
 
 **Terminal 1 (API Server):**
 ```powershell
@@ -102,7 +134,7 @@ npm run dev
 
 The UI will be available at `http://localhost:5173`
 
-### 2. Start an Agent
+### 3. Start an Agent
 
 **Terminal 3 (Agent Bridge):**
 ```powershell
@@ -111,7 +143,7 @@ cd C:\path\to\v-forge
 python tools/agent_bridge/bridge.py `
   --url ws://localhost:8000/ws/agent-bridge `
   --agent-id my-agent `
-  --token secret `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
   --workdir C:\path\to\your\project `
   --heartbeat 15
 ```
@@ -119,11 +151,11 @@ python tools/agent_bridge/bridge.py `
 **What each parameter means:**
 - `--url ws://localhost:8000/ws/agent-bridge` - **Always this for local setup** (WebSocket endpoint)
 - `--agent-id my-agent` - **Any name you want** (shows up in the UI)
-- `--token secret` - **Always "secret"** (hardcoded auth token for now)
+- `--token $env:VIBEFORGE_AUTH_TOKEN` - **Authentication token** (must match server config)
 - `--workdir C:\path\to\your\project` - **Where you want Claude to work**
 - `--heartbeat 15` - **Send heartbeat every 15 seconds** (prevents timeout)
 
-### 3. Use the Control Panel
+### 4. Use the Control Panel
 
 1. Open `http://localhost:5173/control`
 2. You'll see `my-agent` in the **Agent Connection Dashboard** (left sidebar)
@@ -131,6 +163,276 @@ python tools/agent_bridge/bridge.py `
 4. Type a task: `"List all files in the current directory"`
 5. Click **Send**
 6. Watch the **Streaming Output View** for the response
+
+---
+
+## Multi-Machine Setup (PC + Laptop)
+
+**Common Scenario:** Run API/UI on PC, control agents on laptop (or vice versa).
+
+### Prerequisites
+
+- Both machines on same network (Ethernet or WiFi)
+- Git repository cloned on both machines
+- Python and Node.js installed on both
+
+### Setup: API on PC, Agents on Laptop
+
+This is the recommended setup if your PC is always on and has better resources.
+
+#### Step 1: Generate Token (On Either Machine First)
+
+**On Laptop (or PC, doesn't matter):**
+```powershell
+cd C:\path\to\v-forge
+. .\set-token.ps1 -Generate
+```
+
+**Copy the displayed token** - you'll need it for the other machine!
+
+Example output:
+```
+Token: a1b2c3d4e5f6789....(64 characters total)
+```
+
+Save this somewhere safe (text file, password manager, etc.).
+
+#### Step 2: Set Up PC (API + UI Server)
+
+**Get your PC's IP address:**
+```powershell
+ipconfig
+# Look for "IPv4 Address" - usually 192.168.1.XXX
+```
+
+**Configure firewall (if needed):**
+```powershell
+# Allow incoming connections on port 8000
+New-NetFirewallRule -DisplayName "VibeForge API" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+```
+
+**Terminal 1 - API Server:**
+```powershell
+cd C:\path\to\v-forge
+
+# Set the token (first time: use -Token "paste-token", after: just load it)
+. .\set-token.ps1
+
+cd apps\api
+.venv\Scripts\activate
+uvicorn vibeforge_api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+> **Note:** `--host 0.0.0.0` makes the API accessible from other machines on the network. Without it, only localhost works.
+
+**Terminal 2 - UI Server:**
+```powershell
+cd C:\path\to\v-forge
+
+# Load token
+. .\set-token.ps1
+
+cd apps\ui
+npm run dev
+```
+
+**Verify it's working:**
+- On PC browser: Open `http://localhost:5173/control`
+- On laptop browser: Open `http://192.168.1.XXX:5173/control` (use PC's IP)
+
+#### Step 3: Set Up Laptop (Agent)
+
+**On Laptop:**
+```powershell
+cd C:\path\to\v-forge
+
+# First time: Set the token from PC
+. .\set-token.ps1 -Token "paste-token-from-pc"
+
+# After first time: Just load it
+# . .\set-token.ps1
+
+# Start agent (replace 192.168.1.XXX with your PC's IP)
+python tools/agent_bridge/bridge.py `
+  --url ws://192.168.1.XXX:8000/ws/agent-bridge `
+  --agent-id laptop-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\your\project `
+  --heartbeat 15
+```
+
+**Expected output:**
+```
+[2026-01-30 12:00:00] INFO Connecting to ws://192.168.1.XXX:8000/ws/agent-bridge
+[2026-01-30 12:00:01] INFO Registered as laptop-agent (session abc-123)
+```
+
+#### Step 4: Verify Connection
+
+1. **On PC or laptop browser:** Open `http://192.168.1.XXX:5173/control` (PC's IP)
+2. **Check left sidebar:** You should see `laptop-agent` with status **connected** (green)
+3. **Dispatch a test task:**
+   - Click `laptop-agent`
+   - Type: `"What is the current directory?"`
+   - Click Send
+   - Watch for response in Streaming Output View
+
+#### Daily Workflow
+
+**On PC (every day):**
+```powershell
+# Terminal 1
+cd C:\path\to\v-forge
+. .\set-token.ps1
+cd apps\api && .venv\Scripts\activate
+uvicorn vibeforge_api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Terminal 2
+cd C:\path\to\v-forge
+. .\set-token.ps1
+cd apps\ui && npm run dev
+```
+
+**On Laptop (every day):**
+```powershell
+cd C:\path\to\v-forge
+. .\set-token.ps1
+
+# Replace IP with your PC's actual IP
+python tools/agent_bridge/bridge.py `
+  --url ws://192.168.1.XXX:8000/ws/agent-bridge `
+  --agent-id laptop-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\your\project `
+  --heartbeat 15
+```
+
+### Alternative: API on Laptop, Agents on PC
+
+If you prefer to run the API/UI on your laptop:
+
+**On Laptop:**
+```powershell
+# Get IP address
+ipconfig
+
+# Terminal 1 - API
+. .\set-token.ps1
+cd apps\api && uvicorn vibeforge_api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Terminal 2 - UI
+. .\set-token.ps1
+cd apps\ui && npm run dev
+```
+
+**On PC (agent):**
+```powershell
+. .\set-token.ps1
+
+python tools/agent_bridge/bridge.py `
+  --url ws://192.168.1.YYY:8000/ws/agent-bridge `
+  --agent-id pc-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\your\project `
+  --heartbeat 15
+```
+
+### Running Multiple Agents
+
+You can run agents on **both** machines simultaneously:
+
+**Laptop agent:**
+```powershell
+python tools/agent_bridge/bridge.py `
+  --url ws://192.168.1.XXX:8000/ws/agent-bridge `
+  --agent-id laptop-frontend `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\projects\my-app\frontend `
+  --heartbeat 15
+```
+
+**PC agent (in separate terminal):**
+```powershell
+python tools/agent_bridge/bridge.py `
+  --url ws://localhost:8000/ws/agent-bridge `
+  --agent-id pc-backend `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\projects\my-app\backend `
+  --heartbeat 15
+```
+
+Both agents will appear in the UI, and you can dispatch tasks to either one!
+
+### Troubleshooting Multi-Machine Setup
+
+#### "Connection refused" on agent
+
+**Problem:** Agent can't connect to API server
+
+**Solutions:**
+1. **Check PC's firewall:**
+   ```powershell
+   # On PC
+   New-NetFirewallRule -DisplayName "VibeForge API" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+   ```
+
+2. **Verify API is listening on 0.0.0.0:**
+   - Must use `--host 0.0.0.0` flag with uvicorn
+   - Without it, only localhost connections work
+
+3. **Check IP address is correct:**
+   ```powershell
+   # On PC
+   ipconfig
+   # Use the IPv4 address shown
+   ```
+
+4. **Test connectivity:**
+   ```powershell
+   # On laptop
+   curl http://192.168.1.XXX:8000/health
+   # Should return: {"status":"ok","service":"vibeforge-api"}
+   ```
+
+#### "401 Unauthorized" errors
+
+**Problem:** Token mismatch between machines
+
+**Solution:**
+```powershell
+# On both machines, verify tokens match
+echo $env:VIBEFORGE_AUTH_TOKEN
+
+# Should be identical! If not:
+# On laptop/PC with wrong token:
+. .\set-token.ps1 -Token "correct-token-here"
+```
+
+#### Can't access UI from other machine
+
+**Problem:** UI only accessible from localhost
+
+**Solution:**
+The Vite dev server binds to `localhost` by default. To make it accessible:
+
+```powershell
+# Option 1: Use PC's browser (simplest)
+# Just open browser on the PC running the API/UI
+
+# Option 2: Set VITE_API_BASE on laptop browser
+# On laptop, before opening browser:
+$env:VITE_API_BASE = "http://192.168.1.XXX:8000"
+# Then open: http://192.168.1.XXX:5173/control
+```
+
+#### Agent shows as "disconnected"
+
+**Problem:** Agent registered but shows red status
+
+**Solutions:**
+1. **Add `--heartbeat 15` flag** to bridge command
+2. **Check API server logs** for errors
+3. **Restart both API and agent**
 
 ---
 
@@ -231,7 +533,7 @@ cd C:\path\to\v-forge
 python tools/agent_bridge/bridge.py `
   --url ws://localhost:8000/ws/agent-bridge `
   --agent-id my-first-agent `
-  --token secret `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
   --workdir C:\your\chosen\directory `
   --heartbeat 15
 ```
@@ -405,7 +707,7 @@ You can run multiple agents simultaneously, each working in a different director
 python tools/agent_bridge/bridge.py `
   --url ws://localhost:8000/ws/agent-bridge `
   --agent-id frontend-agent `
-  --token secret `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
   --workdir C:\projects\my-app\frontend `
   --heartbeat 15
 ```
@@ -415,7 +717,7 @@ python tools/agent_bridge/bridge.py `
 python tools/agent_bridge/bridge.py `
   --url ws://localhost:8000/ws/agent-bridge `
   --agent-id backend-agent `
-  --token secret `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
   --workdir C:\projects\my-app\backend `
   --heartbeat 15
 ```
@@ -425,7 +727,7 @@ python tools/agent_bridge/bridge.py `
 python tools/agent_bridge/bridge.py `
   --url ws://localhost:8000/ws/agent-bridge `
   --agent-id test-agent `
-  --token secret `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
   --workdir C:\projects\my-app `
   --heartbeat 15
 ```
@@ -440,7 +742,7 @@ Tag agents with capabilities to organize them:
 python tools/agent_bridge/bridge.py `
   --url ws://localhost:8000/ws/agent-bridge `
   --agent-id python-specialist `
-  --token secret `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
   --workdir C:\projects\python-app `
   --heartbeat 15 `
   --capability python `
@@ -461,7 +763,7 @@ By default, agents run in terminal windows. If you close the terminal, the agent
 Run the bridge in the background:
 
 ```powershell
-Start-Process python -ArgumentList "tools/agent_bridge/bridge.py --url ws://localhost:8000/ws/agent-bridge --agent-id my-agent --token secret --workdir C:\path --heartbeat 15" -WindowStyle Hidden
+Start-Process python -ArgumentList "tools/agent_bridge/bridge.py --url ws://localhost:8000/ws/agent-bridge --agent-id my-agent --token $env:VIBEFORGE_AUTH_TOKEN --workdir C:\path --heartbeat 15" -WindowStyle Hidden
 ```
 
 **To stop it:**
@@ -476,7 +778,7 @@ Create `start-agent.bat`:
 ```batch
 @echo off
 :loop
-python tools/agent_bridge/bridge.py --url ws://localhost:8000/ws/agent-bridge --agent-id my-agent --token secret --workdir C:\your\path --heartbeat 15
+python tools/agent_bridge/bridge.py --url ws://localhost:8000/ws/agent-bridge --agent-id my-agent --token $env:VIBEFORGE_AUTH_TOKEN --workdir C:\your\path --heartbeat 15
 echo Agent disconnected, restarting in 5 seconds...
 timeout /t 5
 goto loop
@@ -498,7 +800,7 @@ For production use:
 3. **Trigger**: At startup or at specific time
 4. **Action**: Start a program
    - Program: `C:\path\to\python.exe`
-   - Arguments: `tools/agent_bridge/bridge.py --url ws://your-server:8000/ws/agent-bridge --agent-id my-agent --token secret --workdir C:\path --heartbeat 15`
+   - Arguments: `tools/agent_bridge/bridge.py --url ws://your-server:8000/ws/agent-bridge --agent-id my-agent --token $env:VIBEFORGE_AUTH_TOKEN --workdir C:\path --heartbeat 15`
    - Start in: `C:\path\to\v-forge`
 5. **Settings**:
    - Run whether user is logged on or not
@@ -509,6 +811,39 @@ For production use:
 For professional deployments, use [NSSM](https://nssm.cc/) to run the bridge as a Windows service.
 
 ---
+
+## TLS / WSS (Self-Signed for Dev)
+
+Use this when you want encrypted HTTPS/WSS connections for local or remote testing.
+
+1. **Generate certificates:**
+   ```powershell
+   powershell -File tools/generate_certs.ps1
+   ```
+
+2. **Start the API with TLS:**
+   ```powershell
+   uvicorn vibeforge_api.main:app --ssl-keyfile ssl/key.pem --ssl-certfile ssl/cert.pem
+   ```
+
+3. **Connect the agent bridge over WSS:**
+   ```powershell
+   python tools/agent_bridge/bridge.py `
+     --url wss://localhost:8000/ws/agent-bridge `
+     --agent-id my-agent `
+     --token $env:VIBEFORGE_AUTH_TOKEN `
+     --workdir C:\path\to\your\project `
+     --heartbeat 15 `
+     --insecure
+   ```
+
+4. **Point the UI at HTTPS (optional):**
+   ```powershell
+   $env:VITE_API_BASE = "https://localhost:8000"
+   npm run dev
+   ```
+
+> `--insecure` disables certificate verification and should only be used for self-signed certs in development.
 
 ## Troubleshooting
 
@@ -628,7 +963,7 @@ For professional deployments, use [NSSM](https://nssm.cc/) to run the bridge as 
 python tools/agent_bridge/bridge.py `
   --url ws://localhost:8000/ws/agent-bridge `
   --agent-id my-agent `
-  --token secret `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
   --workdir C:\path `
   --heartbeat 15  # ← Critical!
 ```
@@ -726,7 +1061,7 @@ You can control agents running on other machines!
    python tools/agent_bridge/bridge.py `
      --url ws://192.168.1.100:8000/ws/agent-bridge `
      --agent-id remote-agent `
-     --token secret `
+     --token $env:VIBEFORGE_AUTH_TOKEN `
      --workdir C:\path\on\remote\machine `
      --heartbeat 15
    ```
@@ -912,30 +1247,67 @@ Invoke-RestMethod http://localhost:8000/control/context
 2. **Terminal 2:** UI - `npm run dev`
 
 **For each agent (one terminal per agent):**
-3. **Terminal 3+:** Agent Bridge - `python tools/agent_bridge/bridge.py --url ws://localhost:8000/ws/agent-bridge --agent-id NAME --token secret --workdir PATH --heartbeat 15`
+3. **Terminal 3+:** Agent Bridge - `python tools/agent_bridge/bridge.py --url ws://localhost:8000/ws/agent-bridge --agent-id NAME --token $env:VIBEFORGE_AUTH_TOKEN --workdir PATH --heartbeat 15`
 
 ### Key Commands
+
+**Set Up Token (First Time Only):**
+```powershell
+cd C:\path\to\v-forge
+
+# On first machine (generates and saves token)
+. .\set-token.ps1 -Generate
+
+# On other machines (uses same token)
+. .\set-token.ps1 -Token "paste-token-here"
+
+# Every subsequent session (loads saved token)
+. .\set-token.ps1
+```
 
 **Start API:**
 ```powershell
 cd C:\path\to\v-forge\apps\api
+. ..\..\..\set-token.ps1
 .venv\Scripts\activate
 uvicorn vibeforge_api.main:app --reload --port 8000
+```
+
+**Start API (Multi-Machine - Listen on Network):**
+```powershell
+cd C:\path\to\v-forge\apps\api
+. ..\..\..\set-token.ps1
+.venv\Scripts\activate
+uvicorn vibeforge_api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Start UI:**
 ```powershell
 cd C:\path\to\v-forge\apps\ui
+. ..\..\..\set-token.ps1
 npm run dev
 ```
 
-**Start Agent:**
+**Start Agent (Local):**
 ```powershell
 cd C:\path\to\v-forge
+. .\set-token.ps1
 python tools/agent_bridge/bridge.py `
   --url ws://localhost:8000/ws/agent-bridge `
   --agent-id YOUR-NAME `
-  --token secret `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\YOUR\PATH `
+  --heartbeat 15
+```
+
+**Start Agent (Remote - Connect to Another Machine):**
+```powershell
+cd C:\path\to\v-forge
+. .\set-token.ps1
+python tools/agent_bridge/bridge.py `
+  --url ws://192.168.1.XXX:8000/ws/agent-bridge `
+  --agent-id YOUR-NAME `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
   --workdir C:\YOUR\PATH `
   --heartbeat 15
 ```
@@ -953,12 +1325,65 @@ Invoke-RestMethod -Method Post `
 curl.exe -N http://localhost:8000/control/agents/YOUR-NAME/events
 ```
 
+### Quick Reference: PC (API) + Laptop (Agent) Setup
+
+**One-Time Setup:**
+
+1. **On Laptop (or PC first):** Generate token
+   ```powershell
+   cd C:\path\to\v-forge
+   . .\set-token.ps1 -Generate
+   # Copy the displayed token!
+   ```
+
+2. **On PC:** Get IP address and configure firewall
+   ```powershell
+   ipconfig  # Note the IPv4 address (e.g., 192.168.1.100)
+   New-NetFirewallRule -DisplayName "VibeForge API" -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+
+   # Set the token
+   cd C:\path\to\v-forge
+   . .\set-token.ps1 -Token "paste-token-from-laptop"
+   ```
+
+**Daily Usage:**
+
+**On PC (API Server):**
+```powershell
+# Terminal 1 - API
+cd C:\path\to\v-forge
+. .\set-token.ps1
+cd apps\api && .venv\Scripts\activate
+uvicorn vibeforge_api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Terminal 2 - UI
+cd C:\path\to\v-forge
+. .\set-token.ps1
+cd apps\ui && npm run dev
+```
+
+**On Laptop (Agent):**
+```powershell
+cd C:\path\to\v-forge
+. .\set-token.ps1
+
+# Replace 192.168.1.XXX with your PC's IP
+python tools/agent_bridge/bridge.py `
+  --url ws://192.168.1.XXX:8000/ws/agent-bridge `
+  --agent-id laptop-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\your\project `
+  --heartbeat 15
+```
+
+**Access UI:** Open `http://192.168.1.XXX:5173/control` (PC's IP) in browser on either machine
+
 ### Next Steps
 
 1. ✅ **Get the basic setup working** - One local agent
 2. ✅ **Try dispatching different tasks** - Explore what Claude can do
 3. ✅ **Add more agents** - Multiple directories or projects
-4. ✅ **Set up remote agents** - Control agents on other machines
+4. ✅ **Set up multi-machine agents** - See "Multi-Machine Setup" section above
 5. ✅ **Make agents persistent** - Background processes or scheduled tasks
 6. ✅ **Build automation** - Scripts to automate common workflows
 
@@ -973,4 +1398,4 @@ curl.exe -N http://localhost:8000/control/agents/YOUR-NAME/events
 
 **Happy agent controlling! 🤖**
 
-Next time: Setting up remote agents on another machine!
+**See the "Multi-Machine Setup" section** for detailed instructions on running the API on one machine and agents on another!

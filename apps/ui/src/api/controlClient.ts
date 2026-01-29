@@ -3,6 +3,7 @@
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const CONTROL_TOKEN = import.meta.env.VITE_CONTROL_TOKEN || ''
 
 /**
  * Control panel API types
@@ -282,10 +283,16 @@ async function fetchJson<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
+  const authHeaders: Record<string, string> = {}
+  if (CONTROL_TOKEN) {
+    authHeaders['Authorization'] = `Bearer ${CONTROL_TOKEN}`
+  }
+
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...options?.headers,
     },
   })
@@ -390,14 +397,22 @@ export async function getTaskStatus(agentId: string): Promise<TaskStatusResponse
  * Create an EventSource for streaming session events via SSE
  */
 export function streamSessionEvents(sessionId: string): EventSource {
-  return new EventSource(`${API_BASE}/control/sessions/${sessionId}/events`)
+  const baseUrl = `${API_BASE}/control/sessions/${sessionId}/events`
+  const url = CONTROL_TOKEN
+    ? `${baseUrl}?token=${encodeURIComponent(CONTROL_TOKEN)}`
+    : baseUrl
+  return new EventSource(url)
 }
 
 /**
  * Create an EventSource for streaming agent events via SSE
  */
 export function streamAgentEvents(agentId: string): EventSource {
-  return new EventSource(`${API_BASE}/control/agents/${agentId}/events`)
+  const baseUrl = `${API_BASE}/control/agents/${agentId}/events`
+  const url = CONTROL_TOKEN
+    ? `${baseUrl}?token=${encodeURIComponent(CONTROL_TOKEN)}`
+    : baseUrl
+  return new EventSource(url)
 }
 
 /**

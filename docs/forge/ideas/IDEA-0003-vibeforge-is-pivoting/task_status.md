@@ -1,14 +1,14 @@
 # Task Status — IDEA-0003-vibeforge-is-pivoting
 
-**Last Updated:** 2026-01-29
-**Status:** MVP Complete, V1 Queued (Security→Features)
+**Last Updated:** 2026-01-30
+**Status:** MVP Complete, V1 Security In Progress (1/4 WPs Done)
 **Total Tasks:** 50 (MVP: 36, V1: 12, Later: 2)
-**Total WPs:** 14 (MVP: 8 Done, V1: 6 Queued)
+**Total WPs:** 12 (MVP: 8 Done, V1: 6 total - 1 Done + 5 Queued)
 
 ## Quick Summary
 
 - ✅ **MVP Complete** (36/36 tasks, 8/8 WPs) — All 6 MVP epics done
-- ⏳ **V1 Security Hardening** (0/8 tasks, 0/4 WPs) — Must complete first
+- ⏳ **V1 Security Hardening** (2/8 tasks, 1/4 WPs) — WP-0064 complete
 - ⏳ **V1 Features** (0/4 tasks, 0/2 WPs) — After security complete
 - 📋 **Later Planned** (0/2 tasks) — External control channels + deployment
 
@@ -24,7 +24,7 @@
 | **EPIC-004** — Live Agent Control Backend | ✅ Done | 5/5 | 100% | Completed |
 | **EPIC-005** — Async Dispatch Engine | ✅ Done | 5/5 | 100% | Completed |
 | **EPIC-006** — Live Agent Control UI | ✅ Done | 8/8 | 100% | Completed |
-| **EPIC-009** — Security Hardening | ⏳ Queued | 0/8 | 0% | **P0 - Next** |
+| **EPIC-009** — Security Hardening | ⏳ In Progress | 2/8 | 25% | **P0 - Next** |
 | **EPIC-007** — Multi-Agent Orchestration | ⏳ Queued | 0/4 | 0% | P1 - After Security |
 | **EPIC-008** — External Control Channels | 📋 Later | 0/2 | 0% | P2 |
 
@@ -43,9 +43,9 @@
 | WP-0058 | ✅ Done | EPIC-005 | TASK-023, 024, 025, 026, 027 | — |
 | WP-0059 | ✅ Done | EPIC-006 | TASK-028, 029, 030, 031, 032, 033 | — |
 | WP-0060 | ✅ Done | EPIC-006 | TASK-034, 042 | — |
-| **V1 Security (Next Priority)** | | | | |
-| WP-0064 | ⏳ Queued | EPIC-009 | TASK-043, 044 | **1st - Start Here** |
-| WP-0065 | ⏳ Queued | EPIC-009 | TASK-045, 046 | 2nd |
+| **V1 Security (In Progress)** | | | | |
+| WP-0064 | ✅ Done | EPIC-009 | TASK-043, 044 | **Complete** |
+| WP-0065 | ⏳ Queued | EPIC-009 | TASK-045, 046 | **Next - Start Here** |
 | WP-0066 | ⏳ Queued | EPIC-009 | TASK-047, 048 | 3rd |
 | WP-0067 | ⏳ Queued | EPIC-009 | TASK-049, 050 | 4th |
 | **V1 Features (After Security)** | | | | |
@@ -112,31 +112,33 @@
 
 ---
 
-## Next Steps (V1 Security Hardening — Priority!)
+## Next Steps (V1 Security Hardening — In Progress!)
 
-### EPIC-009 — Security Hardening (0/8) ⏳
+### EPIC-009 — Security Hardening (2/8) ⏳
 
 **Why Security First:**
-- Current MVP has no real authentication (hardcoded "secret")
-- No encryption (ws://, http:// unencrypted)
-- No input validation (vulnerable to injection)
-- No rate limiting (abuse possible)
+- ✅ Fixed: Authentication now uses secure tokens (not hardcoded "secret")
+- ✅ Fixed: TLS/SSL support added for encrypted connections
+- ⏳ Remaining: Input validation, rate limiting, audit logging
 - Required before delegation chains (increased attack surface)
 - Required before external control (cloud/WhatsApp)
 
-#### WP-0064: Authentication & TLS Foundation (4 points)
+#### WP-0064: Authentication & TLS Foundation (4 points) ✅ DONE
 
-- ⏳ **TASK-043** — Replace hardcoded 'secret' token with secure authentication
-  - Generate secure random tokens (32+ bytes)
-  - Token validation middleware on WebSocket + REST
-  - Environment variable token storage
-  - 401 Unauthorized for invalid tokens
+- ✅ **TASK-043** — Replace hardcoded 'secret' token with secure authentication
+  - Generate secure random tokens (32+ bytes) ✓
+  - Token validation middleware on WebSocket + REST ✓
+  - Environment variable token storage (VIBEFORGE_AUTH_TOKEN) ✓
+  - 401 Unauthorized for invalid tokens ✓
+  - Files: apps/api/vibeforge_api/core/auth.py (NEW)
+  - Tests: 687 passing, 0 failures
 
-- ⏳ **TASK-044** — Add TLS/SSL support with self-signed certificates
-  - Certificate generation script (tools/generate_certs.ps1)
-  - HTTPS support (https://localhost:8000)
-  - WSS support (wss://localhost:8000/ws/agent-bridge)
-  - Agent bridge --insecure flag for self-signed certs
+- ✅ **TASK-044** — Add TLS/SSL support with self-signed certificates
+  - Certificate generation script (tools/generate_certs.ps1) ✓
+  - HTTPS support (https://localhost:8000) ✓
+  - WSS support (wss://localhost:8000/ws/agent-bridge) ✓
+  - Agent bridge --insecure flag for self-signed certs ✓
+  - Files: tools/generate_certs.ps1 (NEW), docs/CONTROL_PANEL_GUIDE.md (updated)
 
 #### WP-0065: Input Validation & Sandboxing (2 points)
 
@@ -274,12 +276,12 @@ for i in {1..11}; do curl -X POST https://localhost:8000/control/agents/test/dis
 ✅ MVP (Complete)
     └── 8 WPs, 36 tasks, 50 points
 
-⏳ V1 Phase 1: Security Hardening (MUST DO FIRST)
-    ├── WP-0064: Auth + TLS (4 points)
-    ├── WP-0065: Validation (2 points)
-    ├── WP-0066: Limits (4 points)
-    └── WP-0067: Audit + Docs (3 points)
-    Total: 4 WPs, 8 tasks, 13 points
+⏳ V1 Phase 1: Security Hardening (IN PROGRESS)
+    ├── ✅ WP-0064: Auth + TLS (4 points) — DONE
+    ├── ⏳ WP-0065: Validation (2 points) — Next
+    ├── ⏳ WP-0066: Limits (4 points)
+    └── ⏳ WP-0067: Audit + Docs (3 points)
+    Total: 4 WPs, 8 tasks, 13 points (25% complete)
 
 ⏳ V1 Phase 2: Delegation Features (After Security)
     ├── WP-0062: Chain Dispatch (6 points)

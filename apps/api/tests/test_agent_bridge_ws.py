@@ -38,6 +38,11 @@ def reset_manager():
     reset_connection_manager()
 
 
+@pytest.fixture()
+def client(auth_headers):
+    return TestClient(app, headers=auth_headers)
+
+
 class TestRemoteAgentConnectionManager:
     """Tests for RemoteAgentConnectionManager."""
 
@@ -308,7 +313,7 @@ class TestBridgeProtocolParsing:
         data = {
             "type": "register",
             "agent_id": "agent-1",
-            "auth_token": "secret",
+            "auth_token": "test-token",
             "capabilities": ["execute"],
         }
         msg = parse_bridge_message(data)
@@ -361,9 +366,8 @@ class TestBridgeProtocolParsing:
 class TestAgentBridgeEndpoint:
     """Tests for the /ws/agent-bridge WebSocket endpoint."""
 
-    def test_bridge_status_endpoint(self):
+    def test_bridge_status_endpoint(self, client):
         """GET /ws/agent-bridge/status returns connection status."""
-        client = TestClient(app)
         response = client.get("/ws/agent-bridge/status")
 
         assert response.status_code == 200
@@ -372,10 +376,8 @@ class TestAgentBridgeEndpoint:
         assert "agents" in data
         assert data["connected_count"] == 0
 
-    def test_websocket_requires_register_first(self):
+    def test_websocket_requires_register_first(self, client):
         """WebSocket must send register message first."""
-        client = TestClient(app)
-
         with client.websocket_connect("/ws/agent-bridge") as ws:
             # Send non-register message
             ws.send_json({"type": "heartbeat", "agent_id": "test"})
@@ -384,16 +386,14 @@ class TestAgentBridgeEndpoint:
             # TestClient doesn't expose close code directly,
             # but connection should be closed
 
-    def test_websocket_register_success(self):
+    def test_websocket_register_success(self, client):
         """WebSocket can register successfully."""
-        client = TestClient(app)
-
         with client.websocket_connect("/ws/agent-bridge") as ws:
             ws.send_json(
                 {
                     "type": "register",
                     "agent_id": "test-agent",
-                    "auth_token": "secret-token",
+                    "auth_token": "test-token",
                     "capabilities": ["execute"],
                 }
             )
@@ -403,17 +403,15 @@ class TestAgentBridgeEndpoint:
             assert response["type"] == "registered"
             assert response["agent_id"] == "test-agent"
 
-    def test_websocket_heartbeat_echo(self):
+    def test_websocket_heartbeat_echo(self, client):
         """Server echoes heartbeat messages."""
-        client = TestClient(app)
-
         with client.websocket_connect("/ws/agent-bridge") as ws:
             # Register first
             ws.send_json(
                 {
                     "type": "register",
                     "agent_id": "test-agent",
-                    "auth_token": "token",
+                    "auth_token": "test-token",
                 }
             )
             ws.receive_json()  # Consume registered message

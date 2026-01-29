@@ -9,7 +9,7 @@ from collections import Counter
 import re
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 import json
@@ -35,7 +35,13 @@ from vibeforge_api.models import (
     TaskStatusResponse,
 )
 
-router = APIRouter(prefix="/control", tags=["control"])
+from vibeforge_api.core.auth import require_auth
+
+router = APIRouter(
+    prefix="/control",
+    tags=["control"],
+    dependencies=[Depends(require_auth)],
+)
 
 _control_context_session_id: str | None = None
 _control_context_lock = asyncio.Lock()

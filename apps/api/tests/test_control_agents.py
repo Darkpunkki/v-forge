@@ -20,6 +20,11 @@ def reset_manager():
     reset_connection_manager()
 
 
+@pytest.fixture()
+def client(auth_headers):
+    return TestClient(app, headers=auth_headers)
+
+
 def register_agent(client: TestClient) -> str:
     response = client.post(
         "/control/agents/register",
@@ -39,8 +44,7 @@ def connect_agent(agent_id: str) -> None:
     )
 
 
-def test_register_agent_success():
-    client = TestClient(app)
+def test_register_agent_success(client):
     response = client.post(
         "/control/agents/register",
         json={"name": "Agent Alpha", "endpoint_url": "ws://localhost:8000/ws/agent-bridge"},
@@ -54,8 +58,7 @@ def test_register_agent_success():
     assert data["agent"]["status"] == "disconnected"
 
 
-def test_register_agent_validation_error():
-    client = TestClient(app)
+def test_register_agent_validation_error(client):
     response = client.post(
         "/control/agents/register",
         json={"name": " ", "endpoint_url": " "},
@@ -64,8 +67,7 @@ def test_register_agent_validation_error():
     assert response.status_code == 400
 
 
-def test_list_agents_includes_status():
-    client = TestClient(app)
+def test_list_agents_includes_status(client):
     agent_id = register_agent(client)
 
     response = client.get("/control/agents")
@@ -81,8 +83,7 @@ def test_list_agents_includes_status():
     assert statuses[agent_id] == "connected"
 
 
-def test_get_agent_detail():
-    client = TestClient(app)
+def test_get_agent_detail(client):
     agent_id = register_agent(client)
 
     response = client.get(f"/control/agents/{agent_id}")
@@ -91,8 +92,7 @@ def test_get_agent_detail():
     assert data["agent"]["agent_id"] == agent_id
 
 
-def test_dispatch_task_success():
-    client = TestClient(app)
+def test_dispatch_task_success(client):
     agent_id = register_agent(client)
     connect_agent(agent_id)
 
@@ -110,9 +110,7 @@ def test_dispatch_task_success():
     assert status_response.json()["status"] == "dispatched"
 
 
-def test_dispatch_task_agent_not_found():
-    client = TestClient(app)
-
+def test_dispatch_task_agent_not_found(client):
     response = client.post(
         "/control/agents/unknown/dispatch",
         json={"content": "Run diagnostics"},
@@ -121,8 +119,7 @@ def test_dispatch_task_agent_not_found():
     assert response.status_code == 404
 
 
-def test_dispatch_task_agent_disconnected():
-    client = TestClient(app)
+def test_dispatch_task_agent_disconnected(client):
     agent_id = register_agent(client)
 
     response = client.post(
@@ -133,8 +130,7 @@ def test_dispatch_task_agent_disconnected():
     assert response.status_code == 409
 
 
-def test_followup_requires_active_task():
-    client = TestClient(app)
+def test_followup_requires_active_task(client):
     agent_id = register_agent(client)
     connect_agent(agent_id)
 

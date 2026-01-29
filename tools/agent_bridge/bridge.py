@@ -8,6 +8,7 @@ import logging
 import os
 import signal
 import sys
+import ssl
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -103,6 +104,7 @@ class BridgeClient:
         heartbeat_interval: float = 30.0,
         register_timeout: float = 10.0,
         max_backoff: float = 60.0,
+        ssl_context: Optional[ssl.SSLContext] = None,
         logger: Optional[logging.Logger] = None,
     ) -> None:
         self._url = url
@@ -113,6 +115,7 @@ class BridgeClient:
         self._heartbeat_interval = heartbeat_interval
         self._register_timeout = register_timeout
         self._max_backoff = max_backoff
+        self._ssl_context = ssl_context
         self._logger = logger or logging.getLogger("agent_bridge")
         self._send_lock = asyncio.Lock()
         self._busy = False
@@ -147,7 +150,11 @@ class BridgeClient:
 
     async def _connect_once(self, stop_event: asyncio.Event) -> None:
         self._logger.info("Connecting to %s", self._url)
-        async with websockets.connect(self._url, ping_interval=None) as websocket:
+        async with websockets.connect(
+            self._url,
+            ping_interval=None,
+            ssl=self._ssl_context,
+        ) as websocket:
             await self._register(websocket)
             self._logger.info("Registered as %s (session %s)", self._agent_id, self._session_id)
 
@@ -347,6 +354,11 @@ def _parse_args() -> argparse.Namespace:
         default=10.0,
         help="Registration timeout in seconds (default: 10)",
     )
+    parser.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Disable TLS certificate verification (self-signed certs)",
+    )
     return parser.parse_args()
 
 
@@ -354,6 +366,14 @@ async def _run_bridge(args: argparse.Namespace) -> None:
     logger = logging.getLogger("agent_bridge")
     stop_event = asyncio.Event()
     _setup_signal_handlers(stop_event, logger)
+
+    ssl_context = None
+    if args.url.startswith("wss://"):
+        if args.insecure:
+            ssl_context = ssl._create_unverified_context()
+            logger.warning("TLS verification disabled (insecure mode)")
+        else:
+            ssl_context = ssl.create_default_context()
 
     client = BridgeClient(
         url=args.url,
@@ -363,6 +383,7 @@ async def _run_bridge(args: argparse.Namespace) -> None:
         capabilities=args.capability,
         heartbeat_interval=args.heartbeat,
         register_timeout=args.register_timeout,
+        ssl_context=ssl_context,
         logger=logger,
     )
 

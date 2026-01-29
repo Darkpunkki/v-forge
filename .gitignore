@@ -78,6 +78,12 @@ nul
 *.log
 logs/
 
+# SSL Certificates (self-signed, generate locally)
+ssl/
+
+# Authentication token (local only, do not commit!)
+.vibeforge-token
+
 # Workspaces (generated session apps)
 workspaces/
 docs/ai/forge/ideas/*/runs/*

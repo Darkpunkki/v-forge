@@ -10,8 +10,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
+from vibeforge_api.core.auth import require_auth, validate_auth_token
 from vibeforge_api.core.connection_manager import get_connection_manager
 from vibeforge_api.core.event_log import Event, EventLog, EventType
 from vibeforge_api.core.workspace import WorkspaceManager
@@ -91,10 +92,12 @@ async def agent_bridge_websocket(websocket: WebSocket):
             await websocket.close(code=4001, reason="First message must be register")
             return
 
-        # TODO: Validate auth_token against configured tokens
-        # For now, accept any non-empty token
-        if not msg.auth_token:
-            await websocket.close(code=4005, reason="Authentication failed: empty token")
+        is_valid, reason = validate_auth_token(msg.auth_token)
+        if not is_valid:
+            await websocket.close(
+                code=4005,
+                reason=f"Authentication failed: {reason}",
+            )
             return
 
         # Register the agent
@@ -221,7 +224,7 @@ async def agent_bridge_websocket(websocket: WebSocket):
             await connection_manager.unregister_agent(agent_id)
 
 
-@router.get("/agent-bridge/status")
+@router.get("/agent-bridge/status", dependencies=[Depends(require_auth)])
 async def get_bridge_status():
     """Get status of all connected agents."""
     connection_manager = get_connection_manager()

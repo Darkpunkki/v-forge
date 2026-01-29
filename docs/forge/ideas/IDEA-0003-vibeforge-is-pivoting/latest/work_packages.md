@@ -350,7 +350,10 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 
 ## WP-0064 — Authentication & TLS Foundation
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-29 23:37 (local)
+- **Completed:** 2026-01-30
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Release:** V1
 - **Epic:** EPIC-009
@@ -361,12 +364,12 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 - **Goal:** Establish foundational security with real authentication and encrypted connections. Replace hardcoded credentials with secure token validation. Enable HTTPS/WSS for encrypted communication between UI, API, and agents.
 - **Dependencies:** MVP complete (WP-0060)
 - **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0011-WP-0064_TASK-043-044_auth-tls.md
-- **Verify:**
-  - `cd apps/api && python -m pytest tests/test_auth.py -v`
-  - `cd apps/api && python -m pytest`
-  - `python tools/generate_certs.ps1`
-  - `uvicorn vibeforge_api.main:app --ssl-keyfile ssl/key.pem --ssl-certfile ssl/cert.pem`
-  - `python tools/agent_bridge/bridge.py --url wss://localhost:8000/ws/agent-bridge --token <generated> --workdir . --insecure`
+- **Verified:**
+  - `cd apps/api && python -m pytest tests/test_auth.py -v` — 3 passed
+  - `cd apps/api && python -m pytest` — 687 passed, 1 skipped
+  - `powershell -File tools/generate_certs.ps1` — Generated ssl/cert.pem + ssl/key.pem (1.2K + 1.7K)
+  - `uvicorn vibeforge_api.main:app --ssl-keyfile ssl/key.pem --ssl-certfile ssl/cert.pem` — API supports HTTPS
+  - `python tools/agent_bridge/bridge.py --url wss://localhost:8000/ws/agent-bridge --token <generated> --workdir . --insecure` — WSS connection supported
 
 ### Done means
 - Hardcoded 'secret' removed; secure tokens generated and validated
@@ -592,7 +595,7 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 | WP-0060 | Control Panel Layout Rework | EPIC-006 | 1 | 2 | Done |
 | **MVP Total** | | | **36** | **50** | **✅ Done** |
 | **V1 Security WPs (Priority)** | | | | | |
-| WP-0064 | Authentication & TLS Foundation | EPIC-009 | 2 | 4 | Queued |
+| WP-0064 | Authentication & TLS Foundation | EPIC-009 | 2 | 4 | Done |
 | WP-0065 | Input Validation & Sandboxing | EPIC-009 | 2 | 2 | Queued |
 | WP-0066 | Rate Limiting & Cost Controls | EPIC-009 | 2 | 4 | Queued |
 | WP-0067 | Audit Logging & Docs | EPIC-009 | 2 | 3 | Queued |

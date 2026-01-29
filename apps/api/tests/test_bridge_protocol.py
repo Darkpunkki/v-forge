@@ -21,7 +21,7 @@ class TestRegisterMessage:
     def test_round_trip(self):
         msg = RegisterMessage(
             agent_id="worker-1",
-            auth_token="secret123",
+            auth_token="test-token",
             capabilities=["code", "review"],
             workdir="/home/user/project",
             metadata={"os": "linux"},
@@ -30,7 +30,7 @@ class TestRegisterMessage:
         restored = RegisterMessage.model_validate(data)
         assert restored.type == "register"
         assert restored.agent_id == "worker-1"
-        assert restored.auth_token == "secret123"
+        assert restored.auth_token == "test-token"
         assert restored.capabilities == ["code", "review"]
         assert restored.workdir == "/home/user/project"
         assert restored.metadata == {"os": "linux"}
