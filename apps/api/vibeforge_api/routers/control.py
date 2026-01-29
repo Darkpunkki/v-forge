@@ -43,6 +43,34 @@ router = APIRouter(
     dependencies=[Depends(require_auth)],
 )
 
+_MAX_TASK_CONTENT_LENGTH = 10_000
+_AGENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{1,64}$")
+_DISALLOWED_CONTENT_PATTERN = re.compile(r"[\x00]")
+
+
+def _validate_agent_id(agent_id: str) -> str:
+    if not _AGENT_ID_PATTERN.fullmatch(agent_id or ""):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid agent_id format. Use alphanumeric characters and hyphens only.",
+        )
+    return agent_id
+
+
+def _sanitize_task_content(content: str) -> str:
+    if content is None:
+        raise HTTPException(status_code=400, detail="content is required")
+
+    cleaned = _DISALLOWED_CONTENT_PATTERN.sub("", content).strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="content must not be empty")
+    if len(cleaned) > _MAX_TASK_CONTENT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"content must be <= {_MAX_TASK_CONTENT_LENGTH} characters",
+        )
+    return cleaned
+
 _control_context_session_id: str | None = None
 _control_context_lock = asyncio.Lock()
 
@@ -191,6 +219,7 @@ async def get_agent_detail(agent_id: str):
     """Get agent details and connection status."""
     from vibeforge_api.core.connection_manager import get_connection_manager
 
+    agent_id = _validate_agent_id(agent_id)
     manager = get_connection_manager()
     registered = manager.get_registered_agent(agent_id)
     connection_info = manager.get_agent_info(agent_id)
@@ -208,6 +237,9 @@ async def dispatch_agent_task(agent_id: str, request: DispatchTaskRequest):
     from vibeforge_api.core.connection_manager import get_connection_manager
     from vibeforge_api.core.event_log import EventType
 
+    agent_id = _validate_agent_id(agent_id)
+    content = _sanitize_task_content(request.content)
+
     manager = get_connection_manager()
     registered = manager.get_registered_agent(agent_id)
     if not registered and not manager.is_agent_connected(agent_id):
@@ -223,7 +255,7 @@ async def dispatch_agent_task(agent_id: str, request: DispatchTaskRequest):
         await manager.dispatch_task(
             agent_id=agent_id,
             message_id=message_id,
-            content=request.content,
+            content=content,
             context=request.context,
             session_id=session_id,
         )
@@ -252,6 +284,9 @@ async def send_followup(agent_id: str, request: FollowUpRequest):
     from vibeforge_api.core.connection_manager import get_connection_manager
     from vibeforge_api.core.event_log import EventType
 
+    agent_id = _validate_agent_id(agent_id)
+    content = _sanitize_task_content(request.content)
+
     manager = get_connection_manager()
     registered = manager.get_registered_agent(agent_id)
     if not registered and not manager.is_agent_connected(agent_id):
@@ -279,7 +314,7 @@ async def send_followup(agent_id: str, request: FollowUpRequest):
         await manager.dispatch_task(
             agent_id=agent_id,
             message_id=message_id,
-            content=request.content,
+            content=content,
             context=context,
             session_id=session_id,
         )
@@ -307,6 +342,7 @@ async def get_agent_task_status(agent_id: str):
     """Get current task status for an agent."""
     from vibeforge_api.core.connection_manager import get_connection_manager
 
+    agent_id = _validate_agent_id(agent_id)
     manager = get_connection_manager()
     registered = manager.get_registered_agent(agent_id)
     connected = manager.is_agent_connected(agent_id)
@@ -332,6 +368,7 @@ async def stream_agent_events(agent_id: str):
     from vibeforge_api.core.session import session_store
     from vibeforge_api.core.workspace import WorkspaceManager
 
+    agent_id = _validate_agent_id(agent_id)
     manager = get_connection_manager()
     registered = manager.get_registered_agent(agent_id)
     connection_info = manager.get_agent_info(agent_id)

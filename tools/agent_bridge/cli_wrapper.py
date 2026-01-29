@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional
 
 
@@ -31,6 +34,45 @@ class ClaudeInvocationError(RuntimeError):
         self.stderr = stderr
 
 
+def _contains_traversal(path: str) -> bool:
+    return ".." in Path(path).parts
+
+
+def _normalize_workdir(workdir: str) -> Path:
+    if not workdir:
+        raise ClaudeInvocationError("Workdir is required")
+    if _contains_traversal(workdir):
+        raise ClaudeInvocationError("Workdir path traversal is not allowed")
+    return Path(workdir).resolve(strict=False)
+
+
+def resolve_safe_path(workdir: str, target_path: str) -> Path:
+    """Resolve a path within workdir, rejecting traversal and symlink escapes."""
+    logger = logging.getLogger("agent_bridge")
+
+    if not target_path:
+        raise ClaudeInvocationError("Target path is required")
+
+    if _contains_traversal(target_path):
+        logger.warning("Rejected path with traversal: %s", target_path)
+        raise ClaudeInvocationError("Path traversal is not allowed")
+
+    base = _normalize_workdir(workdir)
+    candidate = Path(target_path)
+    if candidate.is_absolute():
+        resolved = candidate.resolve(strict=False)
+    else:
+        resolved = (base / candidate).resolve(strict=False)
+
+    base_str = os.path.normcase(str(base))
+    resolved_str = os.path.normcase(str(resolved))
+    if os.path.commonpath([resolved_str, base_str]) != base_str:
+        logger.warning("Rejected path outside workdir: %s", target_path)
+        raise ClaudeInvocationError("Path is outside configured workdir")
+
+    return resolved
+
+
 def invoke_claude(
     task_content: str,
     workdir: Optional[str] = None,
@@ -42,6 +84,10 @@ def invoke_claude(
     """
     cmd = ["claude", "--print", "--output-format", "json"]
 
+    resolved_workdir: Optional[Path] = None
+    if workdir is not None:
+        resolved_workdir = _normalize_workdir(workdir)
+
     try:
         result = subprocess.run(
             cmd,
@@ -49,7 +95,7 @@ def invoke_claude(
             text=True,
             capture_output=True,
             timeout=timeout_seconds,
-            cwd=workdir or None,
+            cwd=str(resolved_workdir) if resolved_workdir else None,
         )
     except subprocess.TimeoutExpired as exc:
         raise ClaudeInvocationError("Claude CLI timed out", stderr=str(exc)) from exc

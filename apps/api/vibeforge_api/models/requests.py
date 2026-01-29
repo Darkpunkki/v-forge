@@ -147,11 +147,11 @@ class RegisterAgentRequest(BaseModel):
 class DispatchTaskRequest(BaseModel):
     """Request to dispatch a task to a remote agent."""
 
-    content: str = Field(..., min_length=1, description="Task content/instructions")
+    content: str = Field(..., description="Task content/instructions")
     context: dict[str, Any] = Field(default_factory=dict, description="Optional task context")
 
 
 class FollowUpRequest(BaseModel):
     """Request to send a follow-up message to a remote agent."""
 
-    content: str = Field(..., min_length=1, description="Follow-up message content")
+    content: str = Field(..., description="Follow-up message content")

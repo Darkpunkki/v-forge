@@ -386,7 +386,10 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 
 ## WP-0065 — Input Validation & Path Sandboxing
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-30 01:11 (local)
+- **Completed:** 2026-01-30 01:18 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Release:** V1
 - **Epic:** EPIC-009
@@ -402,6 +405,10 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
   - `cd tools/agent_bridge && python -m pytest tests/test_path_validation.py -v`
   - Manual: Try directory traversal (../../etc/passwd) → rejected
   - Manual: Try long task content (>10,000 chars) → 400 error
+- **Verified:**
+  - `cd apps/api && python -m pytest tests/test_input_validation.py -v` — passed
+  - `cd tools/agent_bridge && python -m pytest tests/test_path_validation.py -v` — passed (symlink test skipped on Windows perms)
+- **Commits:** none
 
 ### Done means
 - Path validation blocks directory traversal attempts
@@ -596,7 +603,7 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 | **MVP Total** | | | **36** | **50** | **✅ Done** |
 | **V1 Security WPs (Priority)** | | | | | |
 | WP-0064 | Authentication & TLS Foundation | EPIC-009 | 2 | 4 | Done |
-| WP-0065 | Input Validation & Sandboxing | EPIC-009 | 2 | 2 | Queued |
+| WP-0065 | Input Validation & Sandboxing | EPIC-009 | 2 | 2 | Done |
 | WP-0066 | Rate Limiting & Cost Controls | EPIC-009 | 2 | 4 | Queued |
 | WP-0067 | Audit Logging & Docs | EPIC-009 | 2 | 3 | Queued |
 | **V1 Feature WPs** | | | | | |
@@ -609,7 +616,7 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 
 **Phase 1: Security Hardening (Required First)**
 1. WP-0064: Authentication & TLS (foundational)
-2. WP-0065: Input Validation (attack prevention)
+2. WP-0065: Input Validation (attack prevention) — Done
 3. WP-0066: Rate Limiting & Cost Controls (abuse prevention)
 4. WP-0067: Audit Logging & Docs (monitoring)
 
