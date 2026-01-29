@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from vibeforge_api.middleware.rate_limiter import RateLimiterMiddleware
 from vibeforge_api.routers import agent_bridge, control
 
 app = FastAPI(
@@ -28,6 +29,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting for dispatch endpoints
+app.add_middleware(RateLimiterMiddleware)
 
 # Include routers
 app.include_router(control.router)

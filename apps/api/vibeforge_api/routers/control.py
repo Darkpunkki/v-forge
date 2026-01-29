@@ -166,7 +166,11 @@ async def create_session():
 async def get_control_context():
     """Get or create a stable control context session id."""
     session_id = await _get_control_context_session_id()
-    return {"control_session_id": session_id}
+    from vibeforge_api.core.cost_tracker import get_cost_tracker
+
+    tracker = get_cost_tracker()
+    cost_status = tracker.get_status(session_id)
+    return {"control_session_id": session_id, **cost_status}
 
 
 @router.post("/agents/register", response_model=AgentDetailResponse)
@@ -250,6 +254,20 @@ async def dispatch_agent_task(agent_id: str, request: DispatchTaskRequest):
 
     message_id = str(uuid.uuid4())
     session_id = await _get_control_context_session_id()
+
+    from vibeforge_api.core.cost_tracker import get_cost_tracker
+
+    tracker = get_cost_tracker()
+    allowed, status = tracker.is_within_limits(session_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                "Cost limit exceeded. "
+                f"Session: ${status['session_cost_usd']:.2f} / ${status['session_limit_usd']:.2f}, "
+                f"Daily: ${status['daily_cost_usd']:.2f} / ${status['daily_limit_usd']:.2f}"
+            ),
+        )
 
     try:
         await manager.dispatch_task(

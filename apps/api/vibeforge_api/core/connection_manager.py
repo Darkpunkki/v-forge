@@ -506,6 +506,31 @@ class RemoteAgentConnectionManager:
                 }
             )
 
+            from vibeforge_api.core.cost_tracker import get_cost_tracker
+
+            tracker = get_cost_tracker()
+            cost_result = tracker.record_usage(dispatch.session_id, usage or {})
+            if cost_result.get("session_warning") or cost_result.get("daily_warning"):
+                from vibeforge_api.core.event_log import Event, EventLog, EventType
+                from vibeforge_api.core.workspace import WorkspaceManager
+
+                workspace_manager = WorkspaceManager()
+                event_log = EventLog(workspace_manager.workspace_root)
+                event_log.append(
+                    Event(
+                        event_type=EventType.COST_TRACKING,
+                        timestamp=datetime.now(timezone.utc),
+                        session_id=dispatch.session_id,
+                        message="Cost limit warning",
+                        metadata={
+                            "agent_id": agent_id,
+                            "message_id": message_id,
+                            "session_total": cost_result.get("session_total"),
+                            "daily_total": cost_result.get("daily_total"),
+                        },
+                    )
+                )
+
     async def handle_heartbeat(self, agent_id: str) -> None:
         """Handle a heartbeat message from an agent.
 

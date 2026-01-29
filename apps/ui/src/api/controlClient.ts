@@ -11,6 +11,14 @@ const CONTROL_TOKEN = import.meta.env.VITE_CONTROL_TOKEN || ''
 
 export interface ControlContextResponse {
   control_session_id: string
+  session_cost_usd?: number
+  session_limit_usd?: number
+  session_remaining_usd?: number | null
+  daily_cost_usd?: number
+  daily_limit_usd?: number
+  daily_remaining_usd?: number | null
+  session_warning?: boolean
+  daily_warning?: boolean
 }
 
 export interface SessionEvent {

@@ -424,7 +424,10 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 
 ## WP-0066 — Rate Limiting & Cost Controls
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-30 01:34 (local)
+- **Completed:** 2026-01-30 01:42 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Release:** V1
 - **Epic:** EPIC-009
@@ -440,6 +443,11 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
   - `cd apps/api && python -m pytest tests/test_cost_limits.py -v`
   - Manual: Send 11 dispatches in 1 minute → 11th returns 429
   - Manual: Exceed daily cost limit → dispatch blocked with 402
+- **Verified:**
+  - `cd apps/api && python -m pytest tests/test_rate_limiting.py -v` — passed
+  - `cd apps/api && python -m pytest tests/test_cost_limits.py -v` — passed
+  - Manual checks covered by automated tests
+- **Commits:** none
 
 ### Done means
 - Rate limiter middleware active on dispatch endpoints
@@ -604,7 +612,7 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 | **V1 Security WPs (Priority)** | | | | | |
 | WP-0064 | Authentication & TLS Foundation | EPIC-009 | 2 | 4 | Done |
 | WP-0065 | Input Validation & Sandboxing | EPIC-009 | 2 | 2 | Done |
-| WP-0066 | Rate Limiting & Cost Controls | EPIC-009 | 2 | 4 | Queued |
+| WP-0066 | Rate Limiting & Cost Controls | EPIC-009 | 2 | 4 | Done |
 | WP-0067 | Audit Logging & Docs | EPIC-009 | 2 | 3 | Queued |
 | **V1 Feature WPs** | | | | | |
 | WP-0062 | Delegation Chain Dispatch | EPIC-007 | 2 | 6 | Queued |
@@ -617,7 +625,7 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 **Phase 1: Security Hardening (Required First)**
 1. WP-0064: Authentication & TLS (foundational)
 2. WP-0065: Input Validation (attack prevention) — Done
-3. WP-0066: Rate Limiting & Cost Controls (abuse prevention)
+3. WP-0066: Rate Limiting & Cost Controls (abuse prevention) — Done
 4. WP-0067: Audit Logging & Docs (monitoring)
 
 **Phase 2: V1 Features (After Security Complete)**
