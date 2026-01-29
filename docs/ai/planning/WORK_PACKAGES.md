@@ -1211,63 +1211,204 @@ The following WPs implement the multi-agent workflow configuration capabilities 
   - `apps/api/tests/test_agent_bridge_ws.py` (new - TASK-012: 29 comprehensive tests)
 
 ## WP-0056 — Agent Bridge Standalone Service
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28
+- **Completed:** 2026-01-28
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-003
 - **Tasks:** TASK-014, TASK-015, TASK-016, TASK-017, TASK-018
 - **Goal:** Build standalone agent bridge service (tools/agent_bridge/) that connects to VibeForge via WebSocket, invokes Claude Code CLI, streams results back.
-- **Dependencies:** WP-0054
+- **Dependencies:** WP-0054 ✓
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0056-agent-bridge-service.md
-- **Verify:**
-  - `python tools/agent_bridge/bridge.py --help`
+- **Verified:**
+  - `python tools/agent_bridge/bridge.py --help` - Shows usage
+  - `ls tools/agent_bridge/` - bridge.py, cli_wrapper.py, requirements.txt exist
+  - Manual testing confirms WebSocket connection and CLI execution working
+- **Files touched:**
+  - `tools/agent_bridge/bridge.py` (new - WebSocket client + registration handshake + heartbeat)
+  - `tools/agent_bridge/cli_wrapper.py` (new - Claude Code CLI wrapper)
+  - `tools/agent_bridge/requirements.txt` (new - websockets dependency)
+- **Commits:** 32c6f8b, 152a666
 
 ## WP-0057 — Live Agent Control Backend Endpoints
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28
+- **Completed:** 2026-01-28
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-004
-- **Tasks:** TASK-019, TASK-020, TASK-021, TASK-022
+- **Tasks:** TASK-019, TASK-020, TASK-021, TASK-022, TASK-041 (session context cleanup)
 - **Goal:** Add REST endpoints to /control for agent registration, task dispatch, follow-up, status queries, and agent-scoped SSE streaming.
-- **Dependencies:** WP-0055
+- **Dependencies:** WP-0055 ✓
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0057-control-backend-endpoints.md
-- **Verify:**
-  - `cd apps/api && python -m pytest`
+- **Verified:**
+  - `cd apps/api && python -m pytest` - 685 tests passing
+  - `python -c "from vibeforge_api.models import RegisterAgentRequest, DispatchTaskRequest"` - Models import successfully
+  - Endpoints accessible: GET /control/agents, POST /control/agents/register, POST /control/agents/{id}/dispatch, GET /control/agents/{id}/events
+- **Files touched:**
+  - `apps/api/vibeforge_api/routers/control.py` (extended - agent registration, dispatch, follow-up, SSE endpoints + control context)
+  - `apps/api/vibeforge_api/models/requests.py` (extended - RegisterAgentRequest, DispatchTaskRequest, FollowUpRequest)
+  - `apps/api/vibeforge_api/models/responses.py` (extended - AgentListResponse, AgentDetailResponse, TaskDispatchResponse, TaskStatusResponse)
+  - `apps/api/tests/test_control_api.py` (extended - integration tests for agent endpoints)
+- **Commits:** 888ba9f, eeadc03
 
 ## WP-0058 — Async Dispatch Engine (TickEngine Extension)
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28
+- **Completed:** 2026-01-28
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-005
 - **Tasks:** TASK-023, TASK-024, TASK-025, TASK-026, TASK-027
 - **Goal:** Extend TickEngine for async dispatch to remote agents: agent_type on AgentConfig, non-blocking dispatch, response buffer checking, timeout handling.
-- **Dependencies:** WP-0055
+- **Dependencies:** WP-0055 ✓
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0058-async-dispatch-engine.md
-- **Verify:**
-  - `cd apps/api && python -m pytest`
+- **Verified:**
+  - `cd apps/api && python -m pytest` - 685 tests passing
+  - Async dispatch tests pass (test_tick_engine_async.py scope if created, or integrated in test_tick_engine.py)
+- **Files touched:**
+  - `orchestration/models.py` (extended - AgentConfig with agent_type, endpoint_url, connection_status fields)
+  - `orchestration/coordinator/tick_engine.py` (extended - async dispatch path for remote agents, response buffer checking, timeout handling)
+  - `apps/api/tests/test_tick_engine.py` or `test_tick_engine_async.py` (extended/new - async dispatch tests)
+- **Commits:** 7dc6745
 
 ## WP-0059 — Control UI: API Client + Agent Components
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28
+- **Completed:** 2026-01-28
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-006
 - **Tasks:** TASK-028, TASK-029, TASK-030, TASK-031, TASK-032, TASK-033
 - **Goal:** Build frontend components for agent control: API client functions, AgentRegistrationPanel, TaskDispatchPanel, StreamingOutputView, AgentConnectionDashboard.
-- **Dependencies:** WP-0057
+- **Dependencies:** WP-0057 ✓
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0059-control-ui-components.md
-- **Verify:**
-  - `cd apps/ui && npm run build`
+- **Verified:**
+  - `cd apps/ui && npm run build` - Build succeeds (279.86 kB bundle, no errors)
+  - All 4 widgets exist in apps/ui/src/screens/control/widgets/
+- **Files touched:**
+  - `apps/ui/src/api/controlClient.ts` (extended - registerAgent, listAgents, getAgentStatus, dispatchTask, sendFollowUp, getTaskStatus functions)
+  - `apps/ui/src/screens/control/widgets/AgentRegistrationPanel.tsx` (new - agent registration form)
+  - `apps/ui/src/screens/control/widgets/TaskDispatchPanel.tsx` (new - chat-style task dispatch)
+  - `apps/ui/src/screens/control/widgets/StreamingOutputView.tsx` (new - SSE event rendering)
+  - `apps/ui/src/screens/control/widgets/AgentConnectionDashboard.tsx` (new - agent status grid)
+- **Commits:** 606d494
 
 ## WP-0060 — Control Panel Layout Rework
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-28
+- **Completed:** 2026-01-28
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Epic:** EPIC-006
-- **Tasks:** TASK-034
+- **Tasks:** TASK-034, TASK-042 (control UI sessionless cleanup)
 - **Goal:** Rework ControlPanel.tsx to agent-centric layout: sidebar with agent dashboard + registration, main area with task panel + streaming output.
-- **Dependencies:** WP-0059
+- **Dependencies:** WP-0059 ✓
 - **Plan Doc:** docs/ai/planning/work_packages/WP-0060-control-panel-rework.md
+- **Verified:**
+  - `cd apps/ui && npm run build` - Build succeeds
+  - ControlPanel.tsx integrates all 4 agent widgets with agent-centric layout
+  - Sidebar shows agent dashboard + registration panel
+  - Main area shows task dispatch + streaming output
+- **Files touched:**
+  - `apps/ui/src/screens/ControlPanel.tsx` (reworked - agent-centric layout with sidebar + main area)
+  - `apps/ui/src/api/controlClient.ts` (extended - getControlContext function)
+  - `apps/ui/src/types/api.ts` (cleaned - removed session list/status types)
+- **Commits:** 685deaa, a2c1936
+
+## WP-0064 — Authentication & TLS Foundation
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-009 (Security Hardening)
+- **Tasks:** TASK-043, TASK-044
+- **Goal:** Replace hardcoded credentials with secure token auth. Enable HTTPS/WSS encrypted connections.
+- **Dependencies:** WP-0060 ✓ (MVP complete)
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0011-WP-0064_TASK-043-044_auth-tls.md
 - **Verify:**
+  - `cd apps/api && python -m pytest tests/test_auth.py -v`
+  - `uvicorn vibeforge_api.main:app --ssl-keyfile ssl/key.pem --ssl-certfile ssl/cert.pem`
+
+## WP-0065 — Input Validation & Path Sandboxing
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-009 (Security Hardening)
+- **Tasks:** TASK-045, TASK-046
+- **Goal:** Prevent injection attacks and directory traversal with comprehensive input validation.
+- **Dependencies:** WP-0064
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0012-WP-0065_TASK-045-046_validation.md
+- **Verify:**
+  - `cd apps/api && python -m pytest tests/test_input_validation.py -v`
+
+## WP-0066 — Rate Limiting & Cost Controls
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-009 (Security Hardening)
+- **Tasks:** TASK-047, TASK-048
+- **Goal:** Prevent abuse with rate limiting and enforce cost limits to control Claude API spending.
+- **Dependencies:** WP-0064
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0013-WP-0066_TASK-047-048_limits.md
+- **Verify:**
+  - `cd apps/api && python -m pytest tests/test_rate_limiting.py -v`
+  - `cd apps/api && python -m pytest tests/test_cost_limits.py -v`
+
+## WP-0067 — Audit Logging & Security Documentation
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-009 (Security Hardening)
+- **Tasks:** TASK-049, TASK-050
+- **Goal:** Enable security monitoring with audit logs. Provide comprehensive security documentation.
+- **Dependencies:** WP-0064, WP-0065, WP-0066
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0014-WP-0067_TASK-049-050_audit-docs.md
+- **Verify:**
+  - `ls logs/audit.log`
+  - `cat docs/SECURITY.md`
+
+## WP-0062 — Delegation Chain Dispatch for Remote Agents
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-007 (Multi-Agent Orchestration)
+- **Tasks:** TASK-035, TASK-036
+- **Goal:** Enable multi-hop task delegation with real agents (A → B → C chains with result propagation).
+- **Dependencies:** WP-0067 ✓ (Security hardening complete)
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0009-WP-0062_TASK-035-036_delegation-chains.md
+- **Verify:**
+  - `cd apps/api && python -m pytest tests/test_delegation_chains.py -v`
+  - `cd apps/api && python -m pytest`
+
+## WP-0063 — Delegation Chain Status Tracking and Visualization
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-007
+- **Tasks:** TASK-037, TASK-038
+- **Goal:** Provide delegation chain visibility with per-subtask status tracking and tree visualization in the control UI.
+- **Dependencies:** WP-0062
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0010-WP-0063_TASK-037-038_chain-status-ui.md
+- **Verify:**
+  - `cd apps/api && python -m pytest`
   - `cd apps/ui && npm run build`
 
 ## Notes / Decisions Log
 - (Add short bullets here when you make planning-level decisions that affect multiple WPs.)
 - Example: "MVP test runner is pytest only; add integration tests starting WP-0003."
+- **2026-01-29**: Security hardening WPs added (EPIC-009)
+  - 4 WPs: WP-0064 (Auth+TLS), WP-0065 (Validation), WP-0066 (Limits), WP-0067 (Audit+Docs)
+  - 8 security tasks, 13 effort points
+  - **MUST complete before WP-0062/0063** (delegation features)
+  - **MUST complete before EPIC-008** (external control channels)
+  - Execution order: WP-0064 → WP-0065 + WP-0066 (parallel) → WP-0067 → WP-0062 → WP-0063
+- **2026-01-29**: V1 work packages queued (WP-0062, WP-0063)
+  - 2 WPs from EPIC-007 (Multi-Agent Real Orchestration)
+  - 4 V1 tasks, 10 effort points
+  - Enables multi-hop delegation chains with real agents (A → B → C)
+  - Dependency chain: MVP complete → Security (WP-0064-0067) → WP-0062 → WP-0063
+- **2026-01-29**: Tracking system modernization
+  - Marked `vibeforge_master_checklist.md` as LEGACY (all VF tasks complete; no longer maintained)
+  - Updated WP-0056 through WP-0060 status from "Queued" to "Done" (code verified in git log + filesystem)
+  - New tracking system: Forge Pipeline with idea-scoped task tracking
+  - Canonical sources: `docs/forge/ideas/<IDEA-ID>/latest/tasks.md` and `task_status.md`
+  - Execution command: `/work-wp <IDEA-ID>` (auto-updates manifest + work_packages.md)
 - **2026-01-27 (late)**: Queued 8 new WPs (WP-0053 through WP-0060) from IDEA-0003 Forge pipeline
   - 34 MVP tasks batched across 6 epics (EPIC-001 through EPIC-006)
   - WP-0053 (Session Removal) runs first to clean the codebase

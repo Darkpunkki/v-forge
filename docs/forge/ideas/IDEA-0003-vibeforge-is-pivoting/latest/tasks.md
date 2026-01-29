@@ -778,6 +778,210 @@ tasks:
     reuse_notes: "Keep simulation createSession API for /simulation. Control UI should treat context id as internal."
 
   # ──────────────────────────────────────────────
+  # EPIC-009: Security Hardening (V1-Prerequisite)
+  # ──────────────────────────────────────────────
+
+  - id: "TASK-043"
+    feature_id: "FEAT-023"
+    epic_id: "EPIC-009"
+    title: "Replace hardcoded 'secret' token with secure authentication system"
+    description: "Replace the hardcoded 'secret' token with a proper authentication system. Generate secure random tokens for agent registration. Add token validation middleware to WebSocket and REST endpoints. Store tokens securely (environment variables or config file). Update agent bridge to accept token as parameter."
+    acceptance_criteria:
+      - "Hardcoded 'secret' removed from codebase"
+      - "Secure token generation function (32+ byte random hex)"
+      - "Token validation middleware on /ws/agent-bridge and /control/* endpoints"
+      - "Agent bridge accepts --token parameter and validates on server"
+      - "Invalid tokens return 401 Unauthorized"
+      - "Tokens stored in environment variables or secure config"
+      - "Documentation updated with token generation instructions"
+    dependencies: []
+    release_target: "V1"
+    priority: "P0"
+    estimate: "M"
+    tags: ["backend", "security", "authentication"]
+    target_files:
+      - "apps/api/vibeforge_api/core/auth.py — create new (token validation)"
+      - "apps/api/vibeforge_api/routers/agent_bridge.py — extend (add auth middleware)"
+      - "apps/api/vibeforge_api/routers/control.py — extend (add auth middleware)"
+      - "apps/api/vibeforge_api/main.py — extend (configure auth)"
+      - "tools/agent_bridge/bridge.py — verify (already accepts --token)"
+      - "docs/CONTROL_PANEL_GUIDE.md — update (token generation instructions)"
+    reuse_notes: "New auth module. Bridge already accepts --token parameter."
+
+  - id: "TASK-044"
+    feature_id: "FEAT-023"
+    epic_id: "EPIC-009"
+    title: "Add TLS/SSL support with self-signed certificates for testing"
+    description: "Add TLS/SSL support to the API server for encrypted connections (HTTPS/WSS). Generate self-signed certificates for development/testing. Update uvicorn startup to use SSL context. Update agent bridge connection to support wss:// URLs. Add certificate verification options."
+    acceptance_criteria:
+      - "Self-signed certificate generation script added (tools/generate_certs.sh or .ps1)"
+      - "Uvicorn server accepts --ssl-keyfile and --ssl-certfile parameters"
+      - "API accessible via https://localhost:8000"
+      - "WebSocket endpoint accessible via wss://localhost:8000/ws/agent-bridge"
+      - "Agent bridge connects successfully to wss:// URLs"
+      - "Certificate verification can be disabled for self-signed certs (--insecure flag)"
+      - "Documentation updated with TLS setup instructions"
+    dependencies: []
+    release_target: "V1"
+    priority: "P0"
+    estimate: "M"
+    tags: ["backend", "security", "tls", "infrastructure"]
+    target_files:
+      - "tools/generate_certs.sh — create new (or .ps1 for Windows)"
+      - "apps/api/vibeforge_api/main.py — extend (SSL context configuration)"
+      - "tools/agent_bridge/bridge.py — extend (WSS support + cert verification options)"
+      - "docs/CONTROL_PANEL_GUIDE.md — update (TLS setup section)"
+    reuse_notes: "Use Python ssl module. WebSocket library (websockets) supports WSS natively."
+
+  - id: "TASK-045"
+    feature_id: "FEAT-024"
+    epic_id: "EPIC-009"
+    title: "Implement path sandboxing in agent bridge"
+    description: "Add path validation in agent bridge to prevent directory traversal attacks. Ensure all file operations stay within the configured --workdir. Reject paths containing '..' or absolute paths outside workdir. Log and reject suspicious path access attempts."
+    acceptance_criteria:
+      - "Path validation function checks all file operations"
+      - "Directory traversal attempts blocked (e.g., ../../etc/passwd)"
+      - "Absolute paths outside workdir rejected"
+      - "Symlinks outside workdir rejected"
+      - "Suspicious paths logged with warning level"
+      - "Agent returns error response for rejected paths"
+      - "Unit tests cover traversal attack scenarios"
+    dependencies: []
+    release_target: "V1"
+    priority: "P1"
+    estimate: "S"
+    tags: ["backend", "security", "validation"]
+    target_files:
+      - "tools/agent_bridge/cli_wrapper.py — extend (add path validation)"
+      - "tools/agent_bridge/tests/test_path_validation.py — create new"
+    reuse_notes: "Use os.path.realpath() and os.path.commonpath() for validation."
+
+  - id: "TASK-046"
+    feature_id: "FEAT-024"
+    epic_id: "EPIC-009"
+    title: "Add input validation and sanitization for task dispatch"
+    description: "Add validation and sanitization for task content in dispatch endpoints. Limit task content length (e.g., 10,000 chars). Sanitize special characters that could cause command injection. Add validation for agent_id format (alphanumeric + hyphens only). Rate limit excessively long or complex inputs."
+    acceptance_criteria:
+      - "Task content length limited to 10,000 characters"
+      - "Special characters sanitized or validated (no shell metacharacters in agent_id)"
+      - "agent_id format validated (alphanumeric + hyphens, max 64 chars)"
+      - "Validation errors return 400 Bad Request with clear messages"
+      - "Sanitization does not break legitimate use cases"
+      - "Unit tests cover injection attempt scenarios"
+    dependencies: []
+    release_target: "V1"
+    priority: "P1"
+    estimate: "S"
+    tags: ["backend", "security", "validation"]
+    target_files:
+      - "apps/api/vibeforge_api/models/requests.py — extend (add validators to DispatchTaskRequest)"
+      - "apps/api/vibeforge_api/routers/control.py — extend (input validation)"
+      - "apps/api/tests/test_input_validation.py — create new"
+    reuse_notes: "Use Pydantic validators (field_validator, model_validator)."
+
+  - id: "TASK-047"
+    feature_id: "FEAT-025"
+    epic_id: "EPIC-009"
+    title: "Implement rate limiting for dispatch endpoints"
+    description: "Add rate limiting to prevent abuse of dispatch endpoints. Limit dispatches per agent to 10 per minute. Limit total dispatches per IP to 50 per minute. Return 429 Too Many Requests when limits exceeded. Add configurable rate limits via environment variables."
+    acceptance_criteria:
+      - "Rate limit middleware on POST /control/agents/{agent_id}/dispatch"
+      - "Per-agent limit: 10 dispatches/minute"
+      - "Per-IP limit: 50 dispatches/minute (for multi-agent scenarios)"
+      - "429 status code returned when limit exceeded"
+      - "Rate limits configurable via environment variables"
+      - "Rate limit headers included in responses (X-RateLimit-*)"
+      - "Integration tests verify rate limiting behavior"
+    dependencies: []
+    release_target: "V1"
+    priority: "P1"
+    estimate: "M"
+    tags: ["backend", "security", "rate-limiting"]
+    target_files:
+      - "apps/api/vibeforge_api/middleware/rate_limiter.py — create new"
+      - "apps/api/vibeforge_api/main.py — extend (add rate limit middleware)"
+      - "apps/api/tests/test_rate_limiting.py — create new"
+    reuse_notes: "Use slowapi library (FastAPI-compatible) or custom sliding window implementation."
+
+  - id: "TASK-048"
+    feature_id: "FEAT-025"
+    epic_id: "EPIC-009"
+    title: "Add cost tracking and limits per session/user"
+    description: "Track Claude API costs per control session. Add configurable cost limits (daily/session). Warn when approaching limits (e.g., 80% of daily limit). Block dispatches when limit exceeded. Add cost limit configuration via environment variables or config file."
+    acceptance_criteria:
+      - "Cost tracking per control session (sum of all agent costs)"
+      - "Daily cost limit configurable (default: $10)"
+      - "Session cost limit configurable (default: $5)"
+      - "Warning event emitted at 80% of limit"
+      - "Dispatch blocked with 402 Payment Required when limit exceeded"
+      - "Cost limit status visible in control context API"
+      - "Limits reset daily at midnight UTC"
+    dependencies: []
+    release_target: "V1"
+    priority: "P1"
+    estimate: "M"
+    tags: ["backend", "cost-control"]
+    target_files:
+      - "apps/api/vibeforge_api/core/cost_tracker.py — create new"
+      - "apps/api/vibeforge_api/routers/control.py — extend (check limits before dispatch)"
+      - "apps/api/vibeforge_api/models/responses.py — extend (add cost limit fields to context)"
+      - "apps/api/tests/test_cost_limits.py — create new"
+    reuse_notes: "Integrate with existing event log cost tracking. Use scheduled job for daily reset."
+
+  - id: "TASK-049"
+    feature_id: "FEAT-026"
+    epic_id: "EPIC-009"
+    title: "Add audit logging for security events"
+    description: "Add structured audit logging for security-relevant events: authentication attempts (success/failure), agent registrations/disconnections, task dispatches, cost limit violations, path validation failures. Log to dedicated audit.log file with rotation. Include timestamp, event type, agent_id, IP address, result."
+    acceptance_criteria:
+      - "Audit logger configured with dedicated log file (logs/audit.log)"
+      - "Authentication events logged (token validation success/failure)"
+      - "Agent lifecycle events logged (register, disconnect, timeout)"
+      - "Task dispatch events logged (agent_id, task preview, cost)"
+      - "Security violations logged (path traversal, rate limit exceeded, cost limit)"
+      - "Log rotation enabled (max 100MB, keep 10 files)"
+      - "Structured format (JSON lines) for easy parsing"
+      - "Log level configurable via environment variable"
+    dependencies: []
+    release_target: "V1"
+    priority: "P1"
+    estimate: "S"
+    tags: ["backend", "security", "logging"]
+    target_files:
+      - "apps/api/vibeforge_api/core/audit_logger.py — create new"
+      - "apps/api/vibeforge_api/routers/agent_bridge.py — extend (log auth + lifecycle events)"
+      - "apps/api/vibeforge_api/routers/control.py — extend (log dispatch events)"
+      - "apps/api/vibeforge_api/middleware/rate_limiter.py — extend (log violations)"
+      - "tools/agent_bridge/cli_wrapper.py — extend (log path validation failures)"
+    reuse_notes: "Use Python's logging.handlers.RotatingFileHandler. JSON format via logging.Formatter."
+
+  - id: "TASK-050"
+    feature_id: "FEAT-026"
+    epic_id: "EPIC-009"
+    title: "Add security documentation and best practices guide"
+    description: "Create comprehensive security documentation covering: token generation, TLS setup, firewall configuration, workdir isolation, cost limits, rate limits, audit log monitoring. Include security checklist for production deployments. Add threat model documentation."
+    acceptance_criteria:
+      - "docs/SECURITY.md created with comprehensive security guide"
+      - "Token generation instructions (how to create secure tokens)"
+      - "TLS/WSS setup guide (self-signed for dev, Let's Encrypt for prod)"
+      - "Firewall configuration examples (Windows + Linux)"
+      - "Workdir isolation best practices"
+      - "Cost and rate limit configuration examples"
+      - "Audit log monitoring recommendations"
+      - "Production deployment security checklist"
+      - "Threat model documented (what attacks are mitigated)"
+    dependencies: ["TASK-043", "TASK-044", "TASK-045", "TASK-046", "TASK-047", "TASK-048", "TASK-049"]
+    release_target: "V1"
+    priority: "P1"
+    estimate: "M"
+    tags: ["documentation", "security"]
+    target_files:
+      - "docs/SECURITY.md — create new"
+      - "docs/CONTROL_PANEL_GUIDE.md — extend (add security section reference)"
+      - "README.md — extend (add security notice)"
+    reuse_notes: "Aggregate all security features into one guide."
+
+  # ──────────────────────────────────────────────
   # EPIC-007: Multi-Agent Real Orchestration (V1)
   # ──────────────────────────────────────────────
 

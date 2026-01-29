@@ -1,7 +1,16 @@
 # VibeForge Master Checklist
 
+**⚠️ LEGACY DOCUMENT — For Historical Reference Only**
 
+This checklist is **no longer maintained** as of 2026-01-29. All VF tasks are complete.
 
+**New tracking system:** The project now uses the **Forge Pipeline** with idea-scoped task tracking:
+- Task definitions: `docs/forge/ideas/<IDEA-ID>/latest/tasks.md`
+- Work packages: `docs/forge/ideas/<IDEA-ID>/latest/work_packages.md`
+- Quick status: `docs/forge/ideas/<IDEA-ID>/task_status.md`
+- Execution: Use `/work-wp <IDEA-ID>` command
+
+---
 
 ## Project Status: Post-MVP Phase (Control & Observability)
 

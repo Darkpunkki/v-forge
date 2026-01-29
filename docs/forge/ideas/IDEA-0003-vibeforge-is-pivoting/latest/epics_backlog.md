@@ -155,6 +155,38 @@ epics:
     priority: "P0"
     tags: ["frontend", "ux"]
 
+  - id: "EPIC-009"
+    title: "Security Hardening"
+    outcome: "VibeForge is production-ready with authentication, encryption, input validation, rate limiting, cost controls, and audit logging."
+    description: "Harden security before exposing VibeForge to untrusted networks or deploying for external control (WhatsApp/cloud). Replace hardcoded credentials with secure token auth. Add TLS/SSL support for encrypted connections (WSS/HTTPS). Implement path sandboxing to prevent directory traversal. Add input validation to prevent injection attacks. Implement rate limiting and cost controls to prevent abuse. Add comprehensive audit logging for security monitoring."
+    in_scope:
+      - "Secure token-based authentication (replace hardcoded 'secret')"
+      - "TLS/SSL support for encrypted connections (WSS + HTTPS)"
+      - "Path sandboxing in agent bridge (prevent directory traversal)"
+      - "Input validation and sanitization (prevent injection attacks)"
+      - "Rate limiting on dispatch endpoints"
+      - "Cost tracking and limits per session"
+      - "Audit logging for security events"
+      - "Security documentation and best practices guide"
+    out_of_scope:
+      - "Multi-user authentication or role-based access control (RBAC)"
+      - "OAuth or SSO integration"
+      - "Database encryption"
+      - "Advanced threat detection or intrusion prevention"
+    key_artifacts:
+      - "Authentication middleware with token validation"
+      - "TLS certificate generation scripts"
+      - "Path validation module"
+      - "Rate limiter middleware"
+      - "Cost tracker with limits"
+      - "Audit logger with structured output"
+      - "docs/SECURITY.md comprehensive guide"
+    dependencies:
+      - "EPIC-006"
+    release_target: "V1"
+    priority: "P0"
+    tags: ["backend", "security", "infrastructure"]
+
   - id: "EPIC-007"
     title: "Multi-Agent Real Orchestration"
     outcome: "Real agents can participate in delegation chains (orchestrator → worker → reviewer) with tasks flowing through the configured agent graph."

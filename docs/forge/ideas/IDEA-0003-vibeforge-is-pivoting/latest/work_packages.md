@@ -337,10 +337,251 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
                                └── WP-0056 (Bridge Service)  └── WP-0058 (Async Dispatch)
 ```
 
+---
+
+# Work Packages — IDEA-0003 (V1 scope)
+
+> MVP WPs (WP-0053 through WP-0060) are complete.
+> V1 WPs batched by priority: Security first (EPIC-009), then features (EPIC-007).
+
+---
+
+# Security Hardening (EPIC-009) — Must Complete Before V1 Features
+
+## WP-0064 — Authentication & TLS Foundation
+
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-009
+- **Tasks:**
+  - TASK-043 — Replace hardcoded 'secret' token with secure authentication
+  - TASK-044 — Add TLS/SSL support with self-signed certificates
+- **Effort:** 2M = 4 points
+- **Goal:** Establish foundational security with real authentication and encrypted connections. Replace hardcoded credentials with secure token validation. Enable HTTPS/WSS for encrypted communication between UI, API, and agents.
+- **Dependencies:** MVP complete (WP-0060)
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0011-WP-0064_TASK-043-044_auth-tls.md
+- **Verify:**
+  - `cd apps/api && python -m pytest tests/test_auth.py -v`
+  - `cd apps/api && python -m pytest`
+  - `python tools/generate_certs.ps1`
+  - `uvicorn vibeforge_api.main:app --ssl-keyfile ssl/key.pem --ssl-certfile ssl/cert.pem`
+  - `python tools/agent_bridge/bridge.py --url wss://localhost:8000/ws/agent-bridge --token <generated> --workdir . --insecure`
+
+### Done means
+- Hardcoded 'secret' removed; secure tokens generated and validated
+- Token validation middleware on WebSocket + REST endpoints
+- Self-signed certs generated via script
+- API accepts HTTPS connections (port 8000)
+- WebSocket accepts WSS connections
+- Agent bridge connects via wss://
+- Invalid tokens return 401 Unauthorized
+- Documentation updated with setup instructions
+- All tests pass
+
+---
+
+## WP-0065 — Input Validation & Path Sandboxing
+
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-009
+- **Tasks:**
+  - TASK-045 — Implement path sandboxing in agent bridge
+  - TASK-046 — Add input validation and sanitization for task dispatch
+- **Effort:** 2S = 2 points
+- **Goal:** Prevent injection attacks and directory traversal. Validate all file paths stay within workdir. Sanitize task content and agent IDs to prevent command injection.
+- **Dependencies:** WP-0064 (security foundation)
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0012-WP-0065_TASK-045-046_validation.md
+- **Verify:**
+  - `cd apps/api && python -m pytest tests/test_input_validation.py -v`
+  - `cd tools/agent_bridge && python -m pytest tests/test_path_validation.py -v`
+  - Manual: Try directory traversal (../../etc/passwd) → rejected
+  - Manual: Try long task content (>10,000 chars) → 400 error
+
+### Done means
+- Path validation blocks directory traversal attempts
+- Symlinks outside workdir rejected
+- Task content length limited to 10,000 chars
+- agent_id format validated (alphanumeric + hyphens only)
+- Special characters sanitized
+- Validation errors return clear 400 responses
+- Security violations logged
+- All tests pass
+
+---
+
+## WP-0066 — Rate Limiting & Cost Controls
+
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-009
+- **Tasks:**
+  - TASK-047 — Implement rate limiting for dispatch endpoints
+  - TASK-048 — Add cost tracking and limits per session
+- **Effort:** 2M = 4 points
+- **Goal:** Prevent abuse and runaway costs. Limit dispatch frequency per agent and per IP. Track Claude API costs per session and enforce daily/session limits.
+- **Dependencies:** WP-0064 (auth for user tracking)
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0013-WP-0066_TASK-047-048_limits.md
+- **Verify:**
+  - `cd apps/api && python -m pytest tests/test_rate_limiting.py -v`
+  - `cd apps/api && python -m pytest tests/test_cost_limits.py -v`
+  - Manual: Send 11 dispatches in 1 minute → 11th returns 429
+  - Manual: Exceed daily cost limit → dispatch blocked with 402
+
+### Done means
+- Rate limiter middleware active on dispatch endpoints
+- Per-agent limit: 10 dispatches/minute
+- Per-IP limit: 50 dispatches/minute
+- 429 Too Many Requests when limit exceeded
+- X-RateLimit-* headers in responses
+- Cost tracked per control session
+- Daily cost limit: $10 (configurable)
+- Session cost limit: $5 (configurable)
+- Warning at 80% of limit
+- Dispatch blocked with 402 when limit exceeded
+- Cost status in /control/context API
+- All tests pass
+
+---
+
+## WP-0067 — Audit Logging & Security Documentation
+
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-009
+- **Tasks:**
+  - TASK-049 — Add audit logging for security events
+  - TASK-050 — Add security documentation and best practices guide
+- **Effort:** 1S + 1M = 3 points
+- **Goal:** Enable security monitoring and provide production deployment guidance. Log all security-relevant events for incident response. Document complete security setup for production use.
+- **Dependencies:** WP-0064, WP-0065, WP-0066 (all security features)
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0014-WP-0067_TASK-049-050_audit-docs.md
+- **Verify:**
+  - `ls logs/audit.log` → exists
+  - `cat logs/audit.log | jq` → valid JSON lines
+  - `cat docs/SECURITY.md` → comprehensive security guide exists
+  - Manual: Trigger auth failure → logged
+  - Manual: Trigger rate limit → logged
+
+### Done means
+- Audit logger configured with logs/audit.log
+- Log rotation enabled (100MB max, keep 10)
+- Structured JSON format (timestamp, event, agent_id, IP, result)
+- Auth events logged (success/failure)
+- Agent lifecycle logged (register/disconnect/timeout)
+- Dispatch events logged (agent_id, task preview, cost)
+- Security violations logged (path traversal, rate limits, cost limits)
+- docs/SECURITY.md created with:
+  - Token generation guide
+  - TLS setup (dev + production)
+  - Firewall configuration
+  - Workdir isolation best practices
+  - Cost/rate limit config
+  - Audit log monitoring
+  - Production deployment checklist
+  - Threat model
+- CONTROL_PANEL_GUIDE.md links to SECURITY.md
+- README.md includes security notice
+
+---
+
+# V1 Features (EPIC-007) — Requires Security Hardening First
+
+## WP-0062 — Delegation Chain Dispatch for Remote Agents
+
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-007
+- **Tasks:**
+  - TASK-035 — Implement delegation chain dispatch for remote agents
+  - TASK-036 — Add tests for delegation chain dispatch with remote agents
+- **Effort:** 1L + 1M = 6 points
+- **Goal:** Enable multi-hop task delegation with real agents. When a remote agent's response includes a delegation request, route the delegated subtask to the next agent in the flow graph. Support agent A → agent B → agent C chains with results flowing back up the delegation chain.
+- **Dependencies:** MVP complete (WP-0058 provides async dispatch foundation)
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0009-WP-0062_TASK-035-036_delegation-chains.md
+- **Verify:**
+  - `cd apps/api && python -m pytest tests/test_delegation_chains.py -v`
+  - `cd apps/api && python -m pytest`
+
+### Ordered steps
+1. Implement delegation chain dispatch for remote agents (TASK-035)
+   - Extend dispatch system to detect delegation flag in agent responses
+   - Route delegated subtasks through flow graph edges
+   - Track delegation chains (parent task → subtask relationships)
+   - Emit TASK_DISPATCHED events for each delegation hop
+   - Support multi-hop delegation (A → B → C)
+   - Flow results back up the chain
+2. Add comprehensive tests for delegation chains (TASK-036)
+   - Single-hop delegation tests (A delegates to B)
+   - Multi-hop delegation tests (A → B → C)
+   - Result propagation tests
+   - Graph validation enforcement tests
+
+### Done means
+- Remote agent responses with delegation=true trigger subtask routing
+- Delegated tasks route through configured flow graph edges
+- Multi-hop chains work end-to-end (A → B → C → back to A)
+- Results propagate up the chain correctly
+- Graph-gated routing still enforced (invalid edges rejected)
+- All delegation chain tests pass
+- `pytest` passes (no regressions)
+
+---
+
+## WP-0063 — Delegation Chain Status Tracking and Visualization
+
+- **Status:** Queued
+- **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
+- **Release:** V1
+- **Epic:** EPIC-007
+- **Tasks:**
+  - TASK-037 — Add per-subtask status tracking and chain-level aggregation
+  - TASK-038 — Add chain status visualization to control UI
+- **Effort:** 2M = 4 points
+- **Goal:** Provide visibility into delegation chains with per-subtask status tracking and tree/graph visualization in the control UI. Enable users to monitor multi-agent orchestration flows in real time.
+- **Dependencies:** WP-0062 (needs delegation chain implementation)
+- **Plan Doc:** docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/planning/WPP-0010-WP-0063_TASK-037-038_chain-status-ui.md
+- **Verify:**
+  - `cd apps/api && python -m pytest`
+  - `cd apps/ui && npm run build`
+  - Manual: Dispatch task → delegate → observe chain status in UI
+
+### Ordered steps
+1. Add per-subtask status tracking + API endpoint (TASK-037)
+   - Extend session model or TickEngine to track individual subtask statuses
+   - Aggregate chain-level status (pending/in-progress/completed/failed)
+   - Add GET /control/agents/{agent_id}/chain-status endpoint
+   - Return chain tree with statuses
+   - Update status when subtask responses arrive
+2. Build chain status visualization UI component (TASK-038)
+   - Create ChainStatusView.tsx widget
+   - Display delegation chain as tree view
+   - Show agent name, subtask summary, status badge per node
+   - Real-time updates via polling or SSE
+   - Integrate into ControlPanel main area
+
+### Done means
+- Each subtask in a delegation chain has individual status
+- Chain-level status aggregates from subtask statuses
+- GET /control/agents/{agent_id}/chain-status returns chain tree
+- ChainStatusView renders delegation chains as tree
+- Status badges show per-node state (pending/running/complete/failed)
+- Real-time updates work (SSE or polling)
+- Component integrated into ControlPanel layout
+- `pytest` passes, `npm run build` succeeds
+
+---
+
 ## Summary
 
 | WP | Title | Epic | Tasks | Points | Status |
 |----|-------|------|-------|--------|--------|
+| **MVP WPs (Complete)** | | | | | |
 | WP-0053 | Legacy Session Removal | EPIC-001 | 4 | 4 | Done |
 | WP-0054 | Bridge Protocol Models + Events | EPIC-002 | 4 | 4 | Done |
 | WP-0055 | WebSocket Endpoint + Connection Manager | EPIC-002 | 5 | 7 | Done |
@@ -349,5 +590,28 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 | WP-0058 | Async Dispatch Engine | EPIC-005 | 5 | 8 | Done |
 | WP-0059 | Control UI: API Client + Components | EPIC-006 | 6 | 7 | Done |
 | WP-0060 | Control Panel Layout Rework | EPIC-006 | 1 | 2 | Done |
-| WP-0061 | Sessionless Control Context Cleanup | EPIC-004/EPIC-006 | 2 | 2 | Done |
-| **Total** | | | **36** | **50** | |
+| **MVP Total** | | | **36** | **50** | **✅ Done** |
+| **V1 Security WPs (Priority)** | | | | | |
+| WP-0064 | Authentication & TLS Foundation | EPIC-009 | 2 | 4 | Queued |
+| WP-0065 | Input Validation & Sandboxing | EPIC-009 | 2 | 2 | Queued |
+| WP-0066 | Rate Limiting & Cost Controls | EPIC-009 | 2 | 4 | Queued |
+| WP-0067 | Audit Logging & Docs | EPIC-009 | 2 | 3 | Queued |
+| **V1 Feature WPs** | | | | | |
+| WP-0062 | Delegation Chain Dispatch | EPIC-007 | 2 | 6 | Queued |
+| WP-0063 | Chain Status Tracking + UI | EPIC-007 | 2 | 4 | Queued |
+| **V1 Total** | | | **12** | **23** | **⏳ Queued** |
+| **Grand Total** | | | **48** | **73** | |
+
+### Recommended Execution Order
+
+**Phase 1: Security Hardening (Required First)**
+1. WP-0064: Authentication & TLS (foundational)
+2. WP-0065: Input Validation (attack prevention)
+3. WP-0066: Rate Limiting & Cost Controls (abuse prevention)
+4. WP-0067: Audit Logging & Docs (monitoring)
+
+**Phase 2: V1 Features (After Security Complete)**
+5. WP-0062: Delegation Chain Dispatch
+6. WP-0063: Chain Status Tracking + UI
+
+**Rationale:** Security must be in place before enabling delegation chains (which increase attack surface) and before deploying for external access.
