@@ -1,83 +1,145 @@
 # VibeForge
 
-**An AI-powered application factory** that generates working apps from structured questionnaires (no free-text input). Cloud-first foundation with a post-MVP focus on observability, simulation, and local LLM readiness.
+**Control real Claude Code agents from a single web interface.** Dispatch tasks, monitor execution, and manage multiple agents running across different machines or projects.
 
 This is a **private solo project** - this README is optimized for quick context switching between machines.
 
 ---
 
-## 📍 Current Stage (Post-MVP)
+## 📍 Current Status
 
-- **Session orchestration is live**: phase-guarded questionnaire → plan → execution pipeline with result gating.
-- **Control panel exists**: operators can monitor sessions, view events, and configure agent workflows.
-- **Simulation mode is scaffolded**: tick engine + API endpoints exist, but the execution loop is not yet wired.
-- **Control simulation concept approved**: IDEA-0001-control-simulation has an approved concept summary for planning.
-- **Local LLM seam is ready**: router + provider stubs support future local inference.
+**MVP Complete + Security Hardening Complete (V1)**
+
+- ✅ **Control Panel** (`/control`) - Manage multiple Claude Code agents from a web UI
+- ✅ **Agent Bridge Service** - Connects remote agents to the control plane via WebSocket
+- ✅ **Multi-machine Support** - Control agents on laptop, PC, or remote machines over LAN
+- ✅ **Authentication** - Token-based auth with secure validation
+- ✅ **TLS/WSS** - Encrypted connections with self-signed certs for development
+- ✅ **Rate Limiting** - Per-agent and per-IP dispatch limits (configurable)
+- ✅ **Cost Tracking** - Session and daily cost limits with warnings
+- ✅ **Audit Logging** - Structured JSON logs for all security events
+- ✅ **Input Validation** - Path sandboxing and content sanitization
+- 🔄 **Simulation Mode** (`/simulation`) - Browser-based workflow sandbox (legacy, still functional)
+
+**Next:** V1 features (delegation chains, chain status tracking)
 
 ---
 
-## 🚀 Quick Start (New Machine Setup)
+## 🚀 Quick Start
 
 ### Prerequisites
 - **Python 3.11+**
 - **Node.js 18+**
+- **Claude Code CLI** (for agent bridge)
 - **Git**
 
-### 1. Clone & Setup API
-```bash
+### 1. Clone & Setup
+
+```powershell
+# Clone repository
 git clone https://github.com/Darkpunkki/v-forge.git
-cd v-forge/apps/api
+cd v-forge
+
+# Generate authentication token
+. .\set-token.ps1 -Generate
+# Save the displayed token - you'll need it for all machines!
+```
+
+### 2. Setup API Server
+
+```powershell
+cd apps\api
 
 # Create virtual environment
 python -m venv .venv
-
-# Activate (Windows)
 .venv\Scripts\activate
-
-# Activate (Linux/Mac)
-source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Create .env file and add OPENAI_API_KEY
-# (Or use stub mode with VIBEFORGE_LLM_MODE=stub)
-echo OPENAI_API_KEY=your_key_here > .env
+# Set token (from step 1)
+. ..\..\set-token.ps1
+
+# Run tests
+python -m pytest
+
+# Start API server
+uvicorn vibeforge_api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 2. Run Tests
-```bash
-# From apps/api with venv activated
-pytest -v
+### 3. Setup UI
 
-# Run specific test files
-pytest tests/test_sessions.py -v
-pytest tests/test_workspace.py tests/test_patch.py tests/test_artifacts.py -v
-```
+```powershell
+cd apps\ui
 
-### 3. Start API Server
-```bash
-# From apps/api with venv activated
-uvicorn vibeforge_api.main:app --reload --port 8000
-
-# API docs available at: http://localhost:8000/docs
-# Health check: http://localhost:8000/health
-```
-
-### 4. Start the UI (optional)
-```bash
-cd ../ui
+# Install dependencies
 npm install
+
+# Set token (from step 1)
+. ..\..\set-token.ps1
+
+# Start UI dev server
 npm run dev
+# UI available at: http://localhost:5173
 ```
 
-> The UI defaults to `http://localhost:8000` unless `VITE_API_BASE` is set.
+### 4. Start an Agent
+
+**On the same machine (or any machine with network access):**
+
+```powershell
+cd v-forge
+
+# Set token (use same token from step 1)
+. .\set-token.ps1
+
+# Verify Claude Code CLI is installed
+claude --version
+
+# Start agent bridge
+python tools/agent_bridge/bridge.py `
+  --url ws://localhost:8000/ws/agent-bridge `
+  --agent-id my-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\your\project `
+  --heartbeat 15
+```
+
+### 5. Use the Control Panel
+
+1. Open `http://localhost:5173/control` in your browser
+2. You'll see `my-agent` in the left sidebar (status: **connected**)
+3. Click the agent to select it
+4. Type a task: `"List all files in the current directory"`
+5. Click **Send** and watch the response stream in
+
+**You're now controlling a Claude Code agent from the web!** 🎉
 
 ---
 
 ## 🔒 Security
 
 Before exposing VibeForge beyond a trusted LAN, read `docs/SECURITY.md` for auth tokens, TLS/WSS setup, rate limits, cost limits, and audit logging.
+
+**Quick security setup:**
+```powershell
+# Generate TLS certificates (self-signed for dev)
+powershell -File tools/generate_certs.ps1
+
+# Start API with HTTPS
+uvicorn vibeforge_api.main:app `
+  --ssl-keyfile ssl/key.pem `
+  --ssl-certfile ssl/cert.pem `
+  --host 0.0.0.0
+
+# Connect agent with WSS (encrypted)
+python tools/agent_bridge/bridge.py `
+  --url wss://localhost:8000/ws/agent-bridge `
+  --agent-id my-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\project `
+  --insecure
+```
 
 ---
 
@@ -86,168 +148,342 @@ Before exposing VibeForge beyond a trusted LAN, read `docs/SECURITY.md` for auth
 ```
 v-forge/
 ├── apps/
-│   ├── api/                    # FastAPI backend
+│   ├── api/                           # FastAPI backend
 │   │   ├── vibeforge_api/
-│   │   │   ├── core/          # Business logic
-│   │   │   ├── models/        # Pydantic models
-│   │   │   ├── routers/       # API endpoints (sessions + control)
-│   │   │   └── main.py        # FastAPI app
-│   │   ├── tests/             # Unit tests
+│   │   │   ├── core/                 # Business logic (auth, connection manager, cost tracker, audit logger)
+│   │   │   ├── middleware/           # Rate limiter middleware
+│   │   │   ├── models/               # Pydantic models (protocols, requests, responses)
+│   │   │   ├── routers/              # API endpoints (control, agent_bridge)
+│   │   │   └── main.py               # FastAPI app
+│   │   ├── tests/                    # Unit tests
 │   │   └── requirements.txt
-│   └── ui/                     # React+Vite UI (session + control panel)
-├── configs/                    # Stack presets, policies
-├── docs/ai/                    # AI-assisted dev documentation
-├── orchestration/              # Orchestrator + coordinator logic
-├── models/                     # Model router + provider implementations
-├── schemas/                    # JSON schemas (BuildSpec, TaskGraph, etc.)
-├── vibeforge_master_checklist.md  # Canonical backlog
-├── CLAUDE.md                   # AI DevKit rules
-└── README.md                   # This file
+│   └── ui/                            # React+Vite UI
+│       ├── src/
+│       │   ├── pages/Control.tsx     # Main control panel
+│       │   ├── pages/Simulation.tsx  # Simulation sandbox (legacy)
+│       │   └── api/controlClient.ts  # API client
+│       └── package.json
+├── tools/
+│   ├── agent_bridge/                  # Agent bridge service
+│   │   ├── bridge.py                 # WebSocket client + Claude CLI wrapper
+│   │   ├── cli_wrapper.py            # Claude Code CLI invocation with path sandboxing
+│   │   └── tests/                    # Bridge tests
+│   ├── generate_certs.ps1            # TLS certificate generation
+│   └── set-token.ps1                 # Token management script
+├── docs/
+│   ├── CONTROL_PANEL_GUIDE.md        # Comprehensive usage guide
+│   ├── SECURITY.md                   # Security setup and best practices
+│   └── forge/                        # Forge pipeline (idea → tasks → WPs)
+├── logs/
+│   └── audit.log                     # Security event audit log (JSON lines)
+├── CLAUDE.md                          # AI DevKit rules
+└── README.md                          # This file
 ```
 
 ---
 
-## ✅ Progress by Epic (Post-MVP snapshot)
+## ✅ What's Implemented (MVP + V1 Security)
 
-### Session orchestration & phase enforcement (WP-0001, WP-0006)
-- Phase-aware session flow: questionnaire → plan review → execution → result.
-- Clarification flow for gated execution questions.
+### Control Panel Features
+- ✅ **Agent Management** - Register, connect, monitor multiple agents
+- ✅ **Task Dispatch** - Send tasks to agents via web UI or API
+- ✅ **Real-time Streaming** - Server-Sent Events (SSE) for live updates
+- ✅ **Follow-up Messages** - Send additional instructions to active tasks
+- ✅ **Cost Tracking** - Monitor API usage and spending per session/daily
+- ✅ **Connection Dashboard** - See all agents, their status, workdirs, and heartbeats
 
-### Workspace, artifacts, and verification (WP-0002, WP-0003, WP-0004)
-- Workspace isolation per session.
-- Artifact logging and event stream storage.
-- Safety gates and verification harness in the backend core.
+### Agent Bridge Service
+- ✅ **WebSocket Protocol** - Full-duplex communication with API server
+- ✅ **Auto-registration** - Agents self-register when connecting
+- ✅ **Heartbeat Monitoring** - Detects stale connections and auto-reconnects
+- ✅ **Claude Code Integration** - Wraps `claude` CLI for task execution
+- ✅ **Path Sandboxing** - Prevents directory traversal and escapes
+- ✅ **Progress Streaming** - Reports task progress to control plane
 
-### Orchestration & agent framework (WP-0006, VF-100+)
-- LLM orchestration for concept/task graph generation.
-- Agent execution via Direct LLM adapter.
-- Deterministic stub LLM for safe/no-spend runs.
+### Security Features
+- ✅ **Authentication** - Token-based auth (VIBEFORGE_AUTH_TOKEN)
+- ✅ **TLS/WSS** - Encrypted connections with self-signed or CA certs
+- ✅ **Rate Limiting** - 10 dispatches/min per agent, 50/min per IP (configurable)
+- ✅ **Cost Limits** - $5 session / $10 daily defaults (configurable)
+- ✅ **Input Validation** - Agent ID format, content length, special character sanitization
+- ✅ **Audit Logging** - All security events logged to `logs/audit.log` (JSON format)
+- ✅ **Path Validation** - Directory traversal prevention in agent bridge
 
-### Control panel observability (VF-190+)
-- Admin endpoints for session listing, SSE events, and LLM trace inspection.
-- Workflow configuration for agents, roles/models, flow graph, and main task.
-
-### Control-mode simulation scaffolding (VF-190+)
-- Tick engine + simulation API endpoints exist but are not yet connected.
-- UI lacks tick controls and agent message views.
-- Concept summary approved for /control simulation (IDEA-0001-control-simulation).
-
-### UI shell & routing (WP-0007)
-- Session screens for questionnaire, plan review, progress, clarification, and result.
-- Control panel screen for monitoring and workflow configuration.
+### Multi-Machine Support
+- ✅ **LAN Deployment** - Run API on one machine, agents on others
+- ✅ **Firewall Configuration** - Port 8000 exposure for remote access
+- ✅ **Token Sharing** - Same token across all machines for authentication
+- ✅ **Remote Workdirs** - Each agent works in its own project directory
 
 ---
 
 ## 🏗️ Architecture Overview
 
-**Core Components:**
-1. **UI** (React+Vite): Questionnaire flow + control panel
-2. **Local API** (FastAPI): Session orchestration, phase management, control endpoints
-3. **Session Coordinator**: Drives questionnaire → build spec → concept → plan → execution flow
-4. **Workspace Manager**: Creates isolated workspaces per session
-5. **Patch Applier**: Safely applies diffs with path validation
-6. **Model Layer**: Provider-agnostic (OpenAI now, local later)
-7. **Agent Framework**: Pluggable (direct calls MVP, graph-based frameworks later)
-8. **Verification + Gates**: Build/test/safety checks per task
+### Components
 
-**Key Design Principles:**
-- No free-text user input (multiple choice only)
-- Session phases prevent illegal transitions
-- Path traversal protection on all file operations
-- Workspace isolation per session
-- Provider-agnostic model interface for future local LLM support
-- Gate pipeline validates all operations before execution
-- Allowlisted command execution with timeout protection
-
----
-
-## 🔑 Environment Variables
-
-Create `apps/api/.env`:
 ```
-OPENAI_API_KEY=sk-...
-# Optional:
-# VIBEFORGE_LLM_MODE=stub
-# VIBEFORGE_NO_SPEND=true
+┌─────────────────────────────────────┐
+│  Browser (Control Panel)            │
+│  http://localhost:5173/control      │
+└────────────┬────────────────────────┘
+             │ REST API + SSE
+             ▼
+┌─────────────────────────────────────┐
+│  VibeForge API Server (FastAPI)     │
+│  - Authentication middleware        │
+│  - Rate limiting middleware         │
+│  - Control endpoints                │
+│  - Agent bridge WebSocket endpoint  │
+│  - Cost tracking + audit logging    │
+└────────────┬────────────────────────┘
+             │ WebSocket (ws:// or wss://)
+             ▼
+┌─────────────────────────────────────┐
+│  Agent Bridge Service (Python)      │
+│  - WebSocket client                 │
+│  - Claude Code CLI wrapper          │
+│  - Path sandboxing                  │
+│  - Progress reporting               │
+└────────────┬────────────────────────┘
+             │ subprocess
+             ▼
+┌─────────────────────────────────────┐
+│  Claude Code CLI                    │
+│  - Runs in agent workdir            │
+│  - Executes tasks                   │
+│  - Returns results                  │
+└─────────────────────────────────────┘
 ```
+
+### Key Design Principles
+- **Real agent control** - Orchestrates actual Claude Code instances, not simulations
+- **Multi-machine by design** - API and agents can run on different machines
+- **Security-first** - Auth, rate limits, cost controls, audit logs all included
+- **WebSocket-based** - Full-duplex communication for real-time updates
+- **Provider-agnostic** - Works with any Claude Code CLI setup
+- **Workdir isolation** - Each agent operates in its own sandboxed directory
+- **Graceful degradation** - Agents auto-reconnect, cost warnings before hard limits
 
 ---
 
 ## 🔧 Common Commands
 
-### Testing
-```bash
-# All tests
-cd apps/api && pytest
+### Token Management
+```powershell
+# Generate new token (first time)
+. .\set-token.ps1 -Generate
 
-# With coverage
-pytest --cov=vibeforge_api --cov-report=html
+# Load saved token (subsequent sessions)
+. .\set-token.ps1
 
-# Specific module
-pytest tests/test_sessions.py -v
+# Set token from another machine
+. .\set-token.ps1 -Token "paste-token-here"
 
-# Watch mode (requires pytest-watch)
-ptw
+# Verify token is set
+echo $env:VIBEFORGE_AUTH_TOKEN
 ```
 
 ### Development
-```bash
-# Start API with auto-reload
+```powershell
+# Run all tests
 cd apps/api
-uvicorn vibeforge_api.main:app --reload
+python -m pytest
 
-# Check API docs
-# http://localhost:8000/docs
+# Run specific test suites
+python -m pytest tests/test_auth.py -v
+python -m pytest tests/test_rate_limiting.py -v
+python -m pytest tests/test_cost_limits.py -v
+python -m pytest tests/test_input_validation.py -v
 
-# Format code (if black/ruff installed)
-black vibeforge_api/
-ruff check vibeforge_api/
+# Start API with auto-reload
+uvicorn vibeforge_api.main:app --reload --host 0.0.0.0
+
+# Start API with TLS
+uvicorn vibeforge_api.main:app `
+  --ssl-keyfile ssl/key.pem `
+  --ssl-certfile ssl/cert.pem `
+  --host 0.0.0.0
+
+# Build UI
+cd apps/ui
+npm run build
 ```
 
-### Git Workflow
+### Agent Bridge
+```powershell
+# Start local agent
+python tools/agent_bridge/bridge.py `
+  --url ws://localhost:8000/ws/agent-bridge `
+  --agent-id my-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\project `
+  --heartbeat 15
+
+# Start remote agent (connect to PC's API)
+python tools/agent_bridge/bridge.py `
+  --url ws://192.168.1.100:8000/ws/agent-bridge `
+  --agent-id laptop-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\project `
+  --heartbeat 15
+
+# Start agent with TLS
+python tools/agent_bridge/bridge.py `
+  --url wss://192.168.1.100:8000/ws/agent-bridge `
+  --agent-id my-agent `
+  --token $env:VIBEFORGE_AUTH_TOKEN `
+  --workdir C:\path\to\project `
+  --heartbeat 15 `
+  --insecure
+```
+
+### Monitoring
+```powershell
+# Check API health
+curl http://localhost:8000/health
+
+# List connected agents
+curl http://localhost:8000/control/agents `
+  -H "Authorization: Bearer $env:VIBEFORGE_AUTH_TOKEN"
+
+# View audit logs
+Get-Content logs/audit.log | ConvertFrom-Json
+
+# Tail audit logs (real-time)
+Get-Content logs/audit.log -Wait -Tail 10
+
+# Count auth failures
+Get-Content logs/audit.log | ConvertFrom-Json | Where-Object { $_.event -eq 'auth_failure' } | Measure-Object
+```
+
+---
+
+## 🔑 Environment Variables
+
+### Authentication
 ```bash
-# Check what's completed
-grep -E "^- \[x\]" vibeforge_master_checklist.md
+VIBEFORGE_AUTH_TOKEN=<your-token>           # Single token
+VIBEFORGE_AUTH_TOKENS=token1,token2         # Multiple tokens (comma-separated)
+VIBEFORGE_AUTH_TOKEN_FILE=path/to/tokens    # Load tokens from file
+```
 
-# Check next tasks
-grep -E "^- \[ \]" vibeforge_master_checklist.md | head -10
+### Rate Limiting
+```bash
+VIBEFORGE_RATE_LIMIT_AGENT_PER_MIN=10       # Per-agent limit (default: 10)
+VIBEFORGE_RATE_LIMIT_IP_PER_MIN=50          # Per-IP limit (default: 50)
+```
 
-# Current work package
-cat docs/ai/planning/WORK_PACKAGES.md | grep -A 10 "Status: Queued" | head -15
+### Cost Tracking
+```bash
+VIBEFORGE_DAILY_COST_LIMIT_USD=10           # Daily limit (default: 10)
+VIBEFORGE_SESSION_COST_LIMIT_USD=5          # Session limit (default: 5)
+VIBEFORGE_COST_WARNING_THRESHOLD=0.8        # Warning at 80% (default: 0.8)
+VIBEFORGE_COST_PER_1K_TOKENS_USD=0          # Token-based cost (default: 0 = disabled)
+```
+
+### Audit Logging
+```bash
+VIBEFORGE_AUDIT_LOG_PATH=logs/audit.log     # Log file path
+VIBEFORGE_AUDIT_LOG_LEVEL=INFO              # Log level
+VIBEFORGE_AUDIT_LOG_MAX_BYTES=104857600     # Max size (default: 100MB)
+VIBEFORGE_AUDIT_LOG_BACKUP_COUNT=10         # Backup count (default: 10)
 ```
 
 ---
 
 ## 📋 Development Workflow
 
-This project uses **Work Packages (WPs)** for structured development. The post-MVP focus is on:
-- Wiring simulation tick execution into the control endpoints
-- Hardening orchestration and verification flows
-- Preparing local model provider integrations
+This project uses the **Forge Pipeline** for structured development:
 
-For detailed planning, see `docs/ai/planning/WORK_PACKAGES.md` and `vibeforge_master_checklist.md`.
+1. **Ideas** → Normalized concept summaries
+2. **Concepts** → Epics with invariants and scope targets
+3. **Epics** → Features with acceptance criteria
+4. **Features** → Tasks with implementation details
+5. **Tasks** → Work Packages (WPs) for execution
+
+**Current tracking:**
+- Main backlog: `docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/latest/tasks.md`
+- Work packages: `docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/latest/work_packages.md`
+- Quick status: `docs/forge/ideas/IDEA-0003-vibeforge-is-pivoting/task_status.md`
+
+**Progress:**
+- ✅ MVP: 8 WPs, 36 tasks complete (100%)
+- ✅ V1 Security: 4 WPs, 8 tasks complete (100%)
+- ⏳ V1 Features: 2 WPs, 4 tasks queued (delegation chains)
 
 ---
 
-## 💡 Quick Reference
+## 📚 Documentation
 
-### Check API is working
-```bash
-curl http://localhost:8000/health
-# Should return: {"status":"ok","service":"vibeforge-api"}
-```
+- **[CONTROL_PANEL_GUIDE.md](docs/CONTROL_PANEL_GUIDE.md)** - Comprehensive usage guide
+  - Quick start, multi-machine setup, troubleshooting
+  - PC + Laptop setup scenarios
+  - Making agents persistent
+  - API reference
 
-### Create a test session
-```bash
-curl -X POST http://localhost:8000/sessions
-# Returns: {"session_id":"...","phase":"QUESTIONNAIRE"}
-```
+- **[SECURITY.md](docs/SECURITY.md)** - Security setup and best practices
+  - Authentication tokens
+  - TLS/WSS configuration
+  - Firewall rules
+  - Rate and cost limits
+  - Audit logging
+  - Production deployment checklist
+  - Threat model
+
+---
+
+## 💡 Use Cases
+
+### Single Machine Development
+Run the API, UI, and agent on one machine. Control your local Claude Code instance from a web interface.
+
+### Multi-Project Management
+Run multiple agents, each in a different project directory. Switch between them in the UI.
+
+### Laptop + PC Workflow
+Run the API on your always-on PC, control agents from your laptop's browser, dispatch work to either machine.
+
+### Team Collaboration
+Run API server on a shared machine, team members run agents on their own machines for their own projects.
+
+---
+
+## 🚧 What's Not Implemented (Yet)
+
+### V1 Features (Queued)
+- ⏳ **Delegation Chains** - Agent A delegates to Agent B, who delegates to Agent C
+- ⏳ **Chain Status UI** - Visualize multi-hop delegation chains with status per subtask
+
+### Later Scope
+- 📋 **WhatsApp/Telegram Control** - Control agents from messaging apps
+- 📋 **Cloud Deployment** - Docker + managed hosting setup
+- 📋 **Local LLM Support** - Run agents with local models (Ollama, etc.)
+
+
 
 ---
 
 ## 📝 Notes
 
-- **Workspaces**: Generated session workspaces are gitignored (`workspaces/`).
-- **Python version**: Tested on Python 3.12, should work on 3.11+.
-- **UI**: Session flow + control panel are wired to the API, but simulation controls are not yet surfaced.
-- **Focus**: Post-MVP hardening, observability, and simulation execution.
+- **Python version**: Tested on Python 3.12, should work on 3.11+
+- **Claude Code CLI**: Must be installed and configured (`claude --version`)
+- **Audit logs**: Located at `logs/audit.log` (JSON lines format)
+- **SSL certificates**: Self-signed certs in `ssl/` directory (gitignored)
+- **Token file**: `.vibeforge-token` stores your auth token locally (gitignored)
+- **Test coverage**: 695 tests, covering auth, rate limiting, cost tracking, validation, control, simulation
+
+---
+
+## 🤝 Contributing (Solo Project)
+
+This is a private solo project, but the structure follows these principles:
+- Work packages drive implementation
+- All security features have tests
+- Documentation stays up-to-date with code
+- Changes are tracked via Forge pipeline (IDEA → EPIC → TASK → WP)
+
+---
+
+## 📄 License
+
+Private project - All rights reserved.
