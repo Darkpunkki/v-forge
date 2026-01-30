@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
+from vibeforge_api.core.audit_logger import log_audit_event
 from vibeforge_api.core.auth import require_auth, validate_auth_token
 from vibeforge_api.core.connection_manager import get_connection_manager
 from vibeforge_api.core.event_log import Event, EventLog, EventType
@@ -94,11 +95,24 @@ async def agent_bridge_websocket(websocket: WebSocket):
 
         is_valid, reason = validate_auth_token(msg.auth_token)
         if not is_valid:
+            log_audit_event(
+                "auth_failure",
+                result=reason,
+                agent_id=msg.agent_id,
+                ip=websocket.client.host if websocket.client else None,
+                metadata={"path": "/ws/agent-bridge"},
+            )
             await websocket.close(
                 code=4005,
                 reason=f"Authentication failed: {reason}",
             )
             return
+        log_audit_event(
+            "auth_success",
+            agent_id=msg.agent_id,
+            ip=websocket.client.host if websocket.client else None,
+            metadata={"path": "/ws/agent-bridge"},
+        )
 
         # Register the agent
         agent_id = msg.agent_id
@@ -122,6 +136,13 @@ async def agent_bridge_websocket(websocket: WebSocket):
                 "capabilities": msg.capabilities,
                 "workdir": msg.workdir,
             },
+        )
+        log_audit_event(
+            "agent_connected",
+            agent_id=agent_id,
+            ip=websocket.client.host if websocket.client else None,
+            session_id=session_id,
+            metadata={"workdir": msg.workdir},
         )
 
         # Send RegisteredMessage back
@@ -222,6 +243,12 @@ async def agent_bridge_websocket(websocket: WebSocket):
                 )
 
             await connection_manager.unregister_agent(agent_id)
+            log_audit_event(
+                "agent_disconnected",
+                agent_id=agent_id,
+                ip=websocket.client.host if websocket.client else None,
+                session_id=session_id,
+            )
 
 
 @router.get("/agent-bridge/status", dependencies=[Depends(require_auth)])

@@ -467,7 +467,10 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 
 ## WP-0067 — Audit Logging & Security Documentation
 
-- **Status:** Queued
+- **Status:** Done
+- **Started:** 2026-01-30 01:57 (local)
+- **Completed:** 2026-01-30 02:02 (local)
+- **Branch:** master
 - **Idea-ID:** IDEA-0003-vibeforge-is-pivoting
 - **Release:** V1
 - **Epic:** EPIC-009
@@ -484,6 +487,11 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
   - `cat docs/SECURITY.md` → comprehensive security guide exists
   - Manual: Trigger auth failure → logged
   - Manual: Trigger rate limit → logged
+- **Verified:**
+  - `python -c "import sys; sys.path.append('apps/api'); from vibeforge_api.core.audit_logger import log_audit_event; log_audit_event('manual_audit_test')"` — log entry appended
+  - `Get-Content logs/audit.log | ConvertFrom-Json` — parsed JSON lines
+  - `Get-Content docs/SECURITY.md` — created
+- **Commits:** none
 
 ### Done means
 - Audit logger configured with logs/audit.log
@@ -613,7 +621,7 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 | WP-0064 | Authentication & TLS Foundation | EPIC-009 | 2 | 4 | Done |
 | WP-0065 | Input Validation & Sandboxing | EPIC-009 | 2 | 2 | Done |
 | WP-0066 | Rate Limiting & Cost Controls | EPIC-009 | 2 | 4 | Done |
-| WP-0067 | Audit Logging & Docs | EPIC-009 | 2 | 3 | Queued |
+| WP-0067 | Audit Logging & Docs | EPIC-009 | 2 | 3 | Done |
 | **V1 Feature WPs** | | | | | |
 | WP-0062 | Delegation Chain Dispatch | EPIC-007 | 2 | 6 | Queued |
 | WP-0063 | Chain Status Tracking + UI | EPIC-007 | 2 | 4 | Queued |
@@ -626,7 +634,7 @@ WP-0054 (Protocol + Events) ──┬── WP-0055 (WS + ConnMgr) ──┬─�
 1. WP-0064: Authentication & TLS (foundational)
 2. WP-0065: Input Validation (attack prevention) — Done
 3. WP-0066: Rate Limiting & Cost Controls (abuse prevention) — Done
-4. WP-0067: Audit Logging & Docs (monitoring)
+4. WP-0067: Audit Logging & Docs (monitoring) — Done
 
 **Phase 2: V1 Features (After Security Complete)**
 5. WP-0062: Delegation Chain Dispatch

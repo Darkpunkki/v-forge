@@ -149,13 +149,13 @@
 ## Work Packages
 
 - last_updated: 2026-01-30
-- last_run_id: 2026-01-30 (WP-0066 completion)
+- last_run_id: 2026-01-30 (WP-0067 completion)
 - scope_filter: MVP + V1
 - total_wps: 12
 - global_wp_range: WP-0053 - WP-0067
-- total_tasks_queued: 50 (MVP: 36 Done, V1 Security: 6 Done + 2 Queued, V1 Features: 4 Queued)
+- total_tasks_queued: 50 (MVP: 36 Done, V1 Security: 8 Done + 0 Queued, V1 Features: 4 Queued)
 - total_effort_points: 73 (MVP: 50, V1: 23)
-- wp_completion_status: 11/12 (92% - MVP complete, WP-0064 + WP-0065 + WP-0066 complete, 1 security + 2 feature WPs queued)
+- wp_completion_status: 12/12 (100% - MVP complete, V1 security complete, V1 feature WPs queued)
 - latest_outputs:
   - latest/work_packages.md
 - notes:
@@ -166,7 +166,7 @@
     - WP-0055+WP-0056 ran in parallel; WP-0057+WP-0058 ran in parallel
     - WP-0060 (Layout Rework) was final WP in dependency chain
     - TASK-041 and TASK-042 integrated into WP-0057 and WP-0060 (control context cleanup)
-  - **V1 Security (4 WPs, 8 tasks, 13 points): 3/4 COMPLETE (2026-01-30)**
+  - **V1 Security (4 WPs, 8 tasks, 13 points): 4/4 COMPLETE (2026-01-30)**
     - WP-0064: Authentication & TLS (TASK-043, TASK-044) - DONE (2026-01-30)
       - Implemented token-based authentication with VIBEFORGE_AUTH_TOKEN
       - Added TLS/SSL support with self-signed certificates for development
@@ -177,7 +177,10 @@
     - WP-0066: Rate Limiting & Cost Controls (TASK-047, TASK-048) - DONE (2026-01-30)
       - Rate limiter middleware for dispatch endpoints (per-agent + per-IP limits)
       - Cost tracking with daily/session limits and blocking on exceed
-    - WP-0067: Audit Logging & Docs (TASK-049, TASK-050) - Queued
+    - WP-0067: Audit Logging & Docs (TASK-049, TASK-050) - DONE (2026-01-30)
+      - Audit log rotation and structured JSON events
+      - SECURITY.md with production hardening guidance
+    - WP-0067: Audit Logging & Docs (TASK-049, TASK-050) - In Progress (2026-01-30)
   - **V1 Features (2 WPs, 4 tasks, 10 points): QUEUED (2026-01-29)**
     - WP-0062: Delegation Chain Dispatch (TASK-035, TASK-036) - 6 points
     - WP-0063: Chain Status Tracking + UI (TASK-037, TASK-038) - 4 points

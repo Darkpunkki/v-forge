@@ -75,6 +75,12 @@ npm run dev
 
 ---
 
+## 🔒 Security
+
+Before exposing VibeForge beyond a trusted LAN, read `docs/SECURITY.md` for auth tokens, TLS/WSS setup, rate limits, cost limits, and audit logging.
+
+---
+
 ## 📁 Project Structure
 
 ```

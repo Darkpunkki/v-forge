@@ -12,6 +12,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse, Response
 
+from vibeforge_api.core.audit_logger import log_audit_event
 _DISPATCH_PATH = re.compile(r"^/control/agents/([^/]+)/dispatch$")
 
 
@@ -96,6 +97,17 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
         allowed, headers = await self._state.check(agent_id, ip, agent_limit, ip_limit)
         if not allowed:
+            log_audit_event(
+                "rate_limit_exceeded",
+                result="blocked",
+                agent_id=agent_id,
+                ip=ip,
+                metadata={
+                    "agent_limit": agent_limit,
+                    "ip_limit": ip_limit,
+                    "path": request.url.path,
+                },
+            )
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded"},

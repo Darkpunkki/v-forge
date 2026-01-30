@@ -9,13 +9,14 @@ from collections import Counter
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sse_starlette.sse import EventSourceResponse
 import asyncio
 import json
 from datetime import datetime, timezone
 
 # VF-193: Import workflow request/response models
+from vibeforge_api.core.audit_logger import log_audit_event
 from vibeforge_api.models import (
     InitializeAgentsRequest,
     AssignAgentRoleRequest,
@@ -236,7 +237,11 @@ async def get_agent_detail(agent_id: str):
 
 
 @router.post("/agents/{agent_id}/dispatch", response_model=TaskDispatchResponse)
-async def dispatch_agent_task(agent_id: str, request: DispatchTaskRequest):
+async def dispatch_agent_task(
+    agent_id: str,
+    request: DispatchTaskRequest,
+    http_request: Request,
+):
     """Dispatch a task to a connected remote agent."""
     from vibeforge_api.core.connection_manager import get_connection_manager
     from vibeforge_api.core.event_log import EventType
@@ -260,6 +265,19 @@ async def dispatch_agent_task(agent_id: str, request: DispatchTaskRequest):
     tracker = get_cost_tracker()
     allowed, status = tracker.is_within_limits(session_id)
     if not allowed:
+        log_audit_event(
+            "cost_limit_exceeded",
+            result="blocked",
+            agent_id=agent_id,
+            ip=http_request.client.host if http_request.client else None,
+            session_id=session_id,
+            metadata={
+                "session_cost_usd": status.get("session_cost_usd"),
+                "session_limit_usd": status.get("session_limit_usd"),
+                "daily_cost_usd": status.get("daily_cost_usd"),
+                "daily_limit_usd": status.get("daily_limit_usd"),
+            },
+        )
         raise HTTPException(
             status_code=402,
             detail=(
@@ -287,6 +305,16 @@ async def dispatch_agent_task(agent_id: str, request: DispatchTaskRequest):
         agent_id=agent_id,
         metadata={"message_id": message_id},
     )
+    log_audit_event(
+        "task_dispatched",
+        agent_id=agent_id,
+        ip=http_request.client.host if http_request.client else None,
+        session_id=session_id,
+        metadata={
+            "message_id": message_id,
+            "content_preview": content[:100],
+        },
+    )
 
     return TaskDispatchResponse(
         agent_id=agent_id,
@@ -297,7 +325,11 @@ async def dispatch_agent_task(agent_id: str, request: DispatchTaskRequest):
 
 
 @router.post("/agents/{agent_id}/followup", response_model=TaskDispatchResponse)
-async def send_followup(agent_id: str, request: FollowUpRequest):
+async def send_followup(
+    agent_id: str,
+    request: FollowUpRequest,
+    http_request: Request,
+):
     """Send a follow-up message to an agent's active task."""
     from vibeforge_api.core.connection_manager import get_connection_manager
     from vibeforge_api.core.event_log import EventType
@@ -345,6 +377,17 @@ async def send_followup(agent_id: str, request: FollowUpRequest):
         message=f"Sent follow-up to agent {agent_id}",
         agent_id=agent_id,
         metadata={"message_id": message_id, "followup_to": followup_to, "is_followup": True},
+    )
+    log_audit_event(
+        "task_followup",
+        agent_id=agent_id,
+        ip=http_request.client.host if http_request.client else None,
+        session_id=session_id,
+        metadata={
+            "message_id": message_id,
+            "followup_to": followup_to,
+            "content_preview": content[:100],
+        },
     )
 
     return TaskDispatchResponse(

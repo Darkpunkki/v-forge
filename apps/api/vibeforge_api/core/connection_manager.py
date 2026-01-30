@@ -13,6 +13,7 @@ from typing import Any, Callable, Optional
 
 from fastapi import WebSocket
 
+from vibeforge_api.core.audit_logger import log_audit_event
 from vibeforge_api.models.bridge_protocol import (
     DispatchMessage,
     RegisteredMessage,
@@ -510,6 +511,18 @@ class RemoteAgentConnectionManager:
 
             tracker = get_cost_tracker()
             cost_result = tracker.record_usage(dispatch.session_id, usage or {})
+            if cost_result.get("cost_added"):
+                log_audit_event(
+                    "task_cost_recorded",
+                    agent_id=agent_id,
+                    session_id=dispatch.session_id,
+                    metadata={
+                        "message_id": message_id,
+                        "cost_added": cost_result.get("cost_added"),
+                        "session_total": cost_result.get("session_total"),
+                        "daily_total": cost_result.get("daily_total"),
+                    },
+                )
             if cost_result.get("session_warning") or cost_result.get("daily_warning"):
                 from vibeforge_api.core.event_log import Event, EventLog, EventType
                 from vibeforge_api.core.workspace import WorkspaceManager
@@ -608,6 +621,13 @@ class RemoteAgentConnectionManager:
 
                     if self._on_heartbeat_lost:
                         self._on_heartbeat_lost(agent_id)
+
+                    log_audit_event(
+                        "agent_timeout",
+                        agent_id=agent_id,
+                        session_id=conn.session_id if conn else None,
+                        metadata={"reason": "heartbeat_timeout"},
+                    )
 
                     await self.unregister_agent(agent_id, reason="heartbeat_timeout")
 

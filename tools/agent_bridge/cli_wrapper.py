@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import datetime, timezone
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +35,24 @@ class ClaudeInvocationError(RuntimeError):
         self.stderr = stderr
 
 
+def _append_audit_log(event: str, path: str, workdir: str, result: str) -> None:
+    try:
+        log_path = Path("logs") / "audit.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event": event,
+            "result": result,
+            "path": path,
+            "workdir": workdir,
+        }
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload) + "\n")
+    except Exception:
+        # Avoid breaking execution on audit log failures.
+        return
+
+
 def _contains_traversal(path: str) -> bool:
     return ".." in Path(path).parts
 
@@ -42,6 +61,12 @@ def _normalize_workdir(workdir: str) -> Path:
     if not workdir:
         raise ClaudeInvocationError("Workdir is required")
     if _contains_traversal(workdir):
+        _append_audit_log(
+            "path_validation_failed",
+            workdir,
+            workdir,
+            "workdir_traversal",
+        )
         raise ClaudeInvocationError("Workdir path traversal is not allowed")
     return Path(workdir).resolve(strict=False)
 
@@ -55,6 +80,12 @@ def resolve_safe_path(workdir: str, target_path: str) -> Path:
 
     if _contains_traversal(target_path):
         logger.warning("Rejected path with traversal: %s", target_path)
+        _append_audit_log(
+            "path_validation_failed",
+            target_path,
+            workdir,
+            "path_traversal",
+        )
         raise ClaudeInvocationError("Path traversal is not allowed")
 
     base = _normalize_workdir(workdir)
@@ -68,6 +99,12 @@ def resolve_safe_path(workdir: str, target_path: str) -> Path:
     resolved_str = os.path.normcase(str(resolved))
     if os.path.commonpath([resolved_str, base_str]) != base_str:
         logger.warning("Rejected path outside workdir: %s", target_path)
+        _append_audit_log(
+            "path_validation_failed",
+            target_path,
+            workdir,
+            "outside_workdir",
+        )
         raise ClaudeInvocationError("Path is outside configured workdir")
 
     return resolved

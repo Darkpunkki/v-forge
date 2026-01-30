@@ -9,6 +9,7 @@
 - [Overview](#overview)
 - [Important Concepts](#important-concepts)
 - [Prerequisites](#prerequisites)
+- [Security](#security)
 - [Quick Start](#quick-start)
 - [Complete Setup Workflow](#complete-setup-workflow)
 - [Using the Control Panel](#using-the-control-panel)
@@ -81,6 +82,12 @@ The VibeForge Control Panel (`/control`) allows you to:
    claude /config
    ```
 3. **Network access** to the VibeForge server (localhost or remote)
+
+---
+
+## Security
+
+See `docs/SECURITY.md` for token setup, TLS/WSS, firewall guidance, rate limits, cost limits, and audit logging.
 
 ---
 

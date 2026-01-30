@@ -9,6 +9,8 @@ from typing import Iterable
 
 from fastapi import HTTPException, Request
 
+from vibeforge_api.core.audit_logger import log_audit_event
+
 AUTH_TOKEN_ENV = "VIBEFORGE_AUTH_TOKEN"
 AUTH_TOKENS_ENV = "VIBEFORGE_AUTH_TOKENS"
 AUTH_TOKEN_FILE_ENV = "VIBEFORGE_AUTH_TOKEN_FILE"
@@ -109,12 +111,28 @@ def _extract_token_from_request(request: Request) -> str | None:
 
 
 def require_auth(request: Request) -> None:
+    ip = request.client.host if request.client else None
+    path = request.url.path
+    method = request.method
+
     token = _extract_token_from_request(request)
     if not token:
+        log_audit_event(
+            "auth_failure",
+            result="missing_token",
+            ip=ip,
+            metadata={"path": path, "method": method},
+        )
         raise HTTPException(status_code=401, detail="Missing authentication token")
 
     tokens = get_configured_tokens()
     if not tokens:
+        log_audit_event(
+            "auth_failure",
+            result="not_configured",
+            ip=ip,
+            metadata={"path": path, "method": method},
+        )
         raise HTTPException(
             status_code=500,
             detail=(
@@ -124,4 +142,16 @@ def require_auth(request: Request) -> None:
         )
 
     if not _match_token(token, tokens):
+        log_audit_event(
+            "auth_failure",
+            result="invalid_token",
+            ip=ip,
+            metadata={"path": path, "method": method},
+        )
         raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+    log_audit_event(
+        "auth_success",
+        ip=ip,
+        metadata={"path": path, "method": method},
+    )
